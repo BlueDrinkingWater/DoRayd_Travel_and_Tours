@@ -1,4 +1,4 @@
-// ✅ server.js (Render-ready)
+// ✅ server.js (Render-ready, fixed)
 
 import dotenv from 'dotenv';
 dotenv.config();
@@ -89,12 +89,25 @@ const uploadsPath = path.join(__dirname, 'uploads');
 app.use('/uploads', express.static(uploadsPath));
 
 // --- SERVE FRONTEND ---
-const clientBuildPath = path.join(__dirname, '../client/dist');
+// Detect frontend build folder (CRA uses 'build', Vite uses 'dist')
+let clientBuildPath;
+try {
+  clientBuildPath = path.join(__dirname, '../client/dist'); // Vite default
+} catch {
+  clientBuildPath = path.join(__dirname, '../client/build'); // CRA default
+}
+
 app.use(express.static(clientBuildPath));
 
 // For any other request, serve the index.html file
 app.get('*', (req, res) => {
-  res.sendFile(path.join(clientBuildPath, 'index.html'));
+  const indexPath = path.join(clientBuildPath, 'index.html');
+  res.sendFile(indexPath, (err) => {
+    if (err) {
+      console.error('❌ Error serving index.html:', err);
+      res.status(500).send('index.html not found. Did you run npm run build?');
+    }
+  });
 });
 
 // --- SOCKET.IO ---

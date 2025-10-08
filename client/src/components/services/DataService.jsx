@@ -2,7 +2,10 @@ import axios from 'axios';
 
 // Get the base URL for the API from environment variables.
 // Fallback to a relative path for local development.
-const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+// Ensure HTTPS is used for Render backend
+const API_BASE_URL = import.meta.env.VITE_API_URL 
+  ? import.meta.env.VITE_API_URL.replace('http://', 'https://')
+  : '';
 
 // Create a single, configured Axios instance.
 const api = axios.create({

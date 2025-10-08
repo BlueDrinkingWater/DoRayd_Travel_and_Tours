@@ -37,12 +37,19 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: [
-      process.env.CLIENT_URL, // Your Vercel URL
-      'http://localhost:3000',
-      'https://localhost:3000',
-    ].filter(Boolean),
+    origin: function (origin, callback) {
+      // Allow requests with no origin (mobile apps, Postman, etc.)
+      if (!origin) return callback(null, true);
+      
+      // Allow localhost and all Vercel domains
+      if (origin.includes('localhost') || origin.endsWith('.vercel.app')) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     methods: ['GET', 'POST'],
+    credentials: true,
   },
 });
 
@@ -50,15 +57,22 @@ const PORT = process.env.PORT || 5000;
 
 // --- CORS CONFIG ---
 const corsOptions = {
-  origin: [
-    process.env.CLIENT_URL, // Your Vercel URL
-    'http://localhost:3000',
-    'https://localhost:3000',
-    'https://accounts.google.com',
-  ].filter(Boolean),
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+  origin: function (origin, callback) {
+    // Allow requests with no origin (mobile apps, Postman, etc.)
+    if (!origin) return callback(null, true);
+    
+    // Allow localhost and all Vercel domains
+    if (origin.includes('localhost') || origin.endsWith('.vercel.app') || origin === 'https://accounts.google.com') {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization'],
 };
+
 app.use(cors(corsOptions));
 app.use(express.json());
 app.set('io', io);

@@ -1,4 +1,4 @@
-// ✅ server.js (Render-ready, auto-detect build folder)
+// ✅ server.js (API-Only for Render)
 
 import dotenv from 'dotenv';
 dotenv.config();
@@ -10,7 +10,6 @@ import http from 'http';
 import { Server } from 'socket.io';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import fs from 'fs';
 
 // --- Route Imports ---
 import analyticsRoutes from './routes/analytics.js';
@@ -39,28 +38,35 @@ const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
     origin: [
-      process.env.CLIENT_URL || 'http://localhost:3000',
+      process.env.CLIENT_URL, // Your Vercel URL
+      'http://localhost:3000',
       'https://localhost:3000',
-    ],
+    ].filter(Boolean),
     methods: ['GET', 'POST'],
   },
 });
 
 const PORT = process.env.PORT || 5000;
 
-// --- FIXED CORS CONFIG ---
+// --- CORS CONFIG ---
 const corsOptions = {
   origin: [
-    process.env.CLIENT_URL || 'http://localhost:3000',
+    process.env.CLIENT_URL, // Your Vercel URL
+    'http://localhost:3000',
     'https://localhost:3000',
     'https://accounts.google.com',
-  ],
+  ].filter(Boolean),
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
   credentials: true,
 };
 app.use(cors(corsOptions));
 app.use(express.json());
 app.set('io', io);
+
+// --- ROOT ENDPOINT ---
+app.get('/', (req, res) => {
+  res.send('DoRayd Travel and Tours API is running...');
+});
 
 // --- API ROUTES ---
 app.use('/api/analytics', analyticsRoutes);
@@ -88,35 +94,6 @@ app.get('/api/health', (req, res) => {
 // --- STATIC UPLOADS ---
 const uploadsPath = path.join(__dirname, 'uploads');
 app.use('/uploads', express.static(uploadsPath));
-
-// --- SERVE FRONTEND ---
-let clientBuildPath;
-
-// Detect Vite (dist) or CRA (build) folder
-const vitePath = path.join(__dirname, '../client/dist');
-const craPath = path.join(__dirname, '../client/build');
-
-if (fs.existsSync(vitePath)) {
-  clientBuildPath = vitePath;
-} else if (fs.existsSync(craPath)) {
-  clientBuildPath = craPath;
-} else {
-  console.warn('⚠️ Frontend build folder not found. Did you run npm run build?');
-  clientBuildPath = null;
-}
-
-if (clientBuildPath) {
-  app.use(express.static(clientBuildPath));
-  app.get('*', (req, res) => {
-    const indexPath = path.join(clientBuildPath, 'index.html');
-    res.sendFile(indexPath, (err) => {
-      if (err) {
-        console.error('❌ Error serving index.html:', err);
-        res.status(500).send('index.html not found. Did you run npm run build?');
-      }
-    });
-  });
-}
 
 // --- SOCKET.IO ---
 io.on('connection', (socket) => {

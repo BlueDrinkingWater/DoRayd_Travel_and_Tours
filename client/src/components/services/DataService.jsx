@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-const API_URL = '/api'; // Use relative path for the proxy
-export const SERVER_URL = ''; // Use relative path for the proxy
+const API_URL = import.meta.env.VITE_API_URL || '/api';
+export const SERVER_URL = import.meta.env.VITE_API_URL || '';
 
 const getAuthHeader = () => {
   const token = localStorage.getItem('token');

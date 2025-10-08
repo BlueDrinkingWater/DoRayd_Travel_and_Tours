@@ -1,4 +1,4 @@
-// ✅ server.js (Render-ready, fixed)
+// ✅ server.js (Render-ready, auto-detect build folder)
 
 import dotenv from 'dotenv';
 dotenv.config();
@@ -10,6 +10,7 @@ import http from 'http';
 import { Server } from 'socket.io';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import fs from 'fs';
 
 // --- Route Imports ---
 import analyticsRoutes from './routes/analytics.js';
@@ -89,26 +90,33 @@ const uploadsPath = path.join(__dirname, 'uploads');
 app.use('/uploads', express.static(uploadsPath));
 
 // --- SERVE FRONTEND ---
-// Detect frontend build folder (CRA uses 'build', Vite uses 'dist')
 let clientBuildPath;
-try {
-  clientBuildPath = path.join(__dirname, '../client/dist'); // Vite default
-} catch {
-  clientBuildPath = path.join(__dirname, '../client/build'); // CRA default
+
+// Detect Vite (dist) or CRA (build) folder
+const vitePath = path.join(__dirname, '../client/dist');
+const craPath = path.join(__dirname, '../client/build');
+
+if (fs.existsSync(vitePath)) {
+  clientBuildPath = vitePath;
+} else if (fs.existsSync(craPath)) {
+  clientBuildPath = craPath;
+} else {
+  console.warn('⚠️ Frontend build folder not found. Did you run npm run build?');
+  clientBuildPath = null;
 }
 
-app.use(express.static(clientBuildPath));
-
-// For any other request, serve the index.html file
-app.get('*', (req, res) => {
-  const indexPath = path.join(clientBuildPath, 'index.html');
-  res.sendFile(indexPath, (err) => {
-    if (err) {
-      console.error('❌ Error serving index.html:', err);
-      res.status(500).send('index.html not found. Did you run npm run build?');
-    }
+if (clientBuildPath) {
+  app.use(express.static(clientBuildPath));
+  app.get('*', (req, res) => {
+    const indexPath = path.join(clientBuildPath, 'index.html');
+    res.sendFile(indexPath, (err) => {
+      if (err) {
+        console.error('❌ Error serving index.html:', err);
+        res.status(500).send('index.html not found. Did you run npm run build?');
+      }
+    });
   });
-});
+}
 
 // --- SOCKET.IO ---
 io.on('connection', (socket) => {

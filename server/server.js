@@ -88,6 +88,15 @@ app.get('/api/health', (req, res) => {
 const uploadsPath = path.join(__dirname, 'uploads');
 app.use('/uploads', express.static(uploadsPath));
 
+// --- SERVE FRONTEND ---
+const clientBuildPath = path.join(__dirname, '../client/dist');
+app.use(express.static(clientBuildPath));
+
+// For any other request, serve the index.html file
+app.get('*', (req, res) => {
+  res.sendFile(path.join(clientBuildPath, 'index.html'));
+});
+
 // --- SOCKET.IO ---
 io.on('connection', (socket) => {
   console.log('✅ A user connected via WebSocket');

@@ -1,7 +1,8 @@
 import axios from 'axios';
 
-// Get the base URL for the API from environment variables, corrected for Vite.
-// Fallback to a relative path for local development to ensure the proxy works.
+// Get the base URL for the API from environment variables.
+// For production, this will be an empty string, making API calls relative to the domain.
+// For local development, this can be your backend URL (e.g., 'http://localhost:5000'), but the proxy is recommended.
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 // Create a single, configured Axios instance.

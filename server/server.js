@@ -44,12 +44,11 @@ const server = http.createServer(app);
 
 // --- Whitelist your frontend origins ---
 const allowedOrigins = [
-    'https://192.168.195.231:3000', // Your local network IP
     'http://localhost:3000',       // Vite's default local host (HTTP)
-    'https://localhost:3000',      // Vite's default local host (HTTPS)
-    process.env.CLIENT_URL,        // Your Vercel URL from .env
-    'https://accounts.google.com'
-].filter(Boolean);
+    'https://localhost:3000',      // Vite's default local host (HTTPS) for basicSsl plugin
+    process.env.CLIENT_URL,        // Your production URL from .env
+    'https://accounts.google.com'  // For Google login
+].filter(Boolean); // filter(Boolean) removes falsy values like null or undefined
 
 const io = new Server(server, {
   cors: {
@@ -92,11 +91,15 @@ app.use(mongoSanitize());
 
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 10, // Limit each IP to 10 requests per windowMs
+    max: 20, // Limit each IP to 20 requests per windowMs
     message: 'Too many login attempts from this IP, please try again after 15 minutes'
 });
 
 app.set('io', io);
+
+// --- STATIC UPLOADS ---
+const uploadsPath = path.join(__dirname, 'uploads');
+app.use('/uploads', express.static(uploadsPath));
 
 // --- API ROUTES ---
 app.use('/api/auth/login', authLimiter);
@@ -127,9 +130,17 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// --- STATIC UPLOADS ---
-const uploadsPath = path.join(__dirname, 'uploads');
-app.use('/uploads', express.static(uploadsPath));
+// --- SERVE REACT APP IN PRODUCTION ---
+if (process.env.NODE_ENV === 'production') {
+  const clientBuildPath = path.join(__dirname, '../client/dist');
+  app.use(express.static(clientBuildPath));
+
+  // The "catchall" handler: for any request that doesn't match one above,
+  // send back React's index.html file.
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(clientBuildPath, 'index.html'));
+  });
+}
 
 // --- SOCKET.IO ---
 io.on('connection', (socket) => {

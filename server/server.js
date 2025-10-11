@@ -126,30 +126,6 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// --- SERVE REACT APP IN PRODUCTION ---
-if (process.env.NODE_ENV === 'production') {
-  // Use path.resolve to create a robust, absolute path to the client's build directory.
-  // It navigates up one level from `/server` to the project root, then into `/client/dist`.
-  const clientBuildPath = path.resolve(__dirname, '..', 'client', 'dist');
-  
-  // Serve static files from the React app
-  app.use(express.static(clientBuildPath));
-
-  // The "catchall" handler: for any request that doesn't match an API route,
-  // send back React's index.html file. This allows client-side routing to work.
-  app.get('*', (req, res, next) => {
-    res.sendFile(path.resolve(clientBuildPath, 'index.html'), (err) => {
-      if (err) {
-        // If the file can't be sent for some reason, log the error and pass it
-        // to the main error handler. This helps in debugging pathing issues.
-        console.error('Error sending index.html:', err);
-        next(err);
-      }
-    });
-  });
-}
-
-
 // --- SOCKET.IO ---
 io.on('connection', (socket) => {
   console.log('✅ A user connected via WebSocket');
@@ -178,4 +154,3 @@ mongoose
   .catch((err) => console.error('❌ MongoDB Connection Error:', err));
 
 export default app;
-

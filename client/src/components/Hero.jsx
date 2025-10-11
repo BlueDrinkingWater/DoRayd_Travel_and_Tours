@@ -16,8 +16,7 @@ const Hero = () => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    console.log('🎯 Hero component loading data from database at 2025-09-03 17:08:57');
-    console.log('👤 Current User: BlueDrinkingWater');
+    console.log('Loadin..... ');
     
     const fetchData = async () => {
       try {
@@ -39,12 +38,12 @@ const Hero = () => {
           const allLocations = [...new Set([...carLocations, ...tourDestinations])];
           setPopularLocations(allLocations.slice(0, 5));
           
-          console.log(`✅ Loaded ${allLocations.length} unique locations from database at 2025-09-03 17:08:57`);
+          console.log(`Loaded ${allLocations.length} unique locations of tours`);
         } else {
-          throw new Error('Failed to load location data from database');
+          throw new Error('Failed to load location');
         }
       } catch (error) {
-        console.error('❌ Error loading hero data from database:', error);
+        console.error(' Error loading hero:', error);
         setError(error.message);
         setPopularLocations([]); // No fallback data - database dependent
       } finally {
@@ -62,8 +61,8 @@ const Hero = () => {
     } else {
       navigate('/tours', { state: searchParams });
     }
-    
-    console.log(`🔍 Search initiated for ${searchParams.type} at 2025-09-03 17:08:57`);
+
+    console.log(`Search initiated for ${searchParams.type} at 2025-09-03 17:08:57`);
   };
 
   const handleInputChange = (key, value) => {
@@ -89,7 +88,7 @@ const Hero = () => {
             Discover the Philippines with DoRayd
           </h1>
           <p className="text-xl md:text-2xl mb-8 max-w-3xl mx-auto text-white/90">
-            Your journey begins here. Book premium cars and exciting tour packages from our live database.
+            Your journey begins here. Book premium cars and exciting tour packages from our website!.
           </p>
         </div>
 
@@ -127,7 +126,7 @@ const Hero = () => {
               <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-center gap-2">
                 <AlertCircle className="w-5 h-5 flex-shrink-0" />
                 <div>
-                  <p className="font-medium">Unable to load search data from database</p>
+                  <p className="font-medium">Seach data is unavailable</p>
                   <p className="text-sm">{error}</p>
                 </div>
               </div>
@@ -193,7 +192,7 @@ const Hero = () => {
                 {loading ? (
                   <div className="flex items-center gap-2">
                     <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent"></div>
-                    <span className="text-xs text-gray-500">Loading from database...</span>
+                    <span className="text-xs text-gray-500">Loading...</span>
                   </div>
                 ) : popularLocations.length > 0 ? (
                   <div className="flex items-center flex-wrap gap-2">
@@ -213,11 +212,11 @@ const Hero = () => {
                   </div>
                 ) : error ? (
                   <div className="text-xs text-red-500">
-                    Unable to load popular locations from database
+                    Unable to load popular locations 
                   </div>
                 ) : (
                   <div className="text-xs text-gray-500">
-                    No locations available in database
+                    No locations available 
                   </div>
                 )}
               </div>
@@ -228,7 +227,7 @@ const Hero = () => {
                 className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2"
               >
                 <Search className="w-5 h-5" />
-                Search {searchParams.type === 'cars' ? 'Cars' : 'Tours'} in Database
+                Search {searchParams.type === 'cars' ? 'Cars' : 'Tours'} 
               </button>
             </div>
           </div>
@@ -247,8 +246,8 @@ const Hero = () => {
         {/* Development Info */}
         {process.env.NODE_ENV === 'development' && (
           <div className="mt-6 text-center text-white/70 text-xs">
-            <p>Database Status: {error ? 'Error' : loading ? 'Loading' : 'Connected'} | Current Time: 2025-09-03 17:08:57 | User: BlueDrinkingWater</p>
-            <p>Locations: {popularLocations.length} loaded from MongoDB database</p>
+            <p>Database Status: {error ? 'Error' : loading ? 'Loading' : 'Connected'} | </p>
+            <p>Locations: {popularLocations.length}</p>
           </div>
         )}
       </div>

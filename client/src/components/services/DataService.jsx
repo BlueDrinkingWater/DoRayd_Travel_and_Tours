@@ -14,6 +14,26 @@ const api = axios.create({
 // Use the same base URL for constructing server resource URLs (like images).
 export const SERVER_URL = API_BASE_URL;
 
+/**
+ * Creates a full URL for an image from its path.
+ * @param {string} url - The relative path or full URL of the image.
+ * @returns {string} The full, accessible URL for the image.
+ */
+export const getImageUrl = (url) => {
+  if (!url) return '';
+  // If url is already a full http/https URL, return it as is.
+  if (url.startsWith('http')) {
+    return url;
+  }
+  // If url is an absolute path, use it with the server URL.
+  if (url.startsWith('/uploads/')) {
+    return `${SERVER_URL}${url}`;
+  }
+  // For any other case, construct the full path.
+  return `${SERVER_URL}/uploads/${url}`;
+};
+
+
 // This function is now simplified as the browser handles the cookie automatically.
 const getAuthHeader = () => {
   return {};
@@ -60,7 +80,7 @@ const DataService = {
       throw new Error(error.response?.data?.message || 'Login failed. Please check your credentials.');
     }
   },
-  
+
   socialLogin: async (provider, tokenData) => {
     try {
       const response = await api.post(`/api/auth/${provider}-login`, tokenData);

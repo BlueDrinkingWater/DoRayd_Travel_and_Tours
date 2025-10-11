@@ -1,11 +1,6 @@
-// dj2780920-ui/dorayd-travel-and-tours/DoRayd-Travel-and-Tours-c3cb8116bef93292c82d4dfbf1d4d86cd66863f6/controllers/uploadController.js
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import { v2 as cloudinary } from 'cloudinary';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const uploadsDir = path.join(__dirname, '../uploads');
+// Cloudinary is configured in the middleware, so we can just use it here.
 
 export const uploadSingleImage = (req, res) => {
   try {
@@ -13,18 +8,13 @@ export const uploadSingleImage = (req, res) => {
       return res.status(400).json({ success: false, message: 'No file uploaded' });
     }
     
-    const category = req.body.category || 'general';
-    const fileUrl = `/uploads/${category}/${req.file.filename}`;
-    
-    console.log('Image uploaded successfully:', fileUrl);
-    console.log('File saved to:', req.file.path);
-    
+    // The 'multer-storage-cloudinary' middleware provides the Cloudinary URL and public_id
     res.json({ 
       success: true, 
-      message: 'Image uploaded successfully', 
+      message: 'Image uploaded successfully to Cloudinary', 
       data: { 
-        url: fileUrl,
-        id: req.file.filename // Return the full filename
+        url: req.file.path,      // This is the full HTTPS URL from Cloudinary
+        id: req.file.filename, // This is the public_id from Cloudinary (e.g., dorayd/general/image-12345)
       } 
     });
   } catch (error) {
@@ -33,34 +23,30 @@ export const uploadSingleImage = (req, res) => {
   }
 };
 
-export const deleteImage = (req, res) => {
+export const deleteImage = async (req, res) => {
   try {
-    const { category, filename } = req.params;
+    const { public_id } = req.params;
 
-    // Sanitize to prevent path traversal
-    const sanitizedCategory = path.normalize(category).replace(/^(\.\.[\/\\])+/, '');
-    const sanitizedFilename = path.normalize(filename).replace(/^(\.\.[\/\\])+/, '');
-
-    const safePath = path.join(uploadsDir, sanitizedCategory, sanitizedFilename);
-
-    // Final check to ensure the path is within the uploads directory
-    if (!safePath.startsWith(uploadsDir)) {
-        return res.status(400).json({ success: false, message: 'Invalid path specified.' });
+    if (!public_id) {
+        return res.status(400).json({ success: false, message: 'Image ID is required.' });
     }
+    
+    // The public_id from the client will be URL encoded, especially if it contains slashes.
+    // We decode it here to pass the correct path to Cloudinary.
+    const decodedPublicId = decodeURIComponent(public_id);
 
-    console.log('Attempting to delete:', safePath);
+    const result = await cloudinary.uploader.destroy(decodedPublicId);
 
-    if (fs.existsSync(safePath)) {
-        fs.unlinkSync(safePath);
-        console.log('File deleted successfully');
-        res.json({ success: true, message: 'Image deleted successfully' });
+    if (result.result === 'ok') {
+        console.log('File deleted successfully from Cloudinary:', decodedPublicId);
+        res.json({ success: true, message: 'Image deleted successfully from Cloudinary' });
     } else {
-        console.log('File not found:', safePath);
-        res.status(404).json({ success: false, message: 'File not found' });
+        // This can happen if the file doesn't exist. We'll treat it as a success on the client-side.
+        console.warn('File not found on Cloudinary or could not be deleted:', decodedPublicId, result);
+        res.status(200).json({ success: true, message: 'Image not found on server or already deleted.' });
     }
-  } catch (error)
-  {
-    console.error('Delete error:', error);
-    res.status(500).json({ success: false, message: 'Server Error' });
+  } catch (error) {
+    console.error('Cloudinary delete error:', error);
+    res.status(500).json({ success: false, message: 'Server Error during image deletion.' });
   }
 };

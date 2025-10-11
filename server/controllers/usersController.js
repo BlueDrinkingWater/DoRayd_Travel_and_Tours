@@ -2,6 +2,7 @@ import User from '../models/User.js';
 import bcrypt from 'bcryptjs';
 
 export const updateUserProfile = async (req, res) => {
+// ... existing code ...
     try {
         const { firstName, lastName, email, phone } = req.body;
         const user = await User.findById(req.user.id);
@@ -34,7 +35,7 @@ export const uploadProfilePicture = async (req, res) => {
             return res.status(404).json({ success: false, message: 'User not found.' });
         }
 
-        user.profilePicture = `/uploads/profiles/${req.file.filename}`;
+        user.profilePicture = req.file.path; // Use Cloudinary URL
         await user.save({ validateBeforeSave: false });
 
         res.json({ success: true, message: 'Profile picture uploaded successfully.', data: { profilePictureUrl: user.profilePicture } });
@@ -44,6 +45,7 @@ export const uploadProfilePicture = async (req, res) => {
 };
 
 export const deleteUserAccount = async (req, res) => {
+// ... existing code ...
     try {
         const user = await User.findById(req.user.id);
         if (!user) {
@@ -61,6 +63,7 @@ export const deleteUserAccount = async (req, res) => {
 // ... (rest of the file remains the same)
 
 export const getAllEmployees = async (req, res) => {
+// ... existing code ...
   try {
     const employees = await User.find({ role: { $in: ['admin', 'employee'] } }).select('-password');
     res.json({ success: true, data: employees });
@@ -70,6 +73,7 @@ export const getAllEmployees = async (req, res) => {
 };
 
 export const createEmployee = async (req, res) => {
+// ... existing code ...
     try {
         const { firstName, lastName, email, password, phone, position, permissions, role } = req.body;
         
@@ -103,6 +107,7 @@ export const createEmployee = async (req, res) => {
 };
 
 export const updateEmployee = async (req, res) => {
+// ... existing code ...
     try {
         const { password, ...updateData } = req.body;
         if (updateData.role && !['admin', 'employee'].includes(updateData.role)) {
@@ -124,6 +129,7 @@ export const updateEmployee = async (req, res) => {
 };
 
 export const deleteEmployee = async (req, res) => {
+// ... existing code ...
     try {
         const employee = await User.findByIdAndDelete(req.params.id);
         if (!employee) return res.status(404).json({ success: false, message: 'Employee not found' });
@@ -134,6 +140,7 @@ export const deleteEmployee = async (req, res) => {
 };
 
 export const changeEmployeePassword = async (req, res) => {
+// ... existing code ...
     try {
         const { password } = req.body;
         const user = await User.findById(req.params.id);
@@ -149,6 +156,7 @@ export const changeEmployeePassword = async (req, res) => {
 };
 
 export const getAllCustomers = async (req, res) => {
+// ... existing code ...
   try {
     const customers = await User.find({ role: 'customer' }).select('-password');
     res.json({ success: true, data: customers });
@@ -158,6 +166,7 @@ export const getAllCustomers = async (req, res) => {
 };
 
 export const resetCustomerPassword = async (req, res) => {
+// ... existing code ...
     try {
         const { password } = req.body;
         if (!password) {

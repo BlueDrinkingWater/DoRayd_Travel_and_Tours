@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Upload, X, Image as ImageIcon, AlertCircle, CheckCircle } from 'lucide-react';
-import DataService, { SERVER_URL } from './services/DataService.jsx';
+import DataService, { getImageUrl } from './services/DataService.jsx';
 
 const ImageUpload = ({
   onImagesChange,
@@ -8,6 +8,7 @@ const ImageUpload = ({
   existingImages = [],
   category = 'general'
 }) => {
+// ... existing code ...
   const [selectedImages, setSelectedImages] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
@@ -21,6 +22,7 @@ const ImageUpload = ({
   }, [existingImages]);
 
   const handleFileSelect = async (e) => {
+// ... existing code ...
     const files = Array.from(e.target.files);
     
     if (selectedImages.length + files.length > maxImages) {
@@ -48,6 +50,7 @@ const ImageUpload = ({
   };
 
   const uploadFiles = async (files) => {
+// ... existing code ...
     setUploading(true);
     const successfullyUploaded = [];
 
@@ -81,13 +84,11 @@ const ImageUpload = ({
   const removeImage = async (index) => {
     const imageToRemove = selectedImages[index];
     
-    if (imageToRemove.serverId && imageToRemove.url) {
+    // The serverId is the public_id from Cloudinary
+    if (imageToRemove.serverId) { 
       try {
-        const urlParts = imageToRemove.url.split('/');
-        const filename = urlParts.pop();
-        const imageCategory = urlParts.pop();
-        
-        await DataService.deleteImage(imageCategory, filename);
+        // We need to encode the public_id because it contains slashes
+        await DataService.deleteImage(encodeURIComponent(imageToRemove.serverId));
       } catch (error) {
         console.error('Error deleting image from server:', error);
         setUploadError(`Failed to delete ${imageToRemove.name} from server. It might have already been removed.`);
@@ -100,6 +101,7 @@ const ImageUpload = ({
   };
 
   const triggerFileSelect = () => {
+// ... existing code ...
     if (fileInputRef.current && !uploading && selectedImages.length < maxImages) {
       fileInputRef.current.click();
     }
@@ -110,6 +112,7 @@ const ImageUpload = ({
       <div
         onClick={triggerFileSelect}
         className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer ${
+// ... existing code ...
           uploading || selectedImages.length >= maxImages
             ? 'border-gray-200 bg-gray-50 cursor-not-allowed'
             : 'border-gray-300 hover:border-blue-400 hover:bg-blue-50'
@@ -148,7 +151,7 @@ const ImageUpload = ({
           </h4>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {selectedImages.map((item, index) => {
-              const imageSrc = item.url ? `${SERVER_URL}${item.url}` : '';
+              const imageSrc = getImageUrl(item.url);
               return (
               <div key={item.serverId || index} className="relative group">
                 <div className="aspect-square rounded-lg overflow-hidden bg-gray-100 border">

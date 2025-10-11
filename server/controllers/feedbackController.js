@@ -1,4 +1,5 @@
 import Feedback from '../models/Feedback.js';
+// ... existing code ...
 import Booking from '../models/Booking.js';
 import { createNotification } from './notificationController.js';
 import { createActivityLog } from './activityLogController.js';
@@ -12,6 +13,7 @@ export const createFeedback = async (req, res) => {
         if (!booking) {
             return res.status(404).json({ success: false, message: 'Booking not found.' });
         }
+// ... existing code ...
         if (booking.status !== 'completed') {
             return res.status(400).json({ success: false, message: 'You can only provide feedback for completed bookings.' });
         }
@@ -20,6 +22,7 @@ export const createFeedback = async (req, res) => {
         }
 
         const existingFeedback = await Feedback.findOne({ booking: bookingId });
+// ... existing code ...
         if (existingFeedback) {
             return res.status(400).json({ success: false, message: 'You have already provided feedback for this booking.' });
         }
@@ -31,12 +34,13 @@ export const createFeedback = async (req, res) => {
             comment,
             isAnonymous: isAnonymous || false,
             serviceType: booking.itemType,
-            image: req.file ? `/uploads/feedback/${req.file.filename}` : undefined
+            image: req.file ? req.file.path : undefined // Use Cloudinary URL
         });
 
         await feedback.save();
 
         const io = req.app.get('io');
+// ... existing code ...
         if (io) {
             const notification = {
                 message: 'New feedback has been submitted for approval.',
@@ -63,6 +67,7 @@ export const createFeedback = async (req, res) => {
 
 // Get all feedback (Admin only)
 export const getAllFeedback = async (req, res) => {
+// ... existing code ...
     try {
         const feedback = await Feedback.find({}) 
             .populate('user', 'firstName lastName')
@@ -75,6 +80,7 @@ export const getAllFeedback = async (req, res) => {
 
 // Get all approved feedback (Public)
 export const getPublicFeedback = async (req, res) => {
+// ... existing code ...
     try {
         const feedback = await Feedback.find({ isApproved: true })
             .populate('user', 'firstName lastName')
@@ -87,6 +93,7 @@ export const getPublicFeedback = async (req, res) => {
 
 // Get user's own feedback
 export const getMyFeedback = async (req, res) => {
+// ... existing code ...
     try {
         const feedback = await Feedback.find({ user: req.user.id })
             .sort({ createdAt: -1 });
@@ -99,6 +106,7 @@ export const getMyFeedback = async (req, res) => {
 
 // Approve feedback (Admin only)
 export const approveFeedback = async (req, res) => {
+// ... existing code ...
     try {
         const feedback = await Feedback.findByIdAndUpdate(req.params.id, { isApproved: true }, { new: true });
         if (!feedback) {
@@ -119,6 +127,7 @@ export const approveFeedback = async (req, res) => {
 
 // Delete feedback (Admin only)
 export const deleteFeedback = async (req, res) => {
+// ... existing code ...
     try {
         const feedback = await Feedback.findByIdAndDelete(req.params.id);
         if (!feedback) {

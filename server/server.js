@@ -45,10 +45,10 @@ const server = http.createServer(app);
 // --- Whitelist your frontend origins ---
 const allowedOrigins = [
     'http://localhost:3000',       // Vite's default local host (HTTP)
-    'https://localhost:3000',      // Vite's default local host (HTTPS) for basicSsl plugin
-    process.env.CLIENT_URL,        // Your production URL from .env
-    'https://accounts.google.com'  // For Google login
-].filter(Boolean); // filter(Boolean) removes falsy values like null or undefined
+    'https://localhost:3000',      // Vite's default local host (HTTPS)
+    process.env.CLIENT_URL,        // Your Vercel URL from .env
+    'https://accounts.google.com'
+].filter(Boolean);
 
 const io = new Server(server, {
   cors: {
@@ -91,15 +91,11 @@ app.use(mongoSanitize());
 
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 20, // Limit each IP to 20 requests per windowMs
+    max: 10, // Limit each IP to 10 requests per windowMs
     message: 'Too many login attempts from this IP, please try again after 15 minutes'
 });
 
 app.set('io', io);
-
-// --- STATIC UPLOADS ---
-const uploadsPath = path.join(__dirname, 'uploads');
-app.use('/uploads', express.static(uploadsPath));
 
 // --- API ROUTES ---
 app.use('/api/auth/login', authLimiter);
@@ -132,15 +128,27 @@ app.get('/api/health', (req, res) => {
 
 // --- SERVE REACT APP IN PRODUCTION ---
 if (process.env.NODE_ENV === 'production') {
-  const clientBuildPath = path.join(__dirname, '../client/dist');
+  // Use path.resolve to create a robust, absolute path to the client's build directory.
+  // It navigates up one level from `/server` to the project root, then into `/client/dist`.
+  const clientBuildPath = path.resolve(__dirname, '..', 'client', 'dist');
+  
+  // Serve static files from the React app
   app.use(express.static(clientBuildPath));
 
-  // The "catchall" handler: for any request that doesn't match one above,
-  // send back React's index.html file.
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(clientBuildPath, 'index.html'));
+  // The "catchall" handler: for any request that doesn't match an API route,
+  // send back React's index.html file. This allows client-side routing to work.
+  app.get('*', (req, res, next) => {
+    res.sendFile(path.resolve(clientBuildPath, 'index.html'), (err) => {
+      if (err) {
+        // If the file can't be sent for some reason, log the error and pass it
+        // to the main error handler. This helps in debugging pathing issues.
+        console.error('Error sending index.html:', err);
+        next(err);
+      }
+    });
   });
 }
+
 
 // --- SOCKET.IO ---
 io.on('connection', (socket) => {
@@ -170,3 +178,4 @@ mongoose
   .catch((err) => console.error('❌ MongoDB Connection Error:', err));
 
 export default app;
+

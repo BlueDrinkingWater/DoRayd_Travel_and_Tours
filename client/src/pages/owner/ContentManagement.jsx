@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Save, Edit3, Eye, FileText, Globe, Shield, Phone, CreditCard, Image as ImageIcon } from 'lucide-react';
 import DataService, { SERVER_URL } from '../../components/services/DataService';
-import ImageUpload from '../../components/ImageUpload';
 import { useApi } from '../../hooks/useApi';
 
 const ContentManagement = () => {
   const [activeTab, setActiveTab] = useState('about');
   const [saving, setSaving] = useState(false);
   const [editMode, setEditMode] = useState(false);
-  
+
   const contentTabs = [
     { key: 'about', label: 'About Us', icon: FileText, description: 'Company background and story' },
     { key: 'mission', label: 'Mission', icon: Globe, description: 'Company mission statement' },
@@ -17,21 +16,20 @@ const ContentManagement = () => {
     { key: 'privacy', label: 'Privacy Policy', icon: Shield, description: 'Privacy policy and data protection' },
     { key: 'contact', label: 'Contact Info', icon: Phone, description: 'Contact details and locations' },
     { key: 'bookingTerms', label: 'Booking Terms', icon: FileText, description: 'Text for the booking modal agreement.' },
-    { key: 'paymentQR', label: 'Payment QR', icon: CreditCard, description: 'Upload and manage the QR code for payments.' }
   ];
 
-  const { data: contentData, loading, error, refetch: fetchAllContent } = useApi(
+  const { data: initialContentData, loading, error, refetch: fetchAllContent } = useApi(
     () => Promise.all(contentTabs.map(tab => DataService.fetchContent(tab.key)))
   );
   
   const [content, setContent] = useState({});
 
   useEffect(() => {
-    if(contentData) {
+    if (initialContentData) {
       const newContentState = {};
-      contentData.forEach((result, index) => {
+      initialContentData.forEach((result, index) => {
         const tabKey = contentTabs[index].key;
-        if (result.success) {
+        if (result.success && result.data) {
           newContentState[tabKey] = result.data;
         } else {
           newContentState[tabKey] = { title: contentTabs[index].label, content: '' };
@@ -39,7 +37,7 @@ const ContentManagement = () => {
       });
       setContent(newContentState);
     }
-  }, [contentData]);
+  }, [initialContentData]);
 
   const handleContentChange = (field, value) => {
     setContent(prev => ({
@@ -50,29 +48,32 @@ const ContentManagement = () => {
       }
     }));
   };
-  
-  const handleQRImageChange = (uploadedImages) => {
-    if (uploadedImages.length > 0) {
-      handleContentChange('content', uploadedImages[0].url);
-    } else {
-      handleContentChange('content', '');
-    }
-  };
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      await DataService.updateContent(activeTab, content[activeTab]);
-      alert('Content updated successfully!');
-      setEditMode(false);
-      fetchAllContent();
+      const contentToSave = content[activeTab];
+      const response = await DataService.updateContent(activeTab, contentToSave);
+
+      if (response.success && response.data) {
+        setContent(prev => ({ ...prev, [activeTab]: response.data }));
+        alert('Content updated successfully!');
+        setEditMode(false);
+      } else {
+        throw new Error(response.message || "Failed to save content.");
+      }
     } catch (error) {
       console.error("Failed to save content:", error);
-      alert("Error saving content.");
+      alert(`Error saving content: ${error.message}`);
     } finally {
       setSaving(false);
     }
   };
+
+  const handleCancel = () => {
+    setEditMode(false);
+    fetchAllContent();
+  }
 
   const activeContent = content[activeTab] || { title: '', content: '' };
   const activeTabInfo = contentTabs.find(tab => tab.key === activeTab);
@@ -86,12 +87,12 @@ const ContentManagement = () => {
         </div>
         <div>
           {editMode ? (
-            <>
-              <button onClick={() => { setEditMode(false); fetchAllContent(); }} className="bg-gray-200 px-4 py-2 rounded-lg mr-2">Cancel</button>
+            <div className="flex gap-2">
+              <button onClick={handleCancel} className="bg-gray-200 px-4 py-2 rounded-lg">Cancel</button>
               <button onClick={handleSave} disabled={saving} className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center">
                 {saving ? 'Saving...' : <><Save size={16} className="mr-2" /> Save</>}
               </button>
-            </>
+            </div>
           ) : (
             <button onClick={() => setEditMode(true)} className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center">
               <Edit3 size={16} className="mr-2" /> Edit Content
@@ -109,7 +110,8 @@ const ContentManagement = () => {
                 <button
                   key={tab.key}
                   onClick={() => setActiveTab(tab.key)}
-                  className={`flex items-center gap-2 px-6 py-4 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+                  disabled={editMode}
+                  className={`flex items-center gap-2 px-6 py-4 text-sm font-medium whitespace-nowrap border-b-2 transition-colors disabled:cursor-not-allowed disabled:text-gray-400 ${
                     activeTab === tab.key
                       ? 'border-blue-500 text-blue-600 bg-blue-50'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -149,34 +151,9 @@ const ContentManagement = () => {
                   <p className="p-2 bg-gray-100 rounded mt-1">{activeContent.title}</p>
                 )}
               </div>
-
-              {activeTab === 'paymentQR' ? (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">QR Code Image</label>
-                  {editMode ? (
-                    <ImageUpload
-                      onImagesChange={handleQRImageChange}
-                      existingImages={activeContent.content ? [{ url: activeContent.content, serverId: 'qr' }] : []}
-                      maxImages={1}
-                      category="qrcodes"
-                    />
-                  ) : (
-                    <div className="w-full min-h-64 p-4 bg-gray-50 border border-gray-200 rounded-lg flex items-center justify-center">
-                      {activeContent.content ? (
-                        <img 
-  src={activeContent.content.startsWith('http') ? activeContent.content : `${SERVER_URL}${activeContent.content.startsWith('/') ? activeContent.content : '/' + activeContent.content}`} alt="Payment QR Code" className="max-w-xs max-h-64 object-contain" />
-                      ) : (
-                        <div className="text-center text-gray-500">
-                          <ImageIcon className="w-16 h-16 mx-auto mb-4" />
-                          <p>No QR Code uploaded.</p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div>
-                  <label className="font-bold">Content</label>
+              
+              <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Content</label>
                   {editMode ? (
                     <textarea
                       value={activeContent.content}
@@ -187,8 +164,7 @@ const ContentManagement = () => {
                   ) : (
                     <div className="p-4 bg-gray-100 rounded mt-1 whitespace-pre-wrap min-h-[200px]">{activeContent.content}</div>
                   )}
-                </div>
-              )}
+              </div>
             </div>
           )}
         </div>

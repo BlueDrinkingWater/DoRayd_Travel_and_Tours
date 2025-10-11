@@ -18,15 +18,17 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:5000',
         changeOrigin: true,
+        secure: false,      
       },
       // Proxy image requests
       '/uploads': {
         target: 'http://localhost:5000',
         changeOrigin: true,
+        secure: false,
       },
       // Proxy Socket.IO connections
       '/socket.io': {
-        target: 'http://localhost:5000',
+        target: 'ws://localhost:5000',
         ws: true,
       },
     }

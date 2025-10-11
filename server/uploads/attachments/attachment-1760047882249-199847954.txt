@@ -1,0 +1,88 @@
+from OpenGL.GL import *
+from OpenGL.GLU import *
+import pygame
+from pygame.locals import *
+
+
+pygame.init()
+display = (800, 600)
+pygame.display.set_mode(display, DOUBLEBUF | OPENGL)
+pygame.display.set_caption("04 Lab 1 - 3D Diamond")
+
+
+glEnable(GL_DEPTH_TEST)
+
+
+gluPerspective(45, (display[0] / display[1]), 0.1, 50.0)
+glTranslatef(0.0, 0.0, -6)
+
+def draw_diamond():
+    vertices = [
+        [0, 1, 0],     # Top vertex (A)
+        [1, 0, 0],     # Right (B)
+        [0, 0, 1],     # Front (C)
+        [-1, 0, 0],    # Left (D)
+        [0, 0, -1],    # Back (E)
+        [0, -1, 0],    # Bottom vertex (F)
+    ]
+
+    triangles = [
+        # Upper pyramid (top to middle)
+        (0, 1, 2),  # A-B-C
+        (0, 2, 3),  # A-C-D
+        (0, 3, 4),  # A-D-E
+        (0, 4, 1),  # A-E-B
+        # Lower pyramid (bottom to middle)
+        (5, 2, 1),  # F-C-B
+        (5, 3, 2),  # F-D-C
+        (5, 4, 3),  # F-E-D
+        (5, 1, 4),  # F-B-E
+    ]
+
+    colors = [
+        (1, 0, 0), (0, 1, 0),
+        (0, 0, 1), (1, 1, 0),
+        (1, 0, 1), (0, 1, 1),
+        (1, 0.5, 0), (0.5, 0, 1)
+    ]
+
+    glBegin(GL_TRIANGLES)
+    for i in range(len(triangles)):
+        glColor3fv(colors[i])
+        for vertex in triangles[i]:
+            glVertex3fv(vertices[vertex])
+    glEnd()
+
+glScalef(0.8, 0.8, 0.8)
+
+
+running = True
+while running:
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+
+                if event.type == pygame.KEYDOWN:
+            # Translation
+            if event.key == pygame.K_a: glTranslatef(-0.2, 0, 0)  # Left
+            elif event.key == pygame.K_d: glTranslatef(0.2, 0, 0)  # Right
+            elif event.key == pygame.K_w: glTranslatef(0, 0.2, 0)  # Up
+            elif event.key == pygame.K_s: glTranslatef(0, -0.2, 0) # Down
+            elif event.key == pygame.K_q: glTranslatef(0, 0, 0.2)  # Forward
+            elif event.key == pygame.K_e: glTranslatef(0, 0, -0.2) # Backward
+
+            # Rotation
+            elif event.key == pygame.K_r: glRotatef(10, 1, 0, 0)  # Rotate X
+            elif event.key == pygame.K_t: glRotatef(10, 0, 1, 0)  # Rotate Y
+            elif event.key == pygame.K_y: glRotatef(10, 0, 0, 1)  # Rotate Z
+
+            # Scaling
+            elif event.key == pygame.K_z: glScalef(1.1, 1.1, 1.1)  # Zoom in
+            elif event.key == pygame.K_x: glScalef(0.9, 0.9, 0.9)  # Zoom out
+
+      glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+    draw_diamond()
+    pygame.display.flip()
+    pygame.time.wait(10)
+
+pygame.quit()

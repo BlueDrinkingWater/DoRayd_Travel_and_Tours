@@ -4,9 +4,6 @@ import DataService from '../components/services/DataService';
 import { useApi } from '../hooks/useApi';
 
 const Contact = () => {
-  console.log('📞 Contact page loaded at 2025-09-03 15:25:11');
-  console.log('👤 Current User: BlueDrinkingWater');
-
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -15,41 +12,14 @@ const Contact = () => {
     message: ''
   });
 
-  // --- FIX STARTS HERE: State for dynamic contact info ---
-  const [contactInfo, setContactInfo] = useState(null);
-  const [loading, setLoading] = useState(true);
-  // --- FIX ENDS HERE ---
+  const { data: contactData, loading, error: contentError, refetch } = useApi(() => DataService.fetchContent('contact'));
+  const contactInfo = contactData?.data;
+
 
   const [submitting, setSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [submitError, setSubmitError] = useState('');
 
-  // --- FIX STARTS HERE: Fetch contact info from backend ---
-  useEffect(() => {
-    const fetchContactInfo = async () => {
-      setLoading(true);
-      try {
-        const response = await DataService.fetchContent('contact');
-        if (response.success) {
-          // Parse the content string to create a structured object
-          const lines = response.data.content.split('\n');
-          const info = {
-            phone: lines.find(line => line.startsWith('Phone:'))?.split(':')[1]?.trim() || '+63 917 123 4567',
-            email: lines.find(line => line.startsWith('Email:'))?.split(':')[1]?.trim() || 'info@dorayd.com',
-            address: lines.find(line => line.startsWith('Address:'))?.split(':')[1]?.trim() || 'Manila, Philippines',
-            hours: lines.find(line => line.startsWith('Hours:'))?.split(':')[1]?.trim() || '24/7 Service',
-          };
-          setContactInfo(info);
-        }
-      } catch (error) {
-        console.error("Failed to fetch contact info:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchContactInfo();
-  }, []);
-  // --- FIX ENDS HERE ---
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -73,7 +43,6 @@ const Contact = () => {
     }
 
     try {
-      console.log(`📤 Submitting contact message to database at 2025-09-03 15:25:11`);
 
       const messageData = {
         name: formData.name.trim(),
@@ -82,9 +51,6 @@ const Contact = () => {
         subject: formData.subject.trim(),
         message: formData.message.trim(),
         source: 'contact_form',
-        createdAt: new Date().toISOString(),
-        userAgent: navigator.userAgent,
-        referrer: document.referrer
       };
 
       const response = await DataService.createMessage(messageData);
@@ -99,8 +65,6 @@ const Contact = () => {
           message: ''
         });
         
-        console.log(`✅ Contact message saved to database at 2025-09-03 15:25:11`);
-        
         // Auto-hide success message after 5 seconds
         setTimeout(() => {
           setSubmitSuccess(false);
@@ -109,7 +73,6 @@ const Contact = () => {
         throw new Error(response.message || 'Failed to send message');
       }
     } catch (error) {
-      console.error('❌ Error submitting contact message:', error);
       setSubmitError(error.message || 'Failed to send message. Please try again.');
     } finally {
       setSubmitting(false);
@@ -127,7 +90,7 @@ const Contact = () => {
     },
     {
       question: 'Do you provide insurance coverage?',
-      answer: 'Yes, all our vehicles and tour packages include comprehensive insurance coverage for your safety and peace of mind.'
+      answer: 'Yes, all our vehicles and tour packages include comprehensive insurance for your safety and peace of mind.'
     },
     {
       question: 'Can I modify my booking?',
@@ -135,34 +98,32 @@ const Contact = () => {
     }
   ];
   
-  // --- FIX STARTS HERE: Create the contact info array dynamically ---
   const contactInfoCards = loading || !contactInfo ? [] : [
     {
       icon: Phone,
       title: 'Phone',
-      details: contactInfo.phone,
+      details: contactInfo.content.split('\n')[0] || '+63 917 123 4567',
       description: '24/7 Customer Support'
     },
     {
       icon: Mail,
       title: 'Email',
-      details: contactInfo.email,
+      details: contactInfo.content.split('\n')[1] || 'info@dorayd.com',
       description: 'Send us your questions'
     },
     {
       icon: MapPin,
       title: 'Address',
-      details: contactInfo.address,
+      details: contactInfo.content.split('\n')[2] || 'Manila, Philippines',
       description: 'Visit our office'
     },
     {
       icon: Clock,
       title: 'Business Hours',
-      details: contactInfo.hours,
+      details: contactInfo.content.split('\n')[3] || '24/7 Service',
       description: 'Always here for you'
     }
   ];
-  // --- FIX ENDS HERE ---
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -322,7 +283,7 @@ const Contact = () => {
               <h2 className="text-2xl font-bold text-gray-900 mb-6">Get in Touch</h2>
               <div className="space-y-6">
                 {/* --- FIX STARTS HERE: Render dynamic contact cards --- */}
-                {loading ? <p>Loading contact info...</p> : contactInfoCards.map((info, index) => (
+                {loading ? <p>Loading contact info...</p> : contentError ? <p className='text-red-500'>Could not load contact info.</p> : contactInfoCards.map((info, index) => (
                   <div key={index} className="flex items-start gap-4">
                     <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
                       <info.icon className="w-6 h-6 text-blue-600" />
@@ -334,7 +295,6 @@ const Contact = () => {
                     </div>
                   </div>
                 ))}
-                {/* --- FIX ENDS HERE --- */}
               </div>
             </div>
 
@@ -344,33 +304,8 @@ const Contact = () => {
               <div className="h-64 bg-gray-200 rounded-lg flex items-center justify-center">
                 <div className="text-center">
                   <MapPin className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-600 font-medium">{loading ? '...' : contactInfo?.address}</p>
+                  <p className="text-gray-600 font-medium">{loading ? '...' : contactInfo?.content.split('\n')[2]}</p>
                   <p className="text-sm text-gray-500 mt-2">Detailed address will be provided upon booking</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Business Hours */}
-            <div className="bg-white rounded-xl shadow-lg p-8">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">Business Hours</h2>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-700">Monday - Friday</span>
-                  <span className="font-medium text-gray-900">8:00 AM - 8:00 PM</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-700">Saturday</span>
-                  <span className="font-medium text-gray-900">8:00 AM - 6:00 PM</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-700">Sunday</span>
-                  <span className="font-medium text-gray-900">9:00 AM - 5:00 PM</span>
-                </div>
-                <div className="border-t pt-3 mt-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-700">Emergency Support</span>
-                    <span className="font-medium text-green-600">24/7 Available</span>
-                  </div>
                 </div>
               </div>
             </div>
@@ -395,43 +330,7 @@ const Contact = () => {
             ))}
           </div>
         </div>
-
-        {/* Call to Action */}
-        <div className="mt-16 bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl p-8 text-center text-white">
-          <h2 className="text-3xl font-bold mb-4">Ready to Start Your Adventure?</h2>
-          <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
-            Don't wait! Book your perfect car or tour package today and create unforgettable memories.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <button
-              onClick={() => window.location.href = '/cars'}
-              className="bg-white text-blue-600 hover:bg-blue-50 font-semibold px-8 py-3 rounded-lg transition-colors"
-            >
-              Browse Cars
-            </button>
-            <button
-              onClick={() => window.location.href = '/tours'}
-              className="bg-blue-800 hover:bg-blue-900 text-white font-semibold px-8 py-3 rounded-lg transition-colors"
-            >
-              Explore Tours
-            </button>
-          </div>
-        </div>
       </div>
-
-      {/* Development Info */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="bg-gray-100 border-t border-gray-300 py-4">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center text-xs text-gray-600">
-              <p>🔧 Development Mode - Contact Page</p>
-              <p>Database Status: {submitError ? 'Error' : submitting ? 'Submitting' : 'Connected'}</p>
-              <p>Form Status: {submitSuccess ? 'Success' : 'Ready'}</p>
-              <p>Time: 2025-09-03 15:28:10 | User: BlueDrinkingWater</p>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

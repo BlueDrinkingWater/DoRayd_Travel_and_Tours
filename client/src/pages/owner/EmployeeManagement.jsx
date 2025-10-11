@@ -3,7 +3,7 @@ import { Plus, Edit3, Trash2, Key, Shield, Briefcase } from 'lucide-react';
 import DataService from '../../components/services/DataService.jsx';
 import { useApi } from '../../hooks/useApi.jsx';
 
-const permissionModules = ['bookings', 'cars', 'tours', 'messages', 'reports', 'content'];
+const permissionModules = ['bookings', 'cars', 'tours', 'messages', 'reports', 'content', 'promotions', 'faqs', 'feedback'];
 
 const EmployeeManagement = () => {
   const { data: employeesData, loading, refetch: fetchEmployees } = useApi(DataService.fetchAllEmployees);
@@ -14,11 +14,11 @@ const EmployeeManagement = () => {
   const [submitting, setSubmitting] = useState(false);
 
   const initialFormState = {
-    firstName: '', 
-    lastName: '', 
-    email: '', 
-    password: '', 
-    phone: '', 
+    firstName: '',
+    lastName: '',
+    email: '',
+    password: '',
+    phone: '',
     position: '',
     role: 'employee',
     permissions: [],
@@ -64,12 +64,12 @@ const EmployeeManagement = () => {
 
   const handleEdit = (employee) => {
     setEditingEmployee(employee);
-    const employeeData = { 
-      ...initialFormState, 
-      ...employee, 
-      permissions: employee.permissions || [] 
+    const employeeData = {
+      ...initialFormState,
+      ...employee,
+      permissions: employee.permissions || []
     };
-    setFormData({ ...employeeData, password: '' }); 
+    setFormData({ ...employeeData, password: '' });
     setShowModal(true);
   };
   
@@ -149,11 +149,11 @@ const EmployeeManagement = () => {
                           <div className="grid grid-cols-2 gap-2">
                               {permissionModules.map(module => (
                                   <label key={module} className="flex items-center space-x-2 text-sm">
-                                      <input 
-                                        type="checkbox" 
-                                        name={module} 
+                                      <input
+                                        type="checkbox"
+                                        name={module}
                                         checked={formData.permissions.some(p => p.module === module)}
-                                        onChange={handlePermissionChange} 
+                                        onChange={handlePermissionChange}
                                       />
                                       <span className="capitalize">{module}</span>
                                   </label>

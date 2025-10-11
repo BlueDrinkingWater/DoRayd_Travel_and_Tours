@@ -5,11 +5,17 @@ import crypto from 'crypto';
 import { createNotification } from './notificationController.js';
 import { OAuth2Client } from 'google-auth-library';
 import axios from 'axios';
+import { validationResult } from 'express-validator';
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 // Register a new user
 export const register = async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ success: false, errors: errors.array() });
+  }
+
   try {
     const { email, password, firstName, lastName, phone } = req.body;
     const existingUser = await User.findOne({ email });
@@ -17,13 +23,13 @@ export const register = async (req, res) => {
       return res.status(400).json({ success: false, message: 'User already exists' });
     }
 
-    const user = new User({ 
-        email, 
-        password, 
-        firstName, 
-        lastName, 
-        phone, 
-        role: 'customer' 
+    const user = new User({
+        email,
+        password,
+        firstName,
+        lastName,
+        phone,
+        role: 'customer'
     });
     await user.save();
 
@@ -41,7 +47,7 @@ export const register = async (req, res) => {
       );
     }
 
-    res.status(201).json({ success: true, message: 'User registered successfully' });
+    res.status(201).json({ success: true, message: 'Registration successful! Please log in to continue.' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -49,11 +55,13 @@ export const register = async (req, res) => {
 
 // Login user
 export const login = async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ success: false, errors: errors.array() });
+    }
+
     try {
         const { email, password } = req.body;
-        if (!email || !password) {
-            return res.status(400).json({ success: false, message: 'Please provide email and password' });
-        }
 
         const user = await User.findOne({ email }).select('+password');
         if (!user || user.authProvider !== 'local' || !(await user.correctPassword(password, user.password))) {
@@ -69,7 +77,14 @@ export const login = async (req, res) => {
         const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1d' });
 
         user.password = undefined;
-        res.json({ success: true, token, user });
+        
+        res.cookie('token', token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict'
+        });
+
+        res.json({ success: true, user });
 
     } catch (error) {
         res.status(500).json({ success: false, message: 'Server Error' });
@@ -120,7 +135,7 @@ export const googleLogin = async (req, res) => {
 
   } catch (error) {
     console.error('Google Login Error:', error);
-    res.status(500).json({ success: false, message: 'Google authentication failed.' });
+    res.status(500).json({ success: false, message: 'Google authentication failed. Please try again or use another login method.' });
   }
 };
 
@@ -176,7 +191,7 @@ export const facebookLogin = async (req, res) => {
 
   } catch (error) {
     console.error('Facebook Login Error:', error.response ? error.response.data : error.message);
-    res.status(500).json({ success: false, message: 'Facebook authentication failed.' });
+    res.status(500).json({ success: false, message: 'Facebook authentication failed. Please try again or use another login method.' });
   }
 };
 
@@ -201,7 +216,7 @@ export const forgotPassword = async (req, res) => {
         const resetToken = user.createPasswordResetToken();
         await user.save({ validateBeforeSave: false });
 
-        const resetURL = `${process.env.CLIENT_URL || 'http://localhost:3000'}/reset-password/${resetToken}`;
+        const resetURL = `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
 
         await EmailService.sendPasswordReset(user.email, resetURL);
         
@@ -246,9 +261,7 @@ export const resetPassword = async (req, res) => {
         user.resetPasswordExpires = undefined;
         await user.save();
 
-        const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1d' });
-
-        res.json({ success: true, token, message: 'Your password has been reset successfully. You are now logged in.' });
+        res.json({ success: true, message: 'Your password has been reset successfully. You may now log in.' });
     } catch (error) {
         res.status(500).json({ success: false, message: 'An error occurred while resetting your password.' });
     }

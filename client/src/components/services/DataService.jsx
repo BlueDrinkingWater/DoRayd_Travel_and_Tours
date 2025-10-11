@@ -1,24 +1,21 @@
 import axios from 'axios';
 
-// Get the base URL for the API from environment variables.
-// Fallback to a relative path for local development.
-// Ensure HTTPS is used for Render backend
-const API_BASE_URL = import.meta.env.VITE_API_URL 
-  ? import.meta.env.VITE_API_URL.replace('http://', 'https://')
-  : '';
+// Get the base URL for the API from environment variables, corrected for Vite.
+// Fallback to a relative path for local development to ensure the proxy works.
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 // Create a single, configured Axios instance.
 const api = axios.create({
-  baseURL: API_BASE_URL
+  baseURL: API_BASE_URL,
+  withCredentials: true // Crucial for sending secure httpOnly cookies
 });
 
 // Use the same base URL for constructing server resource URLs (like images).
 export const SERVER_URL = API_BASE_URL;
 
-// Function to get the authentication token header.
+// This function is now simplified as the browser handles the cookie automatically.
 const getAuthHeader = () => {
-  const token = localStorage.getItem('token');
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  return {};
 };
 
 // Centralized error handler.
@@ -53,8 +50,8 @@ const DataService = {
   login: async (credentials) => {
     try {
       const response = await api.post('/api/auth/login', credentials);
-      if (response.data.token) {
-        localStorage.setItem('token', response.data.token);
+      if (response.data.user) {
+        // We only store user info now, not the token.
         localStorage.setItem('user', JSON.stringify(response.data.user));
       }
       return response.data;
@@ -66,8 +63,7 @@ const DataService = {
   socialLogin: async (provider, tokenData) => {
     try {
       const response = await api.post(`/api/auth/${provider}-login`, tokenData);
-      if (response.data.token) {
-        localStorage.setItem('token', response.data.token);
+      if (response.data.user) {
         localStorage.setItem('user', JSON.stringify(response.data.user));
       }
       return response.data;
@@ -77,7 +73,7 @@ const DataService = {
   },
 
   logout: () => {
-    localStorage.removeItem('token');
+    // Only user info is removed from local storage. The cookie is cleared by the browser/server.
     localStorage.removeItem('user');
   },
 
@@ -97,6 +93,31 @@ const DataService = {
     } catch (error) {
       return handleError(error, 'Failed to update profile.');
     }
+  },
+
+  uploadProfilePicture: async (file) => {
+      const formData = new FormData();
+      formData.append('profilePicture', file);
+      try {
+          const response = await api.post('/api/users/profile/picture', formData, {
+              headers: {
+                  ...getAuthHeader(),
+                  'Content-Type': 'multipart/form-data',
+              },
+          });
+          return response.data;
+      } catch (error) {
+          return handleError(error, 'Failed to upload profile picture.');
+      }
+  },
+
+  deleteAccount: async () => {
+      try {
+          const response = await api.delete('/api/users/profile', { headers: getAuthHeader() });
+          return response.data;
+      } catch (error) {
+          return handleError(error, 'Failed to delete account.');
+      }
   },
 
   changePassword: async (passwordData) => {
@@ -121,7 +142,7 @@ const DataService = {
   // --- Reset Password ---
   resetPassword: async (token, password) => {
     try {
-      const response = await api.put(`/api/auth/reset-password/${token}`, { password });
+      const response = await api.post(`/api/auth/reset-password/${token}`, { password });
       return response.data;
     } catch (error) {
       return handleError(error, 'Failed to reset password.');
@@ -608,7 +629,11 @@ const DataService = {
   // --- Content Management ---
   fetchContent: async (type) => {
     try {
-      const response = await api.get(`/api/content/${type}`);
+      const response = await api.get(`/api/content/${type}`, {
+        params: {
+          _: new Date().getTime(),
+        }
+      });
       return response.data;
     } catch (error) {
       return handleError(error, `Failed to fetch '${type}' content.`);
@@ -621,6 +646,107 @@ const DataService = {
       return response.data;
     } catch (error) {
       return handleError(error, `Failed to update '${type}' content.`);
+    }
+  },
+    // --- Activity Log ---
+  fetchActivityLogs: async () => {
+    try {
+      const response = await api.get('/api/activity-log', { headers: getAuthHeader() });
+      return response.data;
+    } catch (error) {
+      return handleError(error, 'Failed to fetch activity logs.');
+    }
+  },
+
+  // --- FAQ Management ---
+  fetchAllFaqs: async () => {
+    try {
+      const response = await api.get('/api/faqs');
+      return response.data;
+    } catch (error) {
+      return handleError(error, 'Failed to fetch FAQs.');
+    }
+  },
+
+  fetchAllFaqsAdmin: async () => {
+    try {
+      const response = await api.get('/api/faqs/admin', { headers: getAuthHeader() });
+      return response.data;
+    } catch (error) {
+      return handleError(error, 'Failed to fetch FAQs for admin.');
+    }
+  },
+
+  createFaq: async (faqData) => {
+    try {
+      const response = await api.post('/api/faqs', faqData, { headers: getAuthHeader() });
+      return response.data;
+    } catch (error) {
+      return handleError(error, 'Failed to create FAQ.');
+    }
+  },
+
+  updateFaq: async (id, faqData) => {
+    try {
+      const response = await api.put(`/api/faqs/${id}`, faqData, { headers: getAuthHeader() });
+      return response.data;
+    } catch (error) {
+      return handleError(error, 'Failed to update FAQ.');
+    }
+  },
+
+  deleteFaq: async (id) => {
+    try {
+      const response = await api.delete(`/api/faqs/${id}`, { headers: getAuthHeader() });
+      return response.data;
+    } catch (error) {
+      return handleError(error, 'Failed to delete FAQ.');
+    }
+  },
+
+  // --- Promotion Management ---
+  fetchAllPromotions: async () => {
+    try {
+      const response = await api.get('/api/promotions');
+      return response.data;
+    } catch (error) {
+      return handleError(error, 'Failed to fetch promotions.');
+    }
+  },
+
+  fetchAllPromotionsAdmin: async () => {
+    try {
+      const response = await api.get('/api/promotions/admin', { headers: getAuthHeader() });
+      return response.data;
+    } catch (error) {
+      return handleError(error, 'Failed to fetch promotions for admin.');
+    }
+  },
+
+  createPromotion: async (promoData) => {
+    try {
+      const response = await api.post('/api/promotions', promoData, { headers: getAuthHeader() });
+      return response.data;
+    } catch (error) {
+      return handleError(error, 'Failed to create promotion.');
+    }
+  },
+
+  updatePromotion: async (id, promoData) => {
+    try {
+      const response = await api.put(`/api/promotions/${id}`, promoData, { headers: getAuthHeader() });
+      return response.data;
+    } catch (error) {
+      return handleError(error, 'Failed to update promotion.');
+    }
+  },
+
+  deletePromotion: async (id) => {
+    try {
+      const response = await api.delete(`/api/promotions/${id}`, { headers: getAuthHeader() });
+      return response.data;
+    } catch (error) {
+      return handleError(error, 'Failed to delete promotion.');
     }
   },
 };

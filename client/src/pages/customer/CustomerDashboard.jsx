@@ -1,30 +1,23 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
-    Calendar, 
-    Clock, 
-    Car, 
-    MapPin, 
-    Star, 
-    MessageSquare, 
-    Settings, 
-    User,
-    Heart,
-    Award,
-    Upload
+    Calendar, Clock, Car, MapPin, Star, MessageSquare, Settings, User, Heart, Award, Upload 
 } from 'lucide-react';
 import { useAuth } from '../../components/Login.jsx';
 import { useApi } from '../../hooks/useApi.jsx';
 import DataService, { SERVER_URL } from '../../components/services/DataService.jsx';
+import AccountSettings from '../shared/AccountSettings.jsx'; // Import the new component
 
 const CustomerDashboard = () => {
+    // ... (logic remains the same)
+
     const { user } = useAuth();
     const [activeTab, setActiveTab] = useState('overview');
 
     // Fetch user data
-    const { data: bookingsData, loading: bookingsLoading, refetch: refetchBookings } = useApi(DataService.fetchUserBookings, [user]);
-    const { data: reviewsData, loading: reviewsLoading, refetch: refetchReviews } = useApi(DataService.getMyReviews, [user]);
-    const { data: feedbackData, loading: feedbackLoading, refetch: refetchFeedback } = useApi(DataService.getMyFeedback, [user]);
-    const { data: publicFeedbackData, loading: publicFeedbackLoading } = useApi(DataService.getPublicFeedback, []);
+    const { data: bookingsData, loading: bookingsLoading, refetch: refetchBookings } = useApi(() => DataService.fetchUserBookings(), [user]);
+    const { data: reviewsData, loading: reviewsLoading, refetch: refetchReviews } = useApi(() => DataService.getMyReviews(), [user]);
+    const { data: feedbackData, loading: feedbackLoading, refetch: refetchFeedback } = useApi(() => DataService.getMyFeedback(), [user]);
+    const { data: publicFeedbackData, loading: publicFeedbackLoading } = useApi(() => DataService.getPublicFeedback(), []);
 
     const bookings = bookingsData?.data || [];
     const myReviews = reviewsData?.data || [];
@@ -57,6 +50,7 @@ const CustomerDashboard = () => {
     if (bookingsLoading) {
         return <div className="flex justify-center items-center min-h-screen">Loading...</div>;
     }
+
 
     return (
         <div className="min-h-screen bg-gray-50">
@@ -120,14 +114,14 @@ const CustomerDashboard = () => {
                         />
                     )}
                     {activeTab === 'public-feedback' && <PublicFeedbackTab feedback={publicFeedback} />}
-                    {activeTab === 'settings' && <AccountSettingsTab user={user} />}
+                    {activeTab === 'settings' && <AccountSettings />}
                 </div>
             </div>
         </div>
     );
 };
 
-// Sub-components
+// ... (All sub-components like StatCard, OverviewTab, BookingsTab, etc. remain unchanged)
 const StatCard = ({ title, value, icon: Icon }) => (
     <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
         <div className="flex items-center justify-between">
@@ -647,53 +641,9 @@ const PublicFeedbackTab = ({ feedback }) => (
 );
 
 
+// THIS COMPONENT WAS REPLACED
 const AccountSettingsTab = ({ user }) => (
-    <div>
-        <h2 className="text-2xl font-bold mb-6">Account Settings</h2>
-        <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">First Name</label>
-                    <input
-                        type="text"
-                        value={user?.firstName || ''}
-                        className="w-full p-3 border border-gray-300 rounded-lg bg-gray-50"
-                        disabled
-                    />
-                </div>
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Last Name</label>
-                    <input
-                        type="text"
-                        value={user?.lastName || ''}
-                        className="w-full p-3 border border-gray-300 rounded-lg bg-gray-50"
-                        disabled
-                    />
-                </div>
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                    <input
-                        type="email"
-                        value={user?.email || ''}
-                        className="w-full p-3 border border-gray-300 rounded-lg bg-gray-50"
-                        disabled
-                    />
-                </div>
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
-                    <input
-                        type="tel"
-                        value={user?.phone || ''}
-                        className="w-full p-3 border border-gray-300 rounded-lg bg-gray-50"
-                        disabled
-                    />
-                </div>
-            </div>
-            <p className="text-sm text-gray-500">
-                Contact support to update your account information.
-            </p>
-        </div>
-    </div>
+    <AccountSettings />
 );
 
 // Helper function

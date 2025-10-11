@@ -110,7 +110,17 @@ const handleEdit = (tour) => {
   
   const handleArchive = async (tourId) => { if (window.confirm('Are you sure you want to archive this tour?')) { try { await DataService.archiveTour(tourId); alert('Tour archived successfully!'); fetchTours(); } catch (error) { alert('Failed to archive tour.'); } } };
   const handleRestore = async (tourId) => { if (window.confirm('Are you sure you want to restore this tour?')) { try { await DataService.unarchiveTour(tourId); alert('Tour restored successfully!'); fetchTours(); } catch (error) { alert('Failed to restore tour.'); } } };
-  const handleToggleAvailability = async (tourId) => { const tour = tours.find(t => t._id === tourId); if (tour) { try { await DataService.updateTour(tourId, { ...tour, isAvailable: !tour.isAvailable }); fetchTours(); } catch (error) { alert('Failed to toggle availability.'); } } };
+  const handleToggleAvailability = async (tour) => { 
+    const action = tour.isAvailable ? 'unavailable' : 'available';
+    if (window.confirm(`Are you sure you want to mark this tour as ${action}?`)) {
+      try { 
+        await DataService.updateTour(tour._id, { ...tour, isAvailable: !tour.isAvailable }); 
+        fetchTours(); 
+      } catch (error) { 
+        alert('Failed to toggle availability.'); 
+      } 
+    }
+  };
   
   const filteredTours = Array.isArray(tours) ? tours.filter(tour => {
     const lowerSearchTerm = searchTerm.toLowerCase();
@@ -166,7 +176,7 @@ const handleEdit = (tour) => {
                   ) : (
                     <>
                       <button onClick={() => handleEdit(tour)} className="p-2 bg-white rounded-full shadow-md" title="Edit Tour"><Edit3 className="w-4 h-4" /></button>
-                      <button onClick={() => handleToggleAvailability(tour._id)} className="p-2 bg-white rounded-full shadow-md" title={tour.isAvailable ? 'Mark Unavailable' : 'Mark Available'}>{tour.isAvailable ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</button>
+                      <button onClick={() => handleToggleAvailability(tour)} className="p-2 bg-white rounded-full shadow-md" title={tour.isAvailable ? 'Mark Unavailable' : 'Mark Available'}>{tour.isAvailable ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</button>
                       <button onClick={() => handleArchive(tour._id)} className="p-2 bg-white rounded-full shadow-md" title="Archive Tour"><Archive className="w-4 h-4 text-red-600" /></button>
                     </>
                   )}

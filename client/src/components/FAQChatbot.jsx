@@ -1,24 +1,25 @@
 import React, { useState, useEffect } from 'react';
+import DataService from './services/DataService';
 
 const FAQChatbot = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState('');
+  const [faqData, setFaqData] = useState([]);
 
-  const faqData = [
-    {
-      keywords: ['booking', 'reserve', 'book'],
-      response: 'To make a booking, select your preferred service, choose dates, and submit your details. You can book with or without creating an account.'
-    },
-    {
-      keywords: ['payment', 'pay', 'cost'],
-      response: 'We accept various payment methods. Upload your payment receipt during booking, and our admin will verify it before confirmation.'
-    },
-    {
-      keywords: ['cancel', 'refund'],
-      response: 'Cancellation policies vary by service. Please contact our admin for specific cancellation and refund information.'
-    }
-  ];
+  useEffect(() => {
+    const fetchFAQs = async () => {
+      try {
+        const response = await DataService.fetchAllFaqs();
+        if (response.success) {
+          setFaqData(response.data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch FAQs for chatbot:", error);
+      }
+    };
+    fetchFAQs();
+  }, []);
 
   const handleSendMessage = () => {
     if (!inputValue.trim()) return;
@@ -39,8 +40,8 @@ const FAQChatbot = () => {
 
   const findResponse = (input) => {
     for (const faq of faqData) {
-      if (faq.keywords.some(keyword => input.includes(keyword))) {
-        return faq.response;
+      if (faq.keywords.some(keyword => input.includes(keyword.toLowerCase()))) {
+        return faq.answer;
       }
     }
     return "I'm sorry, I don't have information about that. Please contact our support team for assistance.";

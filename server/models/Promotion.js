@@ -6,10 +6,21 @@ const promotionSchema = new mongoose.Schema({
   discountType: { type: String, enum: ['percentage', 'fixed'], required: true },
   discountValue: { type: Number, required: true, min: 0 },
   applicableTo: { type: String, enum: ['all', 'car', 'tour'], required: true },
-  itemIds: [{ type: mongoose.Schema.Types.ObjectId }], // Specific cars/tours if not 'all'
+  itemIds: [{ type: mongoose.Schema.Types.ObjectId, refPath: 'itemModel' }], // Correctly reference other models
+  isActive: { type: Boolean, default: true },
   startDate: { type: Date, required: true },
   endDate: { type: Date, required: true },
-  isActive: { type: Boolean, default: true }
-}, { timestamps: true });
+}, { 
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
+});
+
+// Create a virtual property 'itemModel' that refPath can use
+promotionSchema.virtual('itemModel').get(function() {
+  if (this.applicableTo === 'car') return 'Car';
+  if (this.applicableTo === 'tour') return 'Tour';
+  return undefined;
+});
 
 export default mongoose.model('Promotion', promotionSchema);

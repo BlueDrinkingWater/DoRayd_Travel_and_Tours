@@ -138,15 +138,15 @@ const ManageCars = () => {
     }
   };
 
-  const handleToggleAvailability = async (carId) => {
-    try {
-      const car = cars.find(c => c._id === carId);
-      if (car) {
-        await DataService.updateCar(carId, { ...car, isAvailable: !car.isAvailable });
+  const handleToggleAvailability = async (car) => {
+    const action = car.isAvailable ? 'unavailable' : 'available';
+    if (window.confirm(`Are you sure you want to mark this car as ${action}?`)) {
+      try {
+        await DataService.updateCar(car._id, { ...car, isAvailable: !car.isAvailable });
         fetchCars();
+      } catch (error) {
+        alert('Failed to toggle availability.');
       }
-    } catch (error) {
-      alert('Failed to toggle availability.');
     }
   };
   const filteredCars = Array.isArray(cars) ? cars.filter(car => {
@@ -220,7 +220,7 @@ const ManageCars = () => {
                   ) : (
                     <>
                       <button onClick={() => handleEdit(car)} className="p-2 bg-white rounded-full shadow-md" title="Edit Car"><Edit3 className="w-4 h-4" /></button>
-                      <button onClick={() => handleToggleAvailability(car._id)} className="p-2 bg-white rounded-full shadow-md" title={car.isAvailable ? 'Mark Unavailable' : 'Mark Available'}>{car.isAvailable ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</button>
+                      <button onClick={() => handleToggleAvailability(car)} className="p-2 bg-white rounded-full shadow-md" title={car.isAvailable ? 'Mark Unavailable' : 'Mark Available'}>{car.isAvailable ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</button>
                       <button onClick={() => handleArchive(car._id)} className="p-2 bg-white rounded-full shadow-md" title="Archive Car"><Archive className="w-4 h-4 text-red-600" /></button>
                     </>
                   )}

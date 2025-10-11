@@ -49,13 +49,10 @@ const ReviewsSection = ({ itemId }) => {
   );
 };
 
-
-
 const CarDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   
-  // Fetch car details
   const { data: carData, loading, error } = useApi(() => DataService.fetchCarById(id), [id]);
   const car = carData?.data;
 
@@ -83,7 +80,7 @@ const CarDetails = () => {
   if (error || !car) {
     return <div className="text-center p-12 text-red-500">Error: {error?.message || 'Car not found.'}</div>;
   }
-
+  
   return (
     <div className="bg-gray-50 min-h-screen">
       <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
@@ -92,10 +89,8 @@ const CarDetails = () => {
         </button>
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-          {/* Left Column: Images and Details */}
           <div className="lg:col-span-3">
             <div className="bg-white rounded-xl shadow-lg overflow-hidden p-6">
-              {/* Main Image */}
               <div className="h-96 w-full mb-4 rounded-lg overflow-hidden bg-gray-200">
                 <img
                   src={`${SERVER_URL}${mainImage}`}
@@ -104,7 +99,6 @@ const CarDetails = () => {
                 />
               </div>
 
-              {/* Thumbnail Images */}
               {car.images && car.images.length > 1 && (
                 <div className="grid grid-cols-5 gap-2">
                   {car.images.map((img, index) => (
@@ -119,7 +113,6 @@ const CarDetails = () => {
                 </div>
               )}
 
-              {/* Car Title and Ratings */}
               <div className="mt-6 border-t pt-6">
                 <div className="flex justify-between items-start">
                   <div>
@@ -133,7 +126,6 @@ const CarDetails = () => {
                 </div>
               </div>
 
-              {/* Key Specifications */}
               <div className="mt-6">
                 <h2 className="text-xl font-semibold text-gray-800 mb-4">Specifications</h2>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -152,13 +144,11 @@ const CarDetails = () => {
                 </div>
               </div>
 
-              {/* Description */}
               <div className="mt-8">
                 <h2 className="text-xl font-semibold text-gray-800 mb-2">Description</h2>
                 <p className="text-gray-600 leading-relaxed">{car.description}</p>
               </div>
 
-              {/* Features */}
               {car.features && car.features.length > 0 && (
                 <div className="mt-8">
                   <h2 className="text-xl font-semibold text-gray-800 mb-4">Features</h2>
@@ -173,7 +163,6 @@ const CarDetails = () => {
                 </div>
               )}
               
-              {/* Pickup Locations */}
               {car.pickupLocations && car.pickupLocations.length > 0 && (
                 <div className="mt-8">
                   <h2 className="text-xl font-semibold text-gray-800 mb-4">Available Pickup Locations</h2>
@@ -188,17 +177,27 @@ const CarDetails = () => {
                 </div>
               )}
 
-              {/* Reviews Section */}
               <ReviewsSection itemId={id} />
 
             </div>
           </div>
 
-          {/* Right Column: Booking */}
           <div className="lg:col-span-2">
             <div className="sticky top-28 bg-white rounded-xl shadow-lg p-6 border">
+              {car.promotion && (
+                <div className="mb-4 bg-red-500 text-white text-center font-bold py-2 rounded-lg">
+                  {car.promotion.discountType === 'percentage'
+                    ? `${car.promotion.discountValue}% OFF - ${car.promotion.title}`
+                    : `₱${car.promotion.discountValue} OFF - ${car.promotion.title}`}
+                </div>
+              )}
               <div className="flex items-baseline mb-6">
-                <p className="text-3xl font-bold text-blue-600">₱{car.pricePerDay?.toLocaleString()}</p>
+                {car.originalPrice && car.originalPrice > car.pricePerDay && (
+                    <span className="text-gray-500 line-through mr-2">{car.originalPrice.toLocaleString('en-PH', { style: 'currency', currency: 'PHP' })}</span>
+                )}
+                <p className="text-3xl font-bold text-blue-600">
+                    {car.pricePerDay.toLocaleString('en-PH', { style: 'currency', currency: 'PHP' })}
+                </p>
                 <span className="text-lg text-gray-500 ml-1">/day</span>
               </div>
               <p className="text-gray-600 mb-6">

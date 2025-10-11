@@ -34,8 +34,10 @@ const Cars = () => {
   };
 
   const { data: carsResponse, loading, error, refetch: fetchCars } = useApi(() => DataService.fetchAllCars(queryParams), [pagination.page, JSON.stringify(filters)]);
+  const { data: promotionsResponse } = useApi(DataService.fetchAllPromotions, []);
 
   const cars = carsResponse?.data || [];
+  const promotions = promotionsResponse?.data || [];
   const carsPagination = carsResponse?.pagination || { total: 0, totalPages: 0 };
 
   const [viewMode, setViewMode] = useState('grid');
@@ -88,73 +90,123 @@ const Cars = () => {
       currency: 'PHP'
     }).format(price);
   };
+  
+  const getDiscountedPrice = (item) => {
+      if (!promotions || promotions.length === 0) {
+          return { price: item.pricePerDay, originalPrice: null };
+      }
 
-  const renderCarCard = (car) => (
-    <div key={car._id} className={`bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 ${
-      viewMode === 'list' ? 'flex' : ''
-    }`}>
-      <div className={`${viewMode === 'list' ? 'w-80 h-48' : 'h-48'} bg-gray-200 overflow-hidden relative`}>
-        {car.images && car.images.length > 0 ? (
-          <img
-            src={`${SERVER_URL}${car.images[0]}`}
-            alt={`${car.brand} ${car.model}`}
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center bg-gray-300">
-            <Car className="w-12 h-12 text-gray-500" />
+      const applicablePromotions = promotions.filter(promo => {
+          if (!promo.isActive) return false;
+          if (promo.applicableTo === 'all') return true;
+          if (promo.applicableTo === 'car' && promo.itemIds.includes(item._id)) return true;
+          return false;
+      });
+
+      if (applicablePromotions.length === 0) {
+          return { price: item.pricePerDay, originalPrice: null };
+      }
+
+      let bestPrice = item.pricePerDay;
+      let originalPrice = item.pricePerDay;
+
+      applicablePromotions.forEach(promo => {
+          let discountedPrice;
+          if (promo.discountType === 'percentage') {
+              discountedPrice = originalPrice - (originalPrice * (promo.discountValue / 100));
+          } else {
+              discountedPrice = originalPrice - promo.discountValue;
+          }
+
+          if (discountedPrice < bestPrice) {
+              bestPrice = discountedPrice;
+          }
+      });
+      
+      return { price: bestPrice, originalPrice: originalPrice };
+  };
+
+  const renderCarCard = (car) => {
+      const { price, originalPrice } = getDiscountedPrice(car);
+      
+      return (
+        <div key={car._id} className={`bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 ${
+          viewMode === 'list' ? 'flex' : ''
+        }`}>
+          <div className={`${viewMode === 'list' ? 'w-80 h-48' : 'h-48'} bg-gray-200 overflow-hidden relative`}>
+            {car.images && car.images.length > 0 ? (
+              <img
+                src={`${SERVER_URL}${car.images[0]}`}
+                alt={`${car.brand} ${car.model}`}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-gray-300">
+                <Car className="w-12 h-12 text-gray-500" />
+              </div>
+            )}
+            
+            {car.promotion && (
+              <div className="absolute top-2 left-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-md">
+                {car.promotion.discountType === 'percentage'
+                  ? `${car.promotion.discountValue}% OFF`
+                  : `₱${car.promotion.discountValue} OFF`}
+              </div>
+            )}
+
+            {!car.isAvailable && (
+              <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+                <div className="bg-red-600 text-white px-3 py-1 rounded font-semibold">
+                  Not Available
+                </div>
+              </div>
+            )}
           </div>
-        )}
-        
-        {!car.isAvailable && (
-          <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-            <div className="bg-red-600 text-white px-3 py-1 rounded font-semibold">
-              Not Available
+          
+          <div className={`p-6 ${viewMode === 'list' ? 'flex-1' : ''}`}>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                {car.seats} Seats
+              </span>
+              <div className="flex items-center gap-1">
+                <Star className="w-4 h-4 text-yellow-500 fill-current" />
+                <span className="text-sm text-gray-600">
+                  {car.ratings?.average || 'N/A'} ({car.ratings?.count || 0})
+                </span>
+              </div>
+            </div>
+            
+            <h3 className="text-xl font-bold text-gray-900 mb-2">
+              {car.brand} {car.model} ({car.year})
+            </h3>
+            
+            <div className="grid grid-cols-2 gap-4 mb-4 text-sm text-gray-600">
+              <div className="flex items-center gap-2"><Users className="w-4 h-4" /><span>{car.seats} Passengers</span></div>
+              <div className="flex items-center gap-2"><Settings className="w-4 h-4" /><span className="capitalize">{car.transmission}</span></div>
+              <div className="flex items-center gap-2"><Fuel className="w-4 h-4" /><span className="capitalize">{car.fuelType}</span></div>
+              <div className="flex items-center gap-2"><MapPin className="w-4 h-4" /><span>{car.location}</span></div>
+            </div>
+            
+            <div className="flex items-center justify-between">
+              <div>
+                {originalPrice && originalPrice > price && (
+                  <span className="text-gray-500 line-through">{formatPrice(originalPrice)}</span>
+                )}
+                <span className="text-2xl font-bold text-blue-600">{formatPrice(price)}</span>
+                <span className="text-gray-500">/day</span>
+              </div>
+              <button
+                  onClick={() => handleBookCar(car)}
+                  disabled={!car.isAvailable}
+                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-6 py-2 rounded-lg font-semibold"
+              >
+                  {car.isAvailable ? 'Book Now' : 'Unavailable'}
+              </button>
             </div>
           </div>
-        )}
-      </div>
-      
-      <div className={`p-6 ${viewMode === 'list' ? 'flex-1' : ''}`}>
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-sm font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded">
-            {car.seats} Seats
-          </span>
-          <div className="flex items-center gap-1">
-            <Star className="w-4 h-4 text-yellow-500 fill-current" />
-            <span className="text-sm text-gray-600">
-              {car.ratings?.average || 'N/A'} ({car.ratings?.count || 0})
-            </span>
-          </div>
         </div>
-        
-        <h3 className="text-xl font-bold text-gray-900 mb-2">
-          {car.brand} {car.model} ({car.year})
-        </h3>
-        
-        <div className="grid grid-cols-2 gap-4 mb-4 text-sm text-gray-600">
-          <div className="flex items-center gap-2"><Users className="w-4 h-4" /><span>{car.seats} Passengers</span></div>
-          <div className="flex items-center gap-2"><Settings className="w-4 h-4" /><span className="capitalize">{car.transmission}</span></div>
-          <div className="flex items-center gap-2"><Fuel className="w-4 h-4" /><span className="capitalize">{car.fuelType}</span></div>
-          <div className="flex items-center gap-2"><MapPin className="w-4 h-4" /><span>{car.location}</span></div>
-        </div>
-        
-        <div className="flex items-center justify-between">
-          <div>
-            <span className="text-2xl font-bold text-blue-600">{formatPrice(car.pricePerDay)}</span>
-            <span className="text-gray-500">/day</span>
-          </div>
-          <button
-              onClick={() => handleBookCar(car)}
-              disabled={!car.isAvailable}
-              className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-6 py-2 rounded-lg font-semibold"
-          >
-              {car.isAvailable ? 'Book Now' : 'Unavailable'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
+      )
+  };
 
   const renderEmptyState = () => (
     <div className="text-center py-16">

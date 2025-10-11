@@ -16,6 +16,7 @@
     "@greatsumini/react-facebook-login": "^3.4.0",
     "@react-oauth/google": "^0.12.2",
     "axios": "^1.12.2",
+    "dompurify": "^3.2.7",
     "jwt-decode": "^4.0.0",
     "leaflet": "^1.9.4",
     "leaflet-geosearch": "^4.2.2",

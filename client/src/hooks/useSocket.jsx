@@ -9,7 +9,7 @@ const socket = io({
 });
 
 export const useSocket = () => {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [connected, setConnected] = useState(socket.connected);
   const [allNotifications, setAllNotifications] = useState([]);
   const [toastNotifications, setToastNotifications] = useState([]);
@@ -36,7 +36,7 @@ export const useSocket = () => {
           console.log('✅ Socket connected successfully via WebSocket');
           setConnected(true);
           socket.emit('join', user.role);
-          if (user.role === 'customer') {
+          if (user.role === 'customer' || user.role === 'employee') {
               socket.emit('join', user._id);
           }
         };
@@ -46,57 +46,47 @@ export const useSocket = () => {
           setConnected(false);
         };
 
-        // This handler is for NEW, incoming notifications
         const onNotification = (data) => {
-          // FIX: Use the unique _id from the database as the primary key. Fallback to Date.now() just in case.
           const newNotif = { ...data, id: data._id || Date.now(), timestamp: new Date() };
-          // Add to the main list for the bell
           setAllNotifications((prev) => [newNotif, ...prev]);
-          // Add to the toast list to make it pop up
           setToastNotifications((prev) => [newNotif, ...prev]);
         };
         
-        const handleNewBooking = (data) => onNotification(data);
-        const handleNewMessage = (data) => onNotification(data);
-        const handleNewReview = (data) => onNotification(data);
-        const handleNewUser = (data) => onNotification(data);
-        const handleBookingUpdate = (data) => onNotification(data);
-        const handleNewCar = (data) => onNotification(data);
-        const handleNewTour = (data) => onNotification(data);
+        const onPermissionsUpdated = () => {
+            if (refreshUser) {
+                refreshUser();
+            }
+        };
 
         socket.on('connect', onConnect);
         socket.on('disconnect', onDisconnect);
-
-        if (user.role === 'admin' || user.role === 'employee') {
-            socket.on('new-booking', handleNewBooking);
-            socket.on('new-message', handleNewMessage);
-            socket.on('new-review', handleNewReview);
-            socket.on('new-user', handleNewUser);
-        }
-        
-        if (user.role === 'customer') {
-            socket.on('booking-update', handleBookingUpdate);
-            socket.on('new-car', handleNewCar);
-            socket.on('new-tour', handleNewTour);
-        }
+        socket.on('new-booking', onNotification);
+        socket.on('new-message', onNotification);
+        socket.on('new-review', onNotification);
+        socket.on('new-user', onNotification);
+        socket.on('booking-update', onNotification);
+        socket.on('new-car', onNotification);
+        socket.on('new-tour', onNotification);
+        socket.on('permissions-updated', onPermissionsUpdated);
 
         return () => {
           socket.off('connect', onConnect);
           socket.off('disconnect', onDisconnect);
-          socket.off('new-booking', handleNewBooking);
-          socket.off('new-message', handleNewMessage);
-          socket.off('new-review', handleNewReview);
-          socket.off('new-user', handleNewUser);
-          socket.off('booking-update', handleBookingUpdate);
-          socket.off('new-car', handleNewCar);
-          socket.off('new-tour', handleNewTour);
+          socket.off('new-booking', onNotification);
+          socket.off('new-message', onNotification);
+          socket.off('new-review', onNotification);
+          socket.off('new-user', onNotification);
+          socket.off('booking-update', onNotification);
+          socket.off('new-car', onNotification);
+          socket.off('new-tour', onNotification);
+          socket.off('permissions-updated', onPermissionsUpdated);
         };
     } else {
         if (socket.connected) {
             socket.disconnect();
         }
     }
-  }, [user]);
+  }, [user, refreshUser]);
 
   const markOneAsRead = useCallback(async (id) => {
     try {
@@ -123,7 +113,7 @@ export const useSocket = () => {
   return {
     socket,
     connected,
-    notifications: allNotifications, // Keep this name for the bell
+    notifications: allNotifications,
     toastNotifications,
     markOneAsRead,
     markAllAsRead,

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import {
-  LayoutDashboard, Car, MapPin, Calendar, MessageSquare, LogOut, Menu, X, FileText, Settings
+  LayoutDashboard, Car, MapPin, Calendar, MessageSquare, LogOut, Menu, X, FileText, Settings, Star, Users, HelpCircle, Tag, Award, Heart
 } from 'lucide-react';
 import { useAuth } from '../../components/Login.jsx';
 
@@ -21,9 +21,15 @@ const EmployeeDashboard = () => {
     { name: 'Manage Cars', href: '/employee/manage-cars', icon: Car, permission: 'cars' },
     { name: 'Manage Tours', href: '/employee/manage-tours', icon: MapPin, permission: 'tours' },
     { name: 'Manage Bookings', href: '/employee/manage-bookings', icon: Calendar, permission: 'bookings' },
-    { name: 'Messages', href: '/employee/messages', icon: MessageSquare, permission: 'messages' },
+    { name: 'Manage Reviews', href: '/employee/manage-reviews', icon: Star, permission: 'reviews' },
+    { name: 'Manage Feedback', href: '/employee/manage-feedback', icon: Heart, permission: 'feedback' },
+    { name: 'Manage FAQs', href: '/employee/manage-faqs', icon: HelpCircle, permission: 'faqs' },
+    { name: 'Manage Promotions', href: '/employee/manage-promotions', icon: Tag, permission: 'promotions' },
     { name: 'Reports', href: '/employee/reports', icon: FileText, permission: 'reports' },
-    { name: 'Content', href: '/employee/content-management', icon: Settings, permission: 'content' },
+    { name: 'Content Management', href: '/employee/content-management', icon: Settings, permission: 'content' },
+    { name: 'Messages', href: '/employee/messages', icon: MessageSquare, permission: 'messages' },
+    { name: 'Customer Management', href: '/employee/customer-management', icon: Users, permission: 'customers' },
+    { name: 'Account Settings', href: '/employee/account-settings', icon: Settings, permission: 'dashboard' }, // Added
   ];
   
   const hasPermission = (permission) => {
@@ -77,7 +83,6 @@ const EmployeeDashboard = () => {
                 <button onClick={() => setSidebarOpen(!sidebarOpen)} className="lg:hidden mr-4 text-gray-600"><Menu size={24} /></button>
                 <h1 className="text-xl font-semibold">{currentNavItem?.name || 'Dashboard'}</h1>
             </div>
-            {/* The global notification bell is in the main Navbar, so no need for another one here */}
         </header>
         
         <main className="flex-1 overflow-y-auto bg-gray-100 p-6">

@@ -95,6 +95,16 @@ const ManageBookings = () => {
     return <span className={`px-2 py-1 rounded-full text-xs font-medium ${config.bg} ${config.text}`}>{config.label}</span>;
   };
 
+  const getImageUrl = (url) => {
+    if (!url) return '';
+    // If url is an absolute path (starts with /), use it directly.
+    if (url.startsWith('/uploads/')) {
+        return `${SERVER_URL}${url}`;
+    }
+    // If it's a relative path (new format), prepend the /uploads/ base path.
+    return `${SERVER_URL}/uploads/${url}`;
+  };
+
   const filteredBookings = Array.isArray(bookings) ? bookings.filter(booking => {
     const s = searchTerm.toLowerCase();
     return (
@@ -254,8 +264,8 @@ const ManageBookings = () => {
                     <InfoRow label="Amount Paid" value={formatPrice(selectedBooking.amountPaid)} icon={DollarSign} />
                     <InfoRow label="Payment Reference" value={selectedBooking.paymentReference} icon={Hash} />
                     {selectedBooking.paymentProofUrl ? (
-                      <a href={`${SERVER_URL}${selectedBooking.paymentProofUrl}`} target="_blank" rel="noopener noreferrer" className="mt-4 block">
-                        <img src={`${SERVER_URL}${selectedBooking.paymentProofUrl}`} alt="Payment Proof" className="w-full h-auto rounded-lg object-contain border" />
+                      <a href={getImageUrl(selectedBooking.paymentProofUrl)} target="_blank" rel="noopener noreferrer" className="mt-4 block">
+                        <img src={getImageUrl(selectedBooking.paymentProofUrl)} alt="Payment Proof" className="w-full h-auto rounded-lg object-contain border" />
                       </a>
                     ) : (
                       <p className="text-sm text-gray-500 text-center py-8">No payment proof uploaded.</p>
@@ -271,7 +281,6 @@ const ManageBookings = () => {
                     <textarea value={adminNotes} onChange={(e) => setAdminNotes(e.target.value)} rows="3" className="w-full p-2 border rounded-lg" placeholder="Add notes for the customer..." />
                   </InfoBlock>
 
-                  {/* --- UPDATED: Action Buttons --- */}
                   {selectedBooking.status === 'pending' && (
                     <div className="flex gap-3">
                       <button onClick={() => handleStatusUpdate(selectedBooking._id, 'confirmed')} disabled={updating} className="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg font-semibold flex items-center justify-center gap-2"><Check size={16} /> Confirm</button>

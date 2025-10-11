@@ -1,6 +1,65 @@
 import User from '../models/User.js';
 import bcrypt from 'bcryptjs';
 
+export const updateUserProfile = async (req, res) => {
+    try {
+        const { firstName, lastName, email, phone } = req.body;
+        const user = await User.findById(req.user.id);
+
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+
+        user.firstName = firstName || user.firstName;
+        user.lastName = lastName || user.lastName;
+        user.email = email || user.email;
+        user.phone = phone || user.phone;
+
+        await user.save({ validateBeforeSave: true });
+        
+        res.json({ success: true, message: 'Profile updated successfully', user });
+    } catch (error) {
+        res.status(400).json({ success: false, message: error.message });
+    }
+};
+
+export const uploadProfilePicture = async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ success: false, message: 'No file uploaded.' });
+        }
+
+        const user = await User.findById(req.user.id);
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found.' });
+        }
+
+        user.profilePicture = `/uploads/profiles/${req.file.filename}`;
+        await user.save({ validateBeforeSave: false });
+
+        res.json({ success: true, message: 'Profile picture uploaded successfully.', data: { profilePictureUrl: user.profilePicture } });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Failed to upload profile picture.' });
+    }
+};
+
+export const deleteUserAccount = async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id);
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found.' });
+        }
+
+        // Add any additional cleanup logic here (e.g., anonymizing their data)
+        await User.findByIdAndDelete(req.user.id);
+        
+        res.json({ success: true, message: 'Your account has been successfully deleted.' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Server Error' });
+    }
+};
+// ... (rest of the file remains the same)
+
 export const getAllEmployees = async (req, res) => {
   try {
     const employees = await User.find({ role: { $in: ['admin', 'employee'] } }).select('-password');
@@ -52,6 +111,12 @@ export const updateEmployee = async (req, res) => {
         
         const employee = await User.findByIdAndUpdate(req.params.id, updateData, { new: true });
         if (!employee) return res.status(404).json({ success: false, message: 'Employee not found' });
+
+        const io = req.app.get('io');
+        if (io) {
+            io.to(employee._id.toString()).emit('permissions-updated');
+        }
+        
         res.json({ success: true, data: employee });
     } catch (error) {
         res.status(400).json({ success: false, message: error.message });

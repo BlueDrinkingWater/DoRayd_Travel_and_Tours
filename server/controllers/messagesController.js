@@ -1,5 +1,7 @@
 import Message from '../models/Message.js';
 import EmailService from '../utils/emailServices.js';
+import { createNotification } from './notificationController.js';
+import { createActivityLog } from './activityLogController.js';
 
 export const getAllMessages = async (req, res) => {
   try {
@@ -23,6 +25,12 @@ export const createMessage = async (req, res) => {
             messageObj: message
         };
       io.to('admin').to('employee').emit('new-message', notification);
+      
+      await createNotification(
+        { roles: ['admin', 'employee'], module: 'messages' },
+        notification.message,
+        { admin: '/owner/messages', employee: '/employee/messages' }
+      );
     }
     
     res.status(201).json({ success: true, data: message });
@@ -41,6 +49,23 @@ export const replyToMessage = async (req, res) => {
     message.status = 'replied';
     await message.save();
     
+    const io = req.app.get('io');
+    if (io && req.user.role === 'employee') {
+        const link = '/owner/messages';
+        
+        const newLog = await createActivityLog(req.user.id, 'REPLY_MESSAGE', `Message from: ${message.name}`, link);
+        io.to('admin').emit('activity-log-update', newLog);
+    }
+    
+    // Notify the original sender
+    if (io && message.user) {
+      const userSocketId = message.user.toString();
+      io.to(userSocketId).emit('notification', {
+        message: `You have a new reply to your message: "${message.subject}"`,
+        link: '/my-feedback' 
+      });
+    }
+
     // Prepare attachment if it exists
     const attachments = [];
     if (req.file) {

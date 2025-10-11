@@ -33,8 +33,10 @@ const Tours = () => {
   };
 
   const { data: toursResponse, loading, error, refetch: fetchTours } = useApi(() => DataService.fetchAllTours(queryParams), [pagination.page, JSON.stringify(filters)]);
+  const { data: promotionsResponse } = useApi(DataService.fetchAllPromotions, []);
 
   const tours = toursResponse?.data || [];
+  const promotions = promotionsResponse?.data || [];
   const toursPagination = toursResponse?.pagination || { total: 0, totalPages: 0 };
 
   const [viewMode, setViewMode] = useState('grid');
@@ -96,73 +98,123 @@ const Tours = () => {
       default: return 'bg-gray-100 text-gray-800';
     }
   };
+  
+    const getDiscountedPrice = (item) => {
+      if (!promotions || promotions.length === 0) {
+          return { price: item.price, originalPrice: null };
+      }
 
-  const renderTourCard = (tour) => (
-    <div key={tour._id} className={`bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 ${
-      viewMode === 'list' ? 'flex' : ''
-    }`}>
-      <div className={`${viewMode === 'list' ? 'w-80 h-48' : 'h-48'} bg-gray-200 overflow-hidden relative`}>
-        {tour.images && tour.images.length > 0 ? (
-          <img
-            src={`${SERVER_URL}${tour.images[0]}`}
-            alt={tour.title || tour.name}
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center bg-gray-300">
-            <MapPin className="w-12 h-12 text-gray-500" />
+      const applicablePromotions = promotions.filter(promo => {
+          if (!promo.isActive) return false;
+          if (promo.applicableTo === 'all') return true;
+          if (promo.applicableTo === 'tour' && promo.itemIds.includes(item._id)) return true;
+          return false;
+      });
+
+      if (applicablePromotions.length === 0) {
+          return { price: item.price, originalPrice: null };
+      }
+
+      let bestPrice = item.price;
+      let originalPrice = item.price;
+
+      applicablePromotions.forEach(promo => {
+          let discountedPrice;
+          if (promo.discountType === 'percentage') {
+              discountedPrice = originalPrice - (originalPrice * (promo.discountValue / 100));
+          } else {
+              discountedPrice = originalPrice - promo.discountValue;
+          }
+
+          if (discountedPrice < bestPrice) {
+              bestPrice = discountedPrice;
+          }
+      });
+      
+      return { price: bestPrice, originalPrice: originalPrice };
+  };
+
+  const renderTourCard = (tour) => {
+      const { price, originalPrice } = getDiscountedPrice(tour);
+      
+      return (
+        <div key={tour._id} className={`bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 ${
+          viewMode === 'list' ? 'flex' : ''
+        }`}>
+          <div className={`${viewMode === 'list' ? 'w-80 h-48' : 'h-48'} bg-gray-200 overflow-hidden relative`}>
+            {tour.images && tour.images.length > 0 ? (
+              <img
+                src={`${SERVER_URL}${tour.images[0]}`}
+                alt={tour.title || tour.name}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-gray-300">
+                <MapPin className="w-12 h-12 text-gray-500" />
+              </div>
+            )}
+            
+            {tour.promotion && (
+              <div className="absolute top-2 left-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-md">
+                {tour.promotion.discountType === 'percentage'
+                  ? `${tour.promotion.discountValue}% OFF`
+                  : `₱${tour.promotion.discountValue} OFF`}
+              </div>
+            )}
+            
+            {!tour.isAvailable && (
+              <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+                <div className="bg-red-600 text-white px-3 py-1 rounded font-semibold">
+                  Not Available
+                </div>
+              </div>
+            )}
           </div>
-        )}
-        
-        {!tour.isAvailable && (
-          <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-            <div className="bg-red-600 text-white px-3 py-1 rounded font-semibold">
-              Not Available
+          
+          <div className={`p-6 ${viewMode === 'list' ? 'flex-1' : ''}`}>
+            <div className="flex items-center justify-between mb-2">
+              <span className={`text-xs font-medium px-2 py-1 rounded ${getDifficultyColor(tour.difficulty)}`}>
+                {tour.difficulty || 'Easy'}
+              </span>
+              <div className="flex items-center gap-1">
+                <Star className="w-4 h-4 text-yellow-500 fill-current" />
+                <span className="text-sm text-gray-600">
+                  {tour.ratings?.average || 'N/A'} ({tour.ratings?.count || 0})
+                </span>
+              </div>
+            </div>
+            
+            <h3 className="text-xl font-bold text-gray-900 mb-2">
+              {tour.title || tour.name}
+            </h3>
+            
+            <div className="grid grid-cols-2 gap-4 mb-4 text-sm text-gray-600">
+              <div className="flex items-center gap-2"><MapPin className="w-4 h-4" /><span>{tour.destination}</span></div>
+              <div className="flex items-center gap-2"><Clock className="w-4 h-4" /><span>{tour.duration}</span></div>
+              <div className="flex items-center gap-2"><Users className="w-4 h-4" /><span>Max {tour.maxGroupSize} people</span></div>
+              <div className="flex items-center gap-2"><Award className="w-4 h-4" /><span className="capitalize">{tour.difficulty || 'Easy'}</span></div>
+            </div>
+            
+            <div className="flex items-center justify-between">
+              <div>
+                {originalPrice && originalPrice > price && (
+                    <span className="text-gray-500 line-through">{formatPrice(originalPrice)}</span>
+                )}
+                <span className="text-2xl font-bold text-green-600">{formatPrice(price)}</span>
+                <span className="text-gray-500">/person</span>
+              </div>
+              <button
+                  onClick={() => handleBookTour(tour)}
+                  disabled={!tour.isAvailable}
+                  className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-6 py-2 rounded-lg font-semibold"
+              >
+                  {tour.isAvailable ? 'Book Now' : 'Unavailable'}
+              </button>
             </div>
           </div>
-        )}
-      </div>
-      
-      <div className={`p-6 ${viewMode === 'list' ? 'flex-1' : ''}`}>
-        <div className="flex items-center justify-between mb-2">
-          <span className={`text-xs font-medium px-2 py-1 rounded ${getDifficultyColor(tour.difficulty)}`}>
-            {tour.difficulty || 'Easy'}
-          </span>
-          <div className="flex items-center gap-1">
-            <Star className="w-4 h-4 text-yellow-500 fill-current" />
-            <span className="text-sm text-gray-600">
-              {tour.ratings?.average || 'N/A'} ({tour.ratings?.count || 0})
-            </span>
-          </div>
         </div>
-        
-        <h3 className="text-xl font-bold text-gray-900 mb-2">
-          {tour.title || tour.name}
-        </h3>
-        
-        <div className="grid grid-cols-2 gap-4 mb-4 text-sm text-gray-600">
-          <div className="flex items-center gap-2"><MapPin className="w-4 h-4" /><span>{tour.destination}</span></div>
-          <div className="flex items-center gap-2"><Clock className="w-4 h-4" /><span>{tour.duration}</span></div>
-          <div className="flex items-center gap-2"><Users className="w-4 h-4" /><span>Max {tour.maxGroupSize} people</span></div>
-          <div className="flex items-center gap-2"><Award className="w-4 h-4" /><span className="capitalize">{tour.difficulty || 'Easy'}</span></div>
-        </div>
-        
-        <div className="flex items-center justify-between">
-          <div>
-            <span className="text-2xl font-bold text-green-600">{formatPrice(tour.price)}</span>
-            <span className="text-gray-500">/person</span>
-          </div>
-          <button
-              onClick={() => handleBookTour(tour)}
-              disabled={!tour.isAvailable}
-              className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-6 py-2 rounded-lg font-semibold"
-          >
-              {tour.isAvailable ? 'Book Now' : 'Unavailable'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
+      );
+  }
 
   const renderEmptyState = () => (
     <div className="text-center py-16">

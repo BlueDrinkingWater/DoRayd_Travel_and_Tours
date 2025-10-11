@@ -1,4 +1,4 @@
-// dj2780920-ui/dorayd-travel-and-tours/DoRayd-Travel-and-Tours-c3cb8116bef93292c82d4dfbf1d4d86cd66863f6/src/components/Login.jsx
+// src/components/Login.jsx
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Navigate, useLocation, useNavigate, Link } from 'react-router-dom';
@@ -19,24 +19,23 @@ export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const validateToken = async () => {
-      const token = localStorage.getItem('token');
-      if (token) {
-        try {
-          const response = await DataService.getCurrentUser();
-          if (response.success && response.user) {
-            setUser(response.user);
-            setIsAuthenticated(true);
-          } else {
-            DataService.logout();
-          }
-        } catch (error) {
-          DataService.logout();
-        }
+  const validateToken = async () => {
+    try {
+      const response = await DataService.getCurrentUser();
+      if (response.success && response.user) {
+        setUser(response.user);
+        setIsAuthenticated(true);
+      } else {
+        logout();
       }
-      setLoading(false);
-    };
+    } catch (error) {
+      logout();
+    }
+    setLoading(false);
+  };
+
+
+  useEffect(() => {
     validateToken();
   }, []);
 
@@ -83,7 +82,13 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const value = { user, isAuthenticated, loading, login, logout, register, socialLogin };
+  const refreshUser = async () => {
+    console.log('Refreshing user data due to permission change...');
+    setLoading(true);
+    await validateToken();
+  };
+
+  const value = { user, isAuthenticated, loading, login, logout, register, socialLogin, refreshUser };
 
   return (
     <AuthContext.Provider value={value}>
@@ -215,7 +220,7 @@ export const UnifiedLoginPortal = ({ isOpen, onClose, showRegistration = false }
 
   const handleTabChange = (tab) => {
     setActiveTab(tab);
-    setIsLoginView(true);
+    setIsLoginView(true); // Always default to login view when switching tabs
     resetForm();
   };
 
@@ -237,6 +242,11 @@ export const UnifiedLoginPortal = ({ isOpen, onClose, showRegistration = false }
         }
       } else { setError(result.message); }
     } else {
+      if (activeTab === 'staff') {
+        setError("Staff cannot register through this form.");
+        setLoading(false);
+        return;
+      }
       result = await register(formData);
       if (result.success) {
         alert('Registration successful! Please log in.');
@@ -357,10 +367,12 @@ export const UnifiedLoginPortal = ({ isOpen, onClose, showRegistration = false }
             )}
 
             <p className="mt-6 text-center text-sm text-gray-500">
-              {isLoginView ? "Don't have an account? " : "Already have an account? "}
-              <button onClick={() => { setIsLoginView(!isLoginView); resetForm(); }} className="font-semibold text-blue-600 hover:underline">
-                {isLoginView ? 'Sign up' : 'Sign in'}
-              </button>
+              {isLoginView && activeTab === 'customer' ? "Don't have an account? " : "Already have an account? "}
+              {activeTab === 'customer' && 
+                <button onClick={() => { setIsLoginView(!isLoginView); resetForm(); }} className="font-semibold text-blue-600 hover:underline">
+                  {isLoginView ? 'Sign up' : 'Sign in'}
+                </button>
+              }
             </p>
         </div>
       </div>

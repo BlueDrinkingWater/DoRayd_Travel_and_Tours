@@ -3,7 +3,7 @@ import User from '../models/User.js';
 
 export const auth = async (req, res, next) => {
   try {
-    const token = req.header('Authorization')?.replace('Bearer ', '');
+    const token = req.cookies.token;
 
     if (!token) {
       return res.status(401).json({
@@ -26,15 +26,20 @@ export const auth = async (req, res, next) => {
     req.user = user;
     next();
   } catch (error) {
-    console.error('Auth middleware error:', error);
+    console.error('Auth middleware error:', error.name, error.message);
+    let message = 'Invalid token.';
+    if (error.name === 'TokenExpiredError') {
+      message = 'Your session has expired. Please log in again.';
+    } else if (error.name === 'JsonWebTokenError') {
+      message = 'Invalid token signature. Please log in again.';
+    }
     return res.status(401).json({
       success: false,
-      message: 'Invalid token.'
+      message,
     });
   }
 };
 
-// Role-based authorization
 export const authorize = (...roles) => {
   return (req, res, next) => {
     if (!req.user) {

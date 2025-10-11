@@ -6,12 +6,12 @@ const permissionSchema = new mongoose.Schema({
   module: {
     type: String,
     required: true,
-    enum: ['bookings', 'cars', 'tours', 'promotions', 'content', 'employees', 'customers', 'reports', 'messages']
+    enum: ['bookings', 'cars', 'tours', 'promotions', 'content', 'employees', 'customers', 'reports', 'messages', 'faqs', 'feedback', 'reviews']
   },
   access: {
     type: String,
     required: true,
-    enum: ['read', 'write', 'full'], // read: view only, write: create/edit, full: create/edit/delete/archive
+    enum: ['read', 'write', 'full'],
     default: 'read'
   }
 }, { _id: false });
@@ -26,6 +26,7 @@ const userSchema = new mongoose.Schema({
     select: false 
   },
   phone: { type: String, trim: true },
+  profilePicture: { type: String }, // <-- ADDED
   role: {
     type: String,
     enum: ['customer', 'employee', 'admin'],
@@ -50,6 +51,8 @@ const userSchema = new mongoose.Schema({
   googleId: { type: String },
   facebookId: { type: String },
 }, { timestamps: true });
+
+// ... (rest of the file remains the same)
 
 // Hash password before saving only for local auth
 userSchema.pre('save', async function(next) {

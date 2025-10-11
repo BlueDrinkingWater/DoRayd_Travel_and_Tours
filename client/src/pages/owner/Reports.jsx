@@ -1,5 +1,3 @@
-// src/pages/owner/Reports.jsx
-
 import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { 
@@ -24,11 +22,6 @@ const Reports = () => {
       setLoading(true);
       setError(null);
       const response = await DataService.fetchDashboardAnalytics();
-      
-      console.log('Fetched Analytics - Full Response:', response);
-      console.log('Response.data:', response.data);
-      console.log('Revenue Trend Data:', response.data?.revenueTrend);
-      console.log('Response keys:', Object.keys(response));
       
       if (response.success && response.data) {
         setReportData(response.data);
@@ -73,32 +66,10 @@ const Reports = () => {
     );
   }
 
-  // Safely extract data with fallbacks
-  const summary = reportData.summary || {
-    totalRevenue: 0,
-    revenueGrowth: 0,
-    totalBookings: 0,
-    avgRevenuePerBooking: 0,
-    conversionRate: 0
-  };
-  
+  const summary = reportData.summary || {};
   const popular = reportData.popular || { cars: [], tours: [] };
-  
-  const revenueTrend = reportData.revenueTrend || {
-    daily: [],
-    monthly: [],
-    quarterly: [],
-    yearly: []
-  };
-  
+  const revenueTrend = reportData.revenueTrend || {};
   const chartData = revenueTrend[chartPeriod] || [];
-
-  console.log('Rendering with:', {
-    summary,
-    chartPeriod,
-    chartDataLength: chartData.length,
-    chartData: chartData.slice(0, 3)
-  });
 
   return (
     <div className="space-y-6 p-6">
@@ -117,7 +88,6 @@ const Reports = () => {
         </div>
       </div>
 
-      {/* Summary Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard 
           title="Total Revenue" 
@@ -146,7 +116,6 @@ const Reports = () => {
         />
       </div>
 
-      {/* Revenue Chart */}
       <div className="bg-white p-6 rounded-lg shadow-md">
         <div className="flex justify-between items-center mb-6">
           <h3 className="text-lg font-semibold text-gray-900">Revenue Trend (Completed Bookings)</h3>
@@ -215,7 +184,6 @@ const Reports = () => {
         )}
       </div>
 
-      {/* Popular Items */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <PopularList title="Most Booked Cars" items={popular.cars || []} icon={Car} type="car" />
         <PopularList title="Most Booked Tours" items={popular.tours || []} icon={MapPin} type="tour" />

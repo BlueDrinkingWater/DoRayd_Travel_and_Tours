@@ -3,7 +3,7 @@ import Car from '../models/Car.js';
 import Tour from '../models/Tour.js';
 import User from '../models/User.js';
 import EmailService from '../utils/emailServices.js';
-import { createNotification } from './notificationController.js'; // <-- IMPORT HERE
+import { createNotification } from './notificationController.js'; 
 
 // Get all bookings for a specific service
 export const getBookingAvailability = async (req, res) => {
@@ -140,9 +140,9 @@ export const createBooking = async (req, res) => {
                 booking: newBooking
             };
             io.to('admin').to('employee').emit('new-booking', notification);
-            // --- SAVE NOTIFICATION TO DB ---
+            
             await createNotification(
-              { roles: ['admin', 'employee'] },
+              { roles: ['admin', 'employee'], module: 'bookings' },
               notification.message,
               notification.link
             );
@@ -187,15 +187,15 @@ export const updateBookingStatus = async (req, res) => {
         booking,
       };
       io.to(booking.user._id.toString()).emit('booking-update', notification);
-      // --- SAVE NOTIFICATION TO DB ---
+      
       await createNotification(
         { user: booking.user._id },
         notification.message,
-        notification.link
+        notification.link,
+        req.user.id // Exclude the initiator
       );
     }
     
-    // Send automatic email for approved/rejected bookings
     try {
         if (status === 'confirmed' || status === 'rejected' || status === 'completed') {
             await EmailService.sendStatusUpdate(booking);
@@ -237,11 +237,12 @@ export const cancelBooking = async (req, res) => {
             booking,
         };
       io.to(booking.user._id.toString()).emit('booking-update', notification);
-       // --- SAVE NOTIFICATION TO DB ---
+       
        await createNotification(
         { user: booking.user._id },
         notification.message,
-        notification.link
+        notification.link,
+        req.user.id // Exclude the initiator
       );
     }
 
@@ -249,7 +250,6 @@ export const cancelBooking = async (req, res) => {
       io.to('admin').to('employee').emit('booking-cancelled', booking);
     }
     
-    // Send cancellation email
     try {
         await EmailService.sendBookingCancellation(booking);
     } catch (emailError) {
@@ -272,7 +272,7 @@ export const uploadPaymentProof = async (req, res) => {
         
         const booking = await Booking.findByIdAndUpdate(
             req.params.id,
-            { paymentProofUrl: `/uploads/payment_proofs/${req.file.filename}` },
+            { paymentProofUrl: `payment_proofs/${req.file.filename}` },
             { new: true }
         );
 
@@ -283,9 +283,9 @@ export const uploadPaymentProof = async (req, res) => {
         const io = req.app.get('io');
         if (io) {
             io.to('admin').to('employee').emit('payment-proof-uploaded', booking);
-            // --- SAVE NOTIFICATION TO DB ---
+            
             await createNotification(
-              { roles: ['admin', 'employee'] },
+              { roles: ['admin', 'employee'], module: 'bookings' },
               `Payment proof uploaded for booking ${booking.bookingReference}`,
               '/owner/manage-bookings'
             );

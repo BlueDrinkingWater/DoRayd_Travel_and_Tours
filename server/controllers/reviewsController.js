@@ -2,13 +2,14 @@ import Review from '../models/Reviews.js';
 import Feedback from '../models/Feedback.js';
 import Booking from '../models/Booking.js';
 import { createNotification } from './notificationController.js';
+import { createActivityLog } from './activityLogController.js';
+
 
 // Submit a review for a specific item (car/tour)
 export const submitReview = async (req, res) => {
     try {
         const { bookingId, rating, comment, isAnonymous } = req.body;
 
-        // --- FIX: Add validation to prevent server errors ---
         const booking = await Booking.findById(bookingId);
         if (!booking) {
             return res.status(404).json({ success: false, message: 'Booking not found.' });
@@ -23,7 +24,6 @@ export const submitReview = async (req, res) => {
         if (existingReview) {
             return res.status(400).json({ success: false, message: 'You have already reviewed this booking.' });
         }
-        // --- END FIX ---
 
         const review = new Review({
             user: req.user.id,
@@ -42,14 +42,17 @@ export const submitReview = async (req, res) => {
         if (io) {
             const notification = {
                 message: 'A new review has been submitted for approval.',
-                link: '/owner/manage-reviews',
+                linkMap: {
+                  admin: '/owner/manage-reviews',
+                  employee: '/employee/manage-reviews'
+                },
                 review
             };
             io.to('admin').to('employee').emit('new-review', notification);
             await createNotification(
-              { roles: ['admin', 'employee'] },
+              { roles: ['admin', 'employee'], module: 'reviews' },
               notification.message,
-              notification.link
+              notification.linkMap
             );
         }
 
@@ -57,45 +60,6 @@ export const submitReview = async (req, res) => {
     } catch (error) {
         console.error('Error submitting review:', error);
         res.status(500).json({ success: false, message: 'Failed to submit review.' });
-    }
-};
-
-// Submit feedback (general feedback for dashboard)
-export const submitFeedback = async (req, res) => {
-    try {
-        const { bookingId, rating, comment, isAnonymous } = req.body;
-
-        const booking = await Booking.findById(bookingId);
-        if (!booking) {
-            return res.status(404).json({ success: false, message: 'Booking not found.' });
-        }
-        if (booking.status !== 'completed') {
-            return res.status(400).json({ success: false, message: 'You can only provide feedback for completed bookings.' });
-        }
-        if (!booking.user || booking.user.toString() !== req.user.id) {
-            return res.status(403).json({ success: false, message: 'You can only provide feedback for your own bookings.' });
-        }
-
-        const existingFeedback = await Feedback.findOne({ booking: bookingId });
-        if (existingFeedback) {
-            return res.status(400).json({ success: false, message: 'You have already provided feedback for this booking.' });
-        }
-
-        const feedback = new Feedback({
-            user: req.user.id,
-            booking: bookingId,
-            rating,
-            comment,
-            isAnonymous: isAnonymous || false,
-            serviceType: booking.itemType,
-            image: req.file ? `/uploads/feedback/${req.file.filename}` : undefined
-        });
-
-        await feedback.save();
-        res.status(201).json({ success: true, data: feedback });
-    } catch (error) {
-        console.error('Error submitting feedback:', error);
-        res.status(500).json({ success: false, message: 'Failed to submit feedback.' });
     }
 };
 

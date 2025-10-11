@@ -9,6 +9,14 @@ export const useApi = (apiFunction, dependencies = [], options = {}) => {
   const [error, setError] = useState(null);
   
   const execute = useCallback(async (...args) => {
+    if (typeof apiFunction !== 'function') {
+      const err = new TypeError('apiFunction is not a function');
+      console.error('API Error:', err);
+      setError(err);
+      setLoading(false);
+      throw err;
+    }
+
     try {
       setLoading(true);
       setError(null);
@@ -141,6 +149,5 @@ export const useSearch = (query, type = 'all') => {
         }
     );
 };
-
 
 export default useApi;

@@ -4,8 +4,6 @@ import DataService from '../components/services/DataService';
 import { useApi } from '../hooks/useApi';
 
 const About = () => {
-  console.log('ℹ️ About page loading at 2025-09-03 15:28:10');
-  console.log('👤 Current User: BlueDrinkingWater');
 
   const { data: missionResponse, loading: missionLoading, error: missionError } = useApi(() => DataService.fetchContent('mission'));
   const { data: visionResponse, loading: visionLoading, error: visionError } = useApi(() => DataService.fetchContent('vision'));
@@ -208,98 +206,7 @@ const About = () => {
             </div>
           </div>
         </section>
-
-        {/* Values Section */}
-        <section className="py-16">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">Our Values</h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              The principles that guide everything we do
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {values.map((value, index) => (
-              <div key={index} className="text-center">
-                <div className={`w-16 h-16 bg-${value.color}-100 rounded-full flex items-center justify-center mx-auto mb-6`}>
-                  <value.icon className={`w-8 h-8 text-${value.color}-600`} />
-                </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-4">{value.title}</h3>
-                <p className="text-gray-600">{value.description}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* Timeline Section */}
-        <section className="py-16 bg-gray-50 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">Our Journey</h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Key milestones in our growth and development
-            </p>
-          </div>
-
-          <div className="relative">
-            {/* Timeline line */}
-            <div className="absolute left-1/2 transform -translate-x-1/2 w-1 h-full bg-blue-600"></div>
-
-            <div className="space-y-12">
-              {achievements.map((achievement, index) => (
-                <div key={index} className="relative flex items-center">
-                  <div className={`w-1/2 ${index % 2 === 0 ? 'pr-8 text-right' : 'pl-8 text-left order-2'}`}>
-                    <div className="bg-white p-6 rounded-lg shadow-lg border border-gray-100">
-                      <div className="text-blue-600 font-bold text-lg mb-2">{achievement.year}</div>
-                      <h3 className="text-xl font-semibold text-gray-900 mb-2">{achievement.title}</h3>
-                      <p className="text-gray-600">{achievement.description}</p>
-                    </div>
-                  </div>
-                  <div className="absolute left-1/2 transform -translate-x-1/2 w-4 h-4 bg-blue-600 rounded-full border-4 border-white"></div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Contact CTA */}
-        <section className="py-16">
-          <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl p-8 md:p-12 text-center text-white">
-            <h2 className="text-3xl md:text-4xl font-bold mb-6">Ready to Explore?</h2>
-            <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
-              Join thousands of satisfied customers who have discovered the Philippines with DoRayd Travel & Tours.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button
-                onClick={() => window.location.href = '/contact'}
-                className="bg-white text-blue-600 hover:bg-blue-50 font-semibold px-8 py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
-              >
-                <Phone className="w-5 h-5" />
-                Contact Us
-              </button>
-              <button
-                onClick={() => window.location.href = '/cars'}
-                className="bg-blue-800 hover:bg-blue-900 text-white font-semibold px-8 py-3 rounded-lg transition-colors"
-              >
-                Start Booking
-              </button>
-            </div>
-          </div>
-        </section>
       </div>
-
-      {/* Development Info */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="bg-gray-100 border-t border-gray-300 py-4">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center text-xs text-gray-600">
-              <p>🔧 Development Mode - About Page</p>
-              <p>Database Status: {error ? 'Error' : loading ? 'Loading' : 'Connected'}</p>
-              <p>Content: {Object.values(content).filter(Boolean).length}/3 sections loaded</p>
-              <p>Time: 2025-09-03 15:28:10 | User: BlueDrinkingWater</p>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

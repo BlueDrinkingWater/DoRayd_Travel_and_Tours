@@ -26,12 +26,12 @@ const createStorage = (folder) => {
   });
 };
 
-// Generic file filter for images and PDFs
-const fileFilter = (req, file, cb) => {
-  if (file.mimetype.startsWith('image/') || file.mimetype === 'application/pdf') {
+// Generic file filter for images
+const imageFileFilter = (req, file, cb) => {
+  if (file.mimetype.startsWith('image/')) {
     cb(null, true);
   } else {
-    cb(new Error('Invalid file type. Only images and PDFs are allowed.'), false);
+    cb(new Error('Invalid file type. Only images are allowed.'), false);
   }
 };
 
@@ -39,11 +39,18 @@ const fileFilter = (req, file, cb) => {
 export const upload = multer({
   storage: createStorage('payment_proofs'),
   limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB limit
-  fileFilter: fileFilter,
+  fileFilter: imageFileFilter,
 });
 
 // Uploader for Email Attachments
 export const uploadAttachment = multer({
   storage: createStorage('attachments'),
   limits: { fileSize: 15 * 1024 * 1024 }, // 15 MB limit
+});
+
+// Uploader for Profile Pictures
+export const uploadProfile = multer({
+    storage: createStorage('profiles'),
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+    fileFilter: imageFileFilter,
 });

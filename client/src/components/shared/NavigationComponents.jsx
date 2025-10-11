@@ -1,11 +1,12 @@
 // src/components/shared/NavigationComponents.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Menu, X, User, LogOut, Shield, UserCheck, Phone, Mail, MapPin, Clock, LayoutDashboard } from 'lucide-react';
+import { Menu, X, User, LogOut, Shield, UserCheck, Phone, Mail, MapPin, Clock, LayoutDashboard, Settings } from 'lucide-react';
 import { useAuth } from '../Login';
 import logo from '../../assets/logo.svg';
 import { useSocket } from '../../hooks/useSocket';
-import NotificationBell from './NotificationBell.jsx'; // Import the correct component
+import NotificationBell from './NotificationBell.jsx';
+import { SERVER_URL } from '../services/DataService.jsx'; // Import SERVER_URL
 
 export const Navbar = ({ onCustomerLogin, onStaffLogin, onRegister }) => {
   const { isAuthenticated, user, logout } = useAuth();
@@ -53,6 +54,14 @@ export const Navbar = ({ onCustomerLogin, onStaffLogin, onRegister }) => {
     navigate(path);
     setUserMenuOpen(false);
   };
+  
+  const handleAccountSettings = () => {
+    let path = '/account-settings';
+    if (user?.role === 'admin') path = '/owner/account-settings';
+    if (user?.role === 'employee') path = '/employee/account-settings';
+    navigate(path);
+    setUserMenuOpen(false);
+  };
 
   return (
     <nav className="bg-white/95 backdrop-blur-md shadow-lg sticky top-0 z-50 border-b border-gray-200/50">
@@ -93,7 +102,6 @@ export const Navbar = ({ onCustomerLogin, onStaffLogin, onRegister }) => {
             {isAuthenticated && user ? (
               <div className="flex items-center space-x-2">
                 
-                {/* Use the functional NotificationBell component with correct props */}
                 <NotificationBell 
                   notifications={notifications} 
                   markOneAsRead={markOneAsRead}
@@ -106,10 +114,14 @@ export const Navbar = ({ onCustomerLogin, onStaffLogin, onRegister }) => {
                     onClick={() => setUserMenuOpen(!userMenuOpen)}
                     className="flex items-center space-x-2 p-2 rounded-full hover:bg-gray-50 transition-all duration-300"
                   >
-                    <div className="w-9 h-9 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-md">
-                      <span className="text-white text-sm font-semibold">
-                        {user.firstName?.charAt(0)}{user.lastName?.charAt(0)}
-                      </span>
+                    <div className="w-9 h-9 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-md overflow-hidden">
+                        {user.profilePicture ? (
+                            <img src={`${SERVER_URL}${user.profilePicture}`} alt="Profile" className="w-full h-full object-cover" />
+                        ) : (
+                            <span className="text-white text-sm font-semibold">
+                                {user.firstName?.charAt(0)}{user.lastName?.charAt(0)}
+                            </span>
+                        )}
                     </div>
                     <div className="hidden md:block text-left">
                       <p className="text-sm font-medium text-gray-900">{user.firstName} {user.lastName}</p>
@@ -122,11 +134,15 @@ export const Navbar = ({ onCustomerLogin, onStaffLogin, onRegister }) => {
                     <div className="absolute right-0 mt-3 w-64 bg-white rounded-2xl shadow-2xl border border-gray-200 z-50 overflow-hidden">
                       <div className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 border-b border-gray-200">
                         <div className="flex items-center space-x-3">
-                          <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                            <span className="text-white font-semibold">
-                              {user.firstName?.charAt(0)}{user.lastName?.charAt(0)}
-                            </span>
-                          </div>
+                            <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center overflow-hidden">
+                                {user.profilePicture ? (
+                                    <img src={`${SERVER_URL}${user.profilePicture}`} alt="Profile" className="w-full h-full object-cover" />
+                                ) : (
+                                    <span className="text-white font-semibold">
+                                        {user.firstName?.charAt(0)}{user.lastName?.charAt(0)}
+                                    </span>
+                                )}
+                            </div>
                           <div>
                             <p className="text-sm font-semibold text-gray-900">{user.firstName} {user.lastName}</p>
                             <p className="text-xs text-gray-500">{user.email}</p>
@@ -144,6 +160,14 @@ export const Navbar = ({ onCustomerLogin, onStaffLogin, onRegister }) => {
                         >
                           <LayoutDashboard className="w-4 h-4 mr-3 text-blue-500" />
                           Dashboard
+                        </button>
+
+                        <button
+                          onClick={handleAccountSettings}
+                          className="flex items-center w-full px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                        >
+                          <Settings className="w-4 h-4 mr-3 text-gray-500" />
+                          Account Settings
                         </button>
                         
                         <button
@@ -210,7 +234,7 @@ export const Navbar = ({ onCustomerLogin, onStaffLogin, onRegister }) => {
     </nav>
   );
 };
-
+// ... (Footer component remains unchanged)
 export const Footer = () => {
   return (
     <footer className="bg-gradient-to-r from-gray-900 to-gray-800 text-white">

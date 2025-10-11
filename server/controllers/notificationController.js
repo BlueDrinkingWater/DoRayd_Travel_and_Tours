@@ -2,48 +2,59 @@ import Notification from '../models/Notification.js';
 import User from '../models/User.js';
 
 /**
- * Creates and saves notifications for specified users or roles.
+ * Creates and saves notifications.
  * @param {Object} recipients - Object containing user ID or roles.
- * @param {string} recipients.user - A single user ID.
- * @param {Array<string>} recipients.roles - An array of roles (e.g., ['admin', 'employee']).
  * @param {string} message - The notification message.
- * @param {string} link - The link for the notification.
+ * @param {Object} linkMap - An object mapping roles to specific links.
+ * @param {string} [initiatorId] - The ID of the user who triggered the action, to be excluded from notifications.
+ * Example: { admin: '/owner/link', employee: '/employee/link', default: '#' }
  */
-export const createNotification = async (recipients, message, link) => {
+export const createNotification = async (recipients, message, linkMap, initiatorId = null) => {
     try {
-        let userIds = [];
+        let usersToNotify = [];
 
-        // Handle single user ID
         if (recipients.user) {
-            userIds.push(recipients.user);
+            const user = await User.findById(recipients.user).select('_id role permissions');
+            if (user) usersToNotify.push(user);
         }
 
-        // Handle roles
         if (recipients.roles && Array.isArray(recipients.roles)) {
-            const usersInRoles = await User.find({ role: { $in: recipients.roles } }).select('_id');
-            userIds.push(...usersInRoles.map(u => u._id));
+            const usersInRoles = await User.find({ role: { $in: recipients.roles } }).select('_id role permissions');
+            usersToNotify.push(...usersInRoles);
         }
 
-        // Ensure unique user IDs
-        const uniqueUserIds = [...new Set(userIds.map(id => id.toString()))];
+        // Filter out the initiator and then get unique users
+        const uniqueUsers = Array.from(new Map(
+            usersToNotify
+                .filter(u => !initiatorId || u._id.toString() !== initiatorId)
+                .map(u => [u._id.toString(), u])
+        ).values());
 
-        const notifications = uniqueUserIds.map(userId => ({
-            user: userId,
-            message,
-            link,
-        }));
+
+        const notifications = uniqueUsers.map(user => {
+            // --- FIX: Determine the correct link based on the user's role ---
+            const link = linkMap[user.role] || linkMap.default || '#';
+
+            if (user.role === 'employee' && recipients.module) {
+                const hasPermission = user.permissions.some(p => p.module === recipients.module);
+                if (!hasPermission) return null;
+            }
+
+            return { user: user._id, message, link };
+        }).filter(Boolean);
 
         if (notifications.length > 0) {
             const createdNotifications = await Notification.insertMany(notifications);
             console.log(`Created ${notifications.length} notifications.`);
-            return createdNotifications; // --- FIX: Return the created notifications ---
+            return createdNotifications;
         }
-        return []; // --- FIX: Return empty array if none created ---
+        return [];
     } catch (error) {
         console.error('Error creating notification:', error);
-        return []; // --- FIX: Return empty array on error ---
+        return [];
     }
 };
+
 
 export const getMyNotifications = async (req, res) => {
   try {

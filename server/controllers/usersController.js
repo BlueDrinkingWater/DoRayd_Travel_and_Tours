@@ -2,9 +2,9 @@ import User from '../models/User.js';
 import bcrypt from 'bcryptjs';
 
 export const updateUserProfile = async (req, res) => {
-// ... existing code ...
     try {
-        const { firstName, lastName, email, phone } = req.body;
+        // --- UPDATED: Destructure address from req.body ---
+        const { firstName, lastName, email, phone, address } = req.body;
         const user = await User.findById(req.user.id);
 
         if (!user) {
@@ -15,15 +15,19 @@ export const updateUserProfile = async (req, res) => {
         user.lastName = lastName || user.lastName;
         user.email = email || user.email;
         user.phone = phone || user.phone;
+        // --- UPDATED: Save the address ---
+        user.address = address || user.address;
+
 
         await user.save({ validateBeforeSave: true });
-        
+
         res.json({ success: true, message: 'Profile updated successfully', user });
     } catch (error) {
         res.status(400).json({ success: false, message: error.message });
     }
 };
 
+// ... (rest of the file remains the same)
 export const uploadProfilePicture = async (req, res) => {
     try {
         if (!req.file) {
@@ -45,14 +49,12 @@ export const uploadProfilePicture = async (req, res) => {
 };
 
 export const deleteUserAccount = async (req, res) => {
-// ... existing code ...
     try {
         const user = await User.findById(req.user.id);
         if (!user) {
             return res.status(404).json({ success: false, message: 'User not found.' });
         }
 
-        // Add any additional cleanup logic here (e.g., anonymizing their data)
         await User.findByIdAndDelete(req.user.id);
         
         res.json({ success: true, message: 'Your account has been successfully deleted.' });
@@ -60,10 +62,8 @@ export const deleteUserAccount = async (req, res) => {
         res.status(500).json({ success: false, message: 'Server Error' });
     }
 };
-// ... (rest of the file remains the same)
 
 export const getAllEmployees = async (req, res) => {
-// ... existing code ...
   try {
     const employees = await User.find({ role: { $in: ['admin', 'employee'] } }).select('-password');
     res.json({ success: true, data: employees });
@@ -73,7 +73,6 @@ export const getAllEmployees = async (req, res) => {
 };
 
 export const createEmployee = async (req, res) => {
-// ... existing code ...
     try {
         const { firstName, lastName, email, password, phone, position, permissions, role } = req.body;
         
@@ -107,7 +106,6 @@ export const createEmployee = async (req, res) => {
 };
 
 export const updateEmployee = async (req, res) => {
-// ... existing code ...
     try {
         const { password, ...updateData } = req.body;
         if (updateData.role && !['admin', 'employee'].includes(updateData.role)) {
@@ -129,7 +127,6 @@ export const updateEmployee = async (req, res) => {
 };
 
 export const deleteEmployee = async (req, res) => {
-// ... existing code ...
     try {
         const employee = await User.findByIdAndDelete(req.params.id);
         if (!employee) return res.status(404).json({ success: false, message: 'Employee not found' });
@@ -140,13 +137,12 @@ export const deleteEmployee = async (req, res) => {
 };
 
 export const changeEmployeePassword = async (req, res) => {
-// ... existing code ...
     try {
         const { password } = req.body;
         const user = await User.findById(req.params.id);
         if (!user) return res.status(404).json({ success: false, message: 'User not found' });
         
-        user.password = password; // Hashing is handled by pre-save hook
+        user.password = password;
         await user.save();
         
         res.json({ success: true, message: 'Password updated successfully' });
@@ -156,7 +152,6 @@ export const changeEmployeePassword = async (req, res) => {
 };
 
 export const getAllCustomers = async (req, res) => {
-// ... existing code ...
   try {
     const customers = await User.find({ role: 'customer' }).select('-password');
     res.json({ success: true, data: customers });
@@ -166,7 +161,6 @@ export const getAllCustomers = async (req, res) => {
 };
 
 export const resetCustomerPassword = async (req, res) => {
-// ... existing code ...
     try {
         const { password } = req.body;
         if (!password) {

@@ -1,51 +1,33 @@
 import axios from 'axios';
 
-// Get the base URL for the API from environment variables.
-// For production, this will be an empty string, making API calls relative to the domain.
-// For local development, this can be your backend URL (e.g., 'http://localhost:5000'), but the proxy is recommended.
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
-// Create a single, configured Axios instance.
 const api = axios.create({
   baseURL: API_BASE_URL,
-  withCredentials: true // Crucial for sending secure httpOnly cookies
+  withCredentials: true,
 });
 
-// Use the same base URL for constructing server resource URLs (like images).
 export const SERVER_URL = API_BASE_URL;
 
-/**
- * Creates a full URL for an image from its path.
- * @param {string} url - The relative path or full URL of the image.
- * @returns {string} The full, accessible URL for the image.
- */
 export const getImageUrl = (url) => {
   if (!url) return '';
-  // If url is already a full http/https URL, return it as is.
+  // If the URL is already absolute (starts with http), return it directly.
   if (url.startsWith('http')) {
     return url;
   }
-  // If url is an absolute path, use it with the server URL.
-  if (url.startsWith('/uploads/')) {
-    return `${SERVER_URL}${url}`;
-  }
-  // For any other case, construct the full path.
-  return `${SERVER_URL}/uploads/${url}`;
+  // Otherwise, construct the full URL from the relative path.
+  return `${SERVER_URL}${url.startsWith('/') ? '' : '/'}${url}`;
 };
 
-
-// This function is now simplified as the browser handles the cookie automatically.
 const getAuthHeader = () => {
   return {};
 };
 
-// Centralized error handler.
 const handleError = (error, defaultMessage = 'An unknown error occurred.') => {
   console.error('API Call Failed:', error);
   const message = error.response?.data?.message || error.message || defaultMessage;
   return { success: false, data: null, message };
 };
-
 
 const DataService = {
   // --- Health Check ---
@@ -72,7 +54,6 @@ const DataService = {
     try {
       const response = await api.post('/api/auth/login', credentials);
       if (response.data.user) {
-        // We only store user info now, not the token.
         localStorage.setItem('user', JSON.stringify(response.data.user));
       }
       return response.data;
@@ -94,7 +75,6 @@ const DataService = {
   },
 
   logout: () => {
-    // Only user info is removed from local storage. The cookie is cleared by the browser/server.
     localStorage.removeItem('user');
   },
 
@@ -117,28 +97,28 @@ const DataService = {
   },
 
   uploadProfilePicture: async (file) => {
-      const formData = new FormData();
-      formData.append('profilePicture', file);
-      try {
-          const response = await api.post('/api/users/profile/picture', formData, {
-              headers: {
-                  ...getAuthHeader(),
-                  'Content-Type': 'multipart/form-data',
-              },
-          });
-          return response.data;
-      } catch (error) {
-          return handleError(error, 'Failed to upload profile picture.');
-      }
+    const formData = new FormData();
+    formData.append('profilePicture', file);
+    try {
+      const response = await api.post('/api/users/profile/picture', formData, {
+        headers: {
+          ...getAuthHeader(),
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return response.data;
+    } catch (error) {
+      return handleError(error, 'Failed to upload profile picture.');
+    }
   },
 
   deleteAccount: async () => {
-      try {
-          const response = await api.delete('/api/users/profile', { headers: getAuthHeader() });
-          return response.data;
-      } catch (error) {
-          return handleError(error, 'Failed to delete account.');
-      }
+    try {
+      const response = await api.delete('/api/users/profile', { headers: getAuthHeader() });
+      return response.data;
+    } catch (error) {
+      return handleError(error, 'Failed to delete account.');
+    }
   },
 
   changePassword: async (passwordData) => {
@@ -150,7 +130,6 @@ const DataService = {
     }
   },
 
-  // --- Forgot Password ---
   forgotPassword: async (email) => {
     try {
       const response = await api.post('/api/auth/forgot-password', { email });
@@ -160,7 +139,6 @@ const DataService = {
     }
   },
 
-  // --- Reset Password ---
   resetPassword: async (token, password) => {
     try {
       const response = await api.post(`/api/auth/reset-password/${token}`, { password });
@@ -198,7 +176,6 @@ const DataService = {
     }
   },
 
-
   // --- File Upload ---
   uploadImage: async (file, category) => {
     const formData = new FormData();
@@ -218,9 +195,9 @@ const DataService = {
     }
   },
 
-  deleteImage: async (category, filename) => {
+  deleteImage: async (publicId) => {
     try {
-      const response = await api.delete(`/api/upload/image/${category}/${filename}`, { 
+      const response = await api.delete(`/api/upload/image/${encodeURIComponent(publicId)}`, { 
         headers: getAuthHeader() 
       });
       return response.data;
@@ -328,7 +305,7 @@ const DataService = {
     }
   },
 
-  // --- Reviews (for specific items) ---
+  // --- Reviews ---
   submitReview: async (reviewData) => {
     try {
       const response = await api.post('/api/reviews', reviewData, { headers: getAuthHeader() });
@@ -373,16 +350,7 @@ const DataService = {
       return handleError(error, 'Failed to approve review.');
     }
   },
-
-  disapproveReview: async (reviewId) => {
-    try {
-      const response = await api.patch(`/api/reviews/${reviewId}/disapprove`, {}, { headers: getAuthHeader() });
-      return response.data;
-    } catch (error) {
-      return handleError(error, 'Failed to disapprove review.');
-    }
-  },
-
+  
   deleteReview: async (id) => {
     try {
       const response = await api.delete(`/api/reviews/${id}`, { headers: getAuthHeader() });
@@ -392,17 +360,8 @@ const DataService = {
     }
   },
 
-  // --- Feedback (for dashboard) ---
+  // --- Feedback ---
   submitFeedback: async (feedbackData) => {
-    try {
-      const response = await api.post('/api/feedback', feedbackData, { headers: getAuthHeader() });
-      return response.data;
-    } catch (error) {
-      return handleError(error, 'Failed to submit feedback.');
-    }
-  },
-
-  submitGeneralFeedback: async (feedbackData) => {
     try {
       const response = await api.post('/api/feedback', feedbackData, { headers: getAuthHeader() });
       return response.data;
@@ -419,16 +378,7 @@ const DataService = {
       return handleError(error, 'Failed to fetch public feedback.');
     }
   },
-
-  fetchPublicFeedback: async () => {
-    try {
-      const response = await api.get('/api/feedback/public');
-      return response.data;
-    } catch (error) {
-      return handleError(error, 'Failed to fetch public feedback.');
-    }
-  },
-
+  
   getMyFeedback: async () => {
     try {
       const response = await api.get('/api/feedback/my-feedback', { headers: getAuthHeader() });
@@ -455,17 +405,17 @@ const DataService = {
       return handleError(error, 'Failed to approve feedback.');
     }
   },
-
-  disapproveFeedback: async (feedbackId) => {
+  
+  deleteFeedback: async (id) => {
     try {
-      const response = await api.patch(`/api/feedback/${feedbackId}/disapprove`, {}, { headers: getAuthHeader() });
+      const response = await api.delete(`/api/feedback/${id}`, { headers: getAuthHeader() });
       return response.data;
     } catch (error) {
-      return handleError(error, 'Failed to disapprove feedback.');
+      return handleError(error, 'Failed to delete feedback.');
     }
   },
-
-  // --- Customer Management ---
+  
+  // --- Admin Functions ---
   fetchAllCustomers: async () => {
     try {
       const response = await api.get('/api/users/customers', { headers: getAuthHeader() });
@@ -484,7 +434,6 @@ const DataService = {
     }
   },
 
-  // --- Car Management Functions (Admin) ---
   createCar: async (carData) => {
     try {
       const response = await api.post('/api/cars', carData, { headers: getAuthHeader() });
@@ -521,7 +470,6 @@ const DataService = {
     }
   },
 
-  // --- Tour Management Functions (Admin) ---
   createTour: async (tourData) => {
     try {
       const response = await api.post('/api/tours', tourData, { headers: getAuthHeader() });
@@ -558,7 +506,6 @@ const DataService = {
     }
   },
 
-  // --- Message Management ---
   createMessage: async (messageData) => {
     try {
       const response = await api.post('/api/messages', messageData);
@@ -576,16 +523,7 @@ const DataService = {
       return handleError(error, 'Failed to fetch messages.');
     }
   },
-
-  markMessageAsRead: async (messageId) => {
-    try {
-      const response = await api.put(`/api/messages/${messageId}/status`, { status: 'read' }, { headers: getAuthHeader() });
-      return response.data;
-    } catch (error) {
-      return handleError(error, 'Failed to mark message as read.');
-    }
-  },
-
+  
   replyToMessage: async (messageId, formData) => {
     try {
       const response = await api.post(`/api/messages/${messageId}/reply`, formData, { 
@@ -600,7 +538,6 @@ const DataService = {
     }
   },
 
-  // --- Employee Management ---
   fetchAllEmployees: async () => {
     try {
       const response = await api.get('/api/users/employees', { headers: getAuthHeader() });
@@ -637,7 +574,6 @@ const DataService = {
     }
   },
 
-  // --- Analytics ---
   fetchDashboardAnalytics: async () => {
     try {
       const response = await api.get('/api/analytics/dashboard', { headers: getAuthHeader() });
@@ -647,14 +583,9 @@ const DataService = {
     }
   },
 
-  // --- Content Management ---
   fetchContent: async (type) => {
     try {
-      const response = await api.get(`/api/content/${type}`, {
-        params: {
-          _: new Date().getTime(),
-        }
-      });
+      const response = await api.get(`/api/content/${type}`);
       return response.data;
     } catch (error) {
       return handleError(error, `Failed to fetch '${type}' content.`);
@@ -669,7 +600,7 @@ const DataService = {
       return handleError(error, `Failed to update '${type}' content.`);
     }
   },
-    // --- Activity Log ---
+
   fetchActivityLogs: async () => {
     try {
       const response = await api.get('/api/activity-log', { headers: getAuthHeader() });
@@ -678,8 +609,7 @@ const DataService = {
       return handleError(error, 'Failed to fetch activity logs.');
     }
   },
-
-  // --- FAQ Management ---
+  
   fetchAllFaqs: async () => {
     try {
       const response = await api.get('/api/faqs');
@@ -724,8 +654,7 @@ const DataService = {
       return handleError(error, 'Failed to delete FAQ.');
     }
   },
-
-  // --- Promotion Management ---
+  
   fetchAllPromotions: async () => {
     try {
       const response = await api.get('/api/promotions');

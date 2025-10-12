@@ -7,12 +7,14 @@ import { useNavigate } from 'react-router-dom';
 const AccountSettings = () => {
     const { user, refreshUser, logout } = useAuth();
     const navigate = useNavigate();
-    
+
     const [profileData, setProfileData] = useState({
         firstName: user?.firstName || '',
         lastName: user?.lastName || '',
         email: user?.email || '',
         phone: user?.phone || '',
+        // --- ADDED: Initialize address state ---
+        address: user?.address || '',
     });
     const [passwordData, setPasswordData] = useState({
         currentPassword: '',
@@ -23,7 +25,7 @@ const AccountSettings = () => {
     const [passwordMessage, setPasswordMessage] = useState({ type: '', text: '' });
     const [deleteMessage, setDeleteMessage] = useState({ type: '', text: '' });
     const [isEditing, setIsEditing] = useState(false);
-    
+
     const fileInputRef = useRef(null);
 
     const handleProfileChange = (e) => {
@@ -119,18 +121,17 @@ const AccountSettings = () => {
 
     return (
         <div className="space-y-8 max-w-4xl mx-auto">
-            {/* Profile Information Section */}
             <div className="bg-white p-6 rounded-lg shadow-sm border">
                 <h2 className="text-xl font-bold text-gray-800 mb-4">Profile Information</h2>
                 <Message type={profileMessage.type} text={profileMessage.text} />
                 <div className="flex items-center gap-6 mt-4">
                     <div className="relative">
-                        <img 
-                            src={user?.profilePicture ? `${SERVER_URL}${user.profilePicture}` : `https://ui-avatars.com/api/?name=${user?.firstName}+${user?.lastName}&background=random&color=fff`} 
-                            alt="Profile" 
+                        <img
+                            src={user?.profilePicture ? `${SERVER_URL}${user.profilePicture}` : `https://ui-avatars.com/api/?name=${user?.firstName}+${user?.lastName}&background=random&color=fff`}
+                            alt="Profile"
                             className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-md"
                         />
-                        <button 
+                        <button
                             onClick={() => fileInputRef.current.click()}
                             className="absolute -bottom-1 -right-1 bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-full border-2 border-white"
                         >
@@ -144,6 +145,10 @@ const AccountSettings = () => {
                             <input name="lastName" value={profileData.lastName} onChange={handleProfileChange} disabled={!isEditing} className="w-full p-2 border rounded-md disabled:bg-gray-100" />
                             <input type="email" name="email" value={profileData.email} onChange={handleProfileChange} disabled={!isEditing} className="w-full p-2 border rounded-md disabled:bg-gray-100" />
                             <input name="phone" value={profileData.phone} onChange={handleProfileChange} disabled={!isEditing} className="w-full p-2 border rounded-md disabled:bg-gray-100" />
+                        </div>
+                        {/* --- ADDED: Address textarea --- */}
+                        <div className="col-span-1 md:col-span-2">
+                             <textarea name="address" value={profileData.address} onChange={handleProfileChange} disabled={!isEditing} className="w-full p-2 border rounded-md disabled:bg-gray-100" placeholder="Your Address" rows="3"></textarea>
                         </div>
                         <div className="flex justify-end gap-2">
                             {isEditing ? (
@@ -159,7 +164,6 @@ const AccountSettings = () => {
                 </div>
             </div>
 
-            {/* Change Password Section */}
             <div className="bg-white p-6 rounded-lg shadow-sm border">
                 <h2 className="text-xl font-bold text-gray-800 mb-4">Change Password</h2>
                 <Message type={passwordMessage.type} text={passwordMessage.text} />
@@ -172,8 +176,7 @@ const AccountSettings = () => {
                     </div>
                 </form>
             </div>
-            
-            {/* Delete Account Section (Customers only) */}
+
             {user?.role === 'customer' && (
                 <div className="bg-white p-6 rounded-lg shadow-sm border border-red-200">
                     <h2 className="text-xl font-bold text-red-600 mb-2">Danger Zone</h2>

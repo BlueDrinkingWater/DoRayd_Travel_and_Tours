@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { io } from 'socket.io-client';
 import { useAuth } from '../components/Login';
-import DataService from '../components/services/DataService';
+import DataService, { SERVER_URL } from '../components/services/DataService';
 
-const socket = io({
+const socket = io(SERVER_URL, {
     autoConnect: false,
-    transports: ['websocket'], // Force WebSocket transport, bypassing HTTP polling
+    transports: ['websocket'],
 });
 
 export const useSocket = () => {
@@ -15,7 +15,6 @@ export const useSocket = () => {
   const [toastNotifications, setToastNotifications] = useState([]);
 
   useEffect(() => {
-    // Fetch all historical notifications for the bell on login
     const fetchNotifications = async () => {
       if (user) {
         const response = await DataService.fetchMyNotifications();

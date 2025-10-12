@@ -78,24 +78,29 @@ const corsOptions = {
     }
   },
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  credentials: true, // This is essential for cookies
+  credentials: true,
   allowedHeaders: ['Content-Type', 'Authorization'],
 };
 
 // --- Security Middleware ---
 app.use(helmet());
-app.use(cors(corsOptions)); // Apply CORS here
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser());
 app.use(mongoSanitize());
 
 const authLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 10, // Limit each IP to 10 requests per windowMs
+    windowMs: 15 * 60 * 1000,
+    max: 10,
     message: 'Too many login attempts from this IP, please try again after 15 minutes'
 });
 
 app.set('io', io);
+
+// --- STATIC FILE SERVING ---
+// This is the line that fixes the image loading error.
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 
 // --- API ROUTES ---
 app.use('/api/auth/login', authLimiter);

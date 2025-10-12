@@ -3,11 +3,10 @@ import Car from '../models/Car.js';
 import Tour from '../models/Tour.js';
 import User from '../models/User.js';
 import EmailService from '../utils/emailServices.js';
-import { createNotification } from './notificationController.js'; 
+import { createNotification } from './notificationController.js';
 
 // Get all bookings for a specific service
 export const getBookingAvailability = async (req, res) => {
-// ... existing code ...
   try {
     const { serviceId } = req.params;
     const bookings = await Booking.find({
@@ -34,12 +33,11 @@ export const getBookingAvailability = async (req, res) => {
 
 // Get all bookings (for admin/employee)
 export const getAllBookings = async (req, res) => {
-// ... existing code ...
   try {
     const bookings = await Booking.find({})
         .populate({
             path: 'itemId',
-            select: 'brand model title' // Select only necessary fields
+            select: 'brand model title'
         })
         .populate('user', 'firstName lastName')
         .sort({ createdAt: -1 });
@@ -52,13 +50,11 @@ export const getAllBookings = async (req, res) => {
 
 // Get bookings for the currently authenticated user
 export const getMyBookings = async (req, res) => {
-// ... existing code ...
     try {
         const bookings = await Booking.find({ user: req.user.id })
             .populate('itemId')
             .sort({ createdAt: -1 });
         
-        // FIX: Filter out bookings where the associated item has been deleted
         const validBookings = bookings.filter(booking => booking.itemId);
 
         res.json({ success: true, data: validBookings });
@@ -77,6 +73,7 @@ export const createBooking = async (req, res) => {
         const {
             itemType, itemId, itemName, startDate, endDate, dropoffCoordinates,
             paymentReference, amountPaid, firstName, lastName, email, phone,
+            address, // This is now correctly handled below
             numberOfGuests, specialRequests, agreedToTerms, deliveryMethod,
             pickupLocation, dropoffLocation, totalPrice
         } = req.body;
@@ -112,7 +109,7 @@ export const createBooking = async (req, res) => {
             startDate: new Date(startDate),
             endDate: endDate ? new Date(endDate) : new Date(startDate),
             itemModel: itemType.charAt(0).toUpperCase() + itemType.slice(1),
-            paymentProofUrl: req.file ? req.file.path : null, // Use Cloudinary URL
+            paymentProofUrl: req.file ? req.file.path : null,
             dropoffCoordinates: coords,
             paymentReference,
             amountPaid: Number(amountPaid) || 0,
@@ -120,6 +117,7 @@ export const createBooking = async (req, res) => {
             lastName: finalLastName,
             email: finalEmail,
             phone: finalPhone,
+            address: address, // <-- THE FIX IS HERE
             numberOfGuests: Number(numberOfGuests) || 1,
             specialRequests,
             agreedToTerms: agreedToTerms === 'true' || agreedToTerms === true,
@@ -136,7 +134,6 @@ export const createBooking = async (req, res) => {
         }
 
         const io = req.app.get('io');
-// ... existing code ...
         if (io) {
             const notification = {
                 message: `New booking received: ${newBooking.bookingReference}`,
@@ -171,7 +168,6 @@ export const createBooking = async (req, res) => {
 
 // Update booking status
 export const updateBookingStatus = async (req, res) => {
-// ... existing code ...
   try {
     const { status, adminNotes } = req.body;
     const booking = await Booking.findByIdAndUpdate(
@@ -197,7 +193,7 @@ export const updateBookingStatus = async (req, res) => {
         { user: booking.user._id },
         notification.message,
         notification.link,
-        req.user.id // Exclude the initiator
+        req.user.id
       );
     }
     
@@ -222,7 +218,6 @@ export const updateBookingStatus = async (req, res) => {
 
 // Cancel a booking
 export const cancelBooking = async (req, res) => {
-// ... existing code ...
   try {
     const { adminNotes } = req.body;
     const booking = await Booking.findByIdAndUpdate(
@@ -248,7 +243,7 @@ export const cancelBooking = async (req, res) => {
         { user: booking.user._id },
         notification.message,
         notification.link,
-        req.user.id // Exclude the initiator
+        req.user.id
       );
     }
 
@@ -278,7 +273,7 @@ export const uploadPaymentProof = async (req, res) => {
         
         const booking = await Booking.findByIdAndUpdate(
             req.params.id,
-            { paymentProofUrl: req.file.path }, // Use Cloudinary URL
+            { paymentProofUrl: req.file.path },
             { new: true }
         );
 
@@ -287,7 +282,6 @@ export const uploadPaymentProof = async (req, res) => {
         }
         
         const io = req.app.get('io');
-// ... existing code ...
         if (io) {
             io.to('admin').to('employee').emit('payment-proof-uploaded', booking);
             

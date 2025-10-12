@@ -20,13 +20,15 @@ const userSchema = new mongoose.Schema({
   firstName: { type: String, required: true, trim: true },
   lastName: { type: String, required: true, trim: true },
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
-  password: { 
-    type: String, 
+  password: {
+    type: String,
     required: function() { return this.authProvider === 'local'; },
-    select: false 
+    select: false
   },
   phone: { type: String, trim: true },
-  profilePicture: { type: String }, // <-- ADDED
+  profilePicture: { type: String },
+  // --- ADDED ADDRESS FIELD ---
+  address: { type: String, trim: true, maxlength: 500 },
   role: {
     type: String,
     enum: ['customer', 'employee', 'admin'],
@@ -51,8 +53,6 @@ const userSchema = new mongoose.Schema({
   googleId: { type: String },
   facebookId: { type: String },
 }, { timestamps: true });
-
-// ... (rest of the file remains the same)
 
 // Hash password before saving only for local auth
 userSchema.pre('save', async function(next) {

@@ -99,11 +99,7 @@ const authLimiter = rateLimit({
 app.set('io', io);
 
 // --- STATIC FILE SERVING ---
-// This serves files from the 'uploads' directory locally.
-// For a production environment using a service like Vercel, this directory is ephemeral.
-// It's recommended to use a cloud storage provider like Cloudinary for all uploads.
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-
 
 // --- API ROUTES ---
 app.use('/api/auth/login', authLimiter);
@@ -136,11 +132,8 @@ app.get('/api/health', (req, res) => {
 
 // --- SERVE FRONTEND IN PRODUCTION ---
 if (process.env.NODE_ENV === 'production') {
-  // Serve static files from the React app build directory
   app.use(express.static(path.join(__dirname, '../client/dist')));
 
-  // The "catchall" handler: for any request that doesn't match one above,
-  // send back React's index.html file. This is crucial for client-side routing.
   app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, '../client/dist/index.html'));
   });

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import DataService, { SERVER_URL } from './services/DataService.jsx';
+import DataService, { getImageUrl } from './services/DataService.jsx';
 import { Car, MapPin } from 'lucide-react';
 
 const MarqueeHero = () => {
@@ -30,7 +30,7 @@ const MarqueeHero = () => {
                 if (carsResponse.success && Array.isArray(carsResponse.data)) {
                     const carData = carsResponse.data.map(car => ({
                         title: `${car.brand} ${car.model}`,
-                        image: car.images && car.images.length > 0 ? `${SERVER_URL}${car.images[0]}` : null
+                        image: car.images && car.images.length > 0 ? getImageUrl(car.images[0]) : null
                     }));
                     combinedData.push(...carData);
                 }
@@ -38,7 +38,7 @@ const MarqueeHero = () => {
                 if (toursResponse.success && Array.isArray(toursResponse.data)) {
                     const tourData = toursResponse.data.map(tour => ({
                         title: tour.title,
-                        image: tour.images && tour.images.length > 0 ? `${SERVER_URL}${tour.images[0]}` : null
+                        image: tour.images && tour.images.length > 0 ? getImageUrl(tour.images[0]) : null
                     }));
                     combinedData.push(...tourData);
                 }

@@ -37,9 +37,6 @@ const Home = () => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    console.log('🏠 Home page loading data from database at 2025-09-03 17:19:28');
-    console.log('👤 Current User: BlueDrinkingWater');
-    
     const fetchHomeData = async () => {
       try {
         setLoading(true);
@@ -63,12 +60,10 @@ const Home = () => {
             happyCustomers: 500 // This could come from analytics endpoint
           });
 
-          console.log(`✅ Loaded ${carsResponse.data?.length || 0} cars and ${toursResponse.data?.length || 0} tours from database at 2025-09-03 17:19:28`);
         } else {
           throw new Error('Failed to load data from database');
         }
       } catch (error) {
-        console.error('❌ Error loading home page data from database:', error);
         setError(error.message);
         // Set empty arrays for featured items when database fails
         setFeaturedCars([]);
@@ -136,13 +131,10 @@ const Home = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold text-gray-900 mb-4">
-              {loading ? 'Loading Statistics...' : 'Our Impact in Numbers'}
+              Our Impact in Numbers
             </h2>
             <p className="text-gray-600 max-w-2xl mx-auto">
-              {loading ? 
-                'Fetching real-time data from our database...' : 
-                'Real-time statistics from our database showing our commitment to excellence'
-              }
+              Real-time statistics showing our commitment to excellence
             </p>
           </div>
 
@@ -185,9 +177,6 @@ const Home = () => {
                   {typeof stat.value === 'number' ? stat.value.toLocaleString() : stat.value}
                 </div>
                 <div className="text-gray-600">{stat.label}</div>
-                {!loading && (
-                  <div className="text-xs text-gray-500 mt-1">From Database</div>
-                )}
               </div>
             ))}
           </div>
@@ -200,13 +189,10 @@ const Home = () => {
           <div className="flex items-center justify-between mb-12">
             <div>
               <h2 className="text-3xl font-bold text-gray-900 mb-4">
-                {loading ? 'Loading Cars...' : 'Featured Car Rentals'}
+                Featured Car Rentals
               </h2>
               <p className="text-gray-600">
-                {loading ? 
-                  'Fetching premium vehicles from our database...' : 
-                  'Premium vehicles loaded from our live database for your comfort and convenience'
-                }
+                Premium vehicles for your comfort and convenience
               </p>
             </div>
             <button
@@ -294,7 +280,7 @@ const Home = () => {
             <div className="text-center py-12">
               <Car className="w-16 h-16 text-gray-400 mx-auto mb-4" />
               <h3 className="text-xl font-semibold text-gray-900 mb-2">No Cars Available</h3>
-              <p className="text-gray-600">No cars found in database. Please check back later.</p>
+              <p className="text-gray-600">Please check back later.</p>
             </div>
           )}
         </div>
@@ -306,13 +292,10 @@ const Home = () => {
           <div className="flex items-center justify-between mb-12">
             <div>
               <h2 className="text-3xl font-bold text-gray-900 mb-4">
-                {loading ? 'Loading Tours...' : 'Featured Tour Packages'}
+                Featured Tour Packages
               </h2>
               <p className="text-gray-600">
-                {loading ? 
-                  'Fetching amazing destinations from our database...' : 
-                  'Amazing destinations and experiences loaded from our live database'
-                }
+                Amazing destinations and experiences
               </p>
             </div>
             <button
@@ -400,7 +383,7 @@ const Home = () => {
             <div className="text-center py-12">
               <MapPin className="w-16 h-16 text-gray-400 mx-auto mb-4" />
               <h3 className="text-xl font-semibold text-gray-900 mb-2">No Tours Available</h3>
-              <p className="text-gray-600">No tours found in database. Please check back later.</p>
+              <p className="text-gray-600">Please check back later.</p>
             </div>
           )}
         </div>
@@ -412,7 +395,7 @@ const Home = () => {
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold text-gray-900 mb-4">Why Choose DoRayd?</h2>
             <p className="text-gray-600 max-w-2xl mx-auto">
-              Experience the best travel services with our database-driven platform ensuring real-time availability and secure bookings
+              Experience the best travel services with our platform ensuring real-time availability and secure bookings
             </p>
           </div>
 
@@ -421,22 +404,22 @@ const Home = () => {
               {
                 icon: Shield,
                 title: 'Secure Booking',
-                description: 'All bookings are securely stored in our encrypted database with real-time confirmation'
+                description: 'All bookings are securely stored with real-time confirmation'
               },
               {
                 icon: Award,
                 title: 'Premium Quality',
-                description: 'Curated selection of vehicles and tours maintained in our quality database'
+                description: 'Curated selection of vehicles and tours'
               },
               {
                 icon: CreditCard,
                 title: 'Flexible Payment',
-                description: 'Multiple payment options with secure transaction processing and database tracking'
+                description: 'Multiple payment options with secure transaction processing'
               },
               {
                 icon: Zap,
                 title: 'Instant Confirmation',
-                description: 'Real-time booking confirmation powered by our live database connectivity'
+                description: 'Real-time booking confirmation'
               }
             ].map((feature, index) => (
               <div key={index} className="text-center">
@@ -456,7 +439,7 @@ const Home = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl font-bold mb-4">Ready for Your Next Adventure?</h2>
           <p className="text-xl mb-8 text-blue-100">
-            Start planning your perfect trip with our database-powered booking platform
+            Start planning your perfect trip with our booking platform
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button
@@ -476,23 +459,6 @@ const Home = () => {
           </div>
         </div>
       </section>
-      
-      {/* Development Info */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="bg-gray-100 border-t border-gray-300 py-4">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-xs text-gray-600 space-y-1">
-              <p>🔧 Development Mode - Home Page</p>
-              <p>👤 Current User: BlueDrinkingWater</p>
-              <p>🕒 Time: 2025-09-03 17:19:28</p>
-              <p>📊 Cars in Database: {featuredCars.length}</p>
-              <p>🗺️ Tours in Database: {featuredTours.length}</p>
-              <p>💾 Data Source: MongoDB Database</p>
-              <p>🔗 API Status: {error ? 'Error' : loading ? 'Loading' : 'Connected'}</p>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

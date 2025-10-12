@@ -1,7 +1,19 @@
 import React, { useState, useEffect } from 'react';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
 import { MapPin, Phone, Mail, Clock, Send, CheckCircle, AlertCircle, RefreshCw } from 'lucide-react';
 import DataService from '../components/services/DataService';
 import { useApi } from '../hooks/useApi';
+
+// Fix for default icon issue in React-Leaflet
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
+  iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
+});
+
 
 const Contact = () => {
   const [formData, setFormData] = useState({
@@ -12,9 +24,21 @@ const Contact = () => {
     message: ''
   });
 
-  const { data: contactData, loading, error: contentError, refetch } = useApi(() => DataService.fetchContent('contact'));
-  const contactInfo = contactData?.data;
+  const { data: phoneData, loading: phoneLoading, error: phoneError } = useApi(() => DataService.fetchContent('contactPhone'));
+  const { data: emailData, loading: emailLoading, error: emailError } = useApi(() => DataService.fetchContent('contactEmail'));
+  const { data: addressData, loading: addressLoading, error: addressError } = useApi(() => DataService.fetchContent('contactAddress'));
+  const { data: hoursData, loading: hoursLoading, error: hoursError } = useApi(() => DataService.fetchContent('contactHours'));
+  const { data: locationData, loading: locationLoading, error: locationError } = useApi(() => DataService.fetchContent('officeLocation'));
 
+  const contactInfo = {
+    phone: phoneData?.data?.content,
+    email: emailData?.data?.content,
+    address: addressData?.data?.content,
+    hours: hoursData?.data?.content,
+    location: locationData?.data?.content,
+  };
+  const loading = phoneLoading || emailLoading || addressLoading || hoursLoading || locationLoading;
+  const contentError = phoneError || emailError || addressError || hoursError || locationError;
 
   const [submitting, setSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
@@ -98,32 +122,36 @@ const Contact = () => {
     }
   ];
   
-  const contactInfoCards = loading || !contactInfo ? [] : [
+  const contactInfoCards = loading ? [] : [
     {
       icon: Phone,
       title: 'Phone',
-      details: contactInfo.content.split('\n')[0] || '+63 917 123 4567',
+      details: contactInfo.phone || '+63 917 123 4567',
       description: '24/7 Customer Support'
     },
     {
       icon: Mail,
       title: 'Email',
-      details: contactInfo.content.split('\n')[1] || 'info@dorayd.com',
+      details: contactInfo.email || 'info@dorayd.com',
       description: 'Send us your questions'
     },
     {
       icon: MapPin,
       title: 'Address',
-      details: contactInfo.content.split('\n')[2] || 'Manila, Philippines',
+      details: contactInfo.address || 'Manila, Philippines',
       description: 'Visit our office'
     },
     {
       icon: Clock,
       title: 'Business Hours',
-      details: contactInfo.content.split('\n')[3] || '24/7 Service',
+      details: contactInfo.hours || '24/7 Service',
       description: 'Always here for you'
     }
   ];
+
+  const officePosition = contactInfo.location && contactInfo.location.split(',').length === 2 
+    ? contactInfo.location.split(',').map(Number) 
+    : [14.5995, 120.9842]; // Default to Manila
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -282,7 +310,6 @@ const Contact = () => {
             <div className="bg-white rounded-xl shadow-lg p-8">
               <h2 className="text-2xl font-bold text-gray-900 mb-6">Get in Touch</h2>
               <div className="space-y-6">
-                {/* --- FIX STARTS HERE: Render dynamic contact cards --- */}
                 {loading ? <p>Loading contact info...</p> : contentError ? <p className='text-red-500'>Could not load contact info.</p> : contactInfoCards.map((info, index) => (
                   <div key={index} className="flex items-start gap-4">
                     <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -301,12 +328,20 @@ const Contact = () => {
             {/* Map Placeholder */}
             <div className="bg-white rounded-xl shadow-lg p-8">
               <h2 className="text-2xl font-bold text-gray-900 mb-6">Visit Our Office</h2>
-              <div className="h-64 bg-gray-200 rounded-lg flex items-center justify-center">
-                <div className="text-center">
-                  <MapPin className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-600 font-medium">{loading ? '...' : contactInfo?.content.split('\n')[2]}</p>
-                  <p className="text-sm text-gray-500 mt-2">Detailed address will be provided upon booking</p>
-                </div>
+              <div className="h-64 bg-gray-200 rounded-lg z-0">
+                {!loading && (
+                  <MapContainer center={officePosition} zoom={13} scrollWheelZoom={false} style={{ height: "100%", width: "100%" }}>
+                    <TileLayer
+                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    />
+                    <Marker position={officePosition}>
+                      <Popup>
+                        DoRayd Travel & Tours Office
+                      </Popup>
+                    </Marker>
+                  </MapContainer>
+                )}
               </div>
             </div>
           </div>

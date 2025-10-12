@@ -15,6 +15,12 @@ const contentSchema = new mongoose.Schema(
         "contact",
         "bookingTerms",
         "paymentQR",
+        "aboutImage",
+        "contactPhone",
+        "contactEmail",
+        "contactAddress",
+        "contactHours",
+        "officeLocation"
       ],
       trim: true,
     },
@@ -33,7 +39,7 @@ const contentSchema = new mongoose.Schema(
   }
 );
 
-// 🔧 Ensure indexes are synced (prevents leftover 'page' index errors)
+//  Ensure indexes are synced (prevents leftover 'page' index errors)
 contentSchema.index({ type: 1 }, { unique: true });
 
 export default mongoose.model("Content", contentSchema);

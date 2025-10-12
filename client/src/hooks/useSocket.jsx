@@ -32,7 +32,6 @@ export const useSocket = () => {
         }
 
         const onConnect = () => {
-          console.log('✅ Socket connected successfully via WebSocket');
           setConnected(true);
           socket.emit('join', user.role);
           if (user.role === 'customer' || user.role === 'employee') {
@@ -41,7 +40,6 @@ export const useSocket = () => {
         };
 
         const onDisconnect = () => {
-          console.log('🔌 Socket disconnected');
           setConnected(false);
         };
 
@@ -92,7 +90,7 @@ export const useSocket = () => {
       await DataService.markNotificationAsRead(id);
       setAllNotifications(prev => prev.map(n => (n._id === id ? { ...n, read: true } : n)));
     } catch (error) {
-      console.error("Failed to mark notification as read:", error);
+      // Handle error silently in production
     }
   }, []);
 
@@ -101,7 +99,7 @@ export const useSocket = () => {
       await DataService.markAllNotificationsAsRead();
       setAllNotifications(prev => prev.map(n => ({ ...n, read: true })));
     } catch (error) {
-      console.error("Failed to mark all notifications as read:", error);
+      // Handle error silently in production
     }
   }, []);
 

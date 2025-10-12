@@ -5,10 +5,6 @@ import { Home, Search, Car, MapPin, AlertCircle } from 'lucide-react';
 const NotFound = () => {
   const navigate = useNavigate();
 
-  console.log('🚫 404 Page accessed at 2025-09-03 15:31:38');
-  console.log('👤 Current User: BlueDrinkingWater');
-  console.log('🔗 Current URL:', window.location.href);
-
   const suggestions = [
     {
       icon: Home,
@@ -63,12 +59,6 @@ const NotFound = () => {
             The page you're looking for seems to have wandered off on its own adventure. 
             Don't worry, we'll help you find your way back!
           </p>
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-md mx-auto">
-            <p className="text-sm text-blue-800">
-              <strong>💡 Tip:</strong> All our content is loaded from our secure database. 
-              If you were looking for specific content, it may have been moved or updated by our admin team.
-            </p>
-          </div>
         </div>
 
         {/* Suggestions Grid */}
@@ -132,30 +122,16 @@ const NotFound = () => {
               href="tel:+639171234567"
               className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
             >
-              📞 Call: +63 917 123 4567
+              Call: +63 917 123 4567
             </a>
             <button
               onClick={() => navigate('/contact')}
               className="bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
             >
-              📧 Contact Us
+              Contact Us
             </button>
           </div>
         </div>
-
-        {/* Development Info */}
-        {process.env.NODE_ENV === 'development' && (
-          <div className="mt-8 bg-gray-100 border border-gray-300 rounded-lg p-4">
-            <h4 className="text-sm font-semibold text-gray-700 mb-2">🔧 Debug Info:</h4>
-            <div className="text-xs text-gray-600 space-y-1">
-              <p>User: BlueDrinkingWater</p>
-              <p>Timestamp: 2025-09-03 15:31:38</p>
-              <p>Referrer: {document.referrer || 'Direct access'}</p>
-              <p>URL: {window.location.href}</p>
-              <p>Database Mode: Production (No Mock Data)</p>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

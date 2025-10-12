@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, MapPin, Calendar, Users, Car, TrendingUp, AlertCircle } from 'lucide-react';
-import DataService, { SERVER_URL } from './services/DataService.jsx';
+import DataService from './services/DataService.jsx';
 
 const Hero = () => {
   const navigate = useNavigate();
@@ -16,8 +16,6 @@ const Hero = () => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    console.log('Loadin..... ');
-    
     const fetchData = async () => {
       try {
         setLoading(true);
@@ -38,12 +36,10 @@ const Hero = () => {
           const allLocations = [...new Set([...carLocations, ...tourDestinations])];
           setPopularLocations(allLocations.slice(0, 5));
           
-          console.log(`Loaded ${allLocations.length} unique locations of tours`);
         } else {
           throw new Error('Failed to load location');
         }
       } catch (error) {
-        console.error(' Error loading hero:', error);
         setError(error.message);
         setPopularLocations([]); // No fallback data - database dependent
       } finally {
@@ -61,8 +57,6 @@ const Hero = () => {
     } else {
       navigate('/tours', { state: searchParams });
     }
-
-    console.log(`Search initiated for ${searchParams.type} at 2025-09-03 17:08:57`);
   };
 
   const handleInputChange = (key, value) => {
@@ -105,7 +99,7 @@ const Hero = () => {
               }`}
             >
               <Car className="w-5 h-5 mr-2 inline-block" />
-              Car Rental (Database)
+              Car Rental
             </button>
             <button
               onClick={() => handleInputChange('type', 'tours')}
@@ -116,7 +110,7 @@ const Hero = () => {
               }`}
             >
               <MapPin className="w-5 h-5 mr-2 inline-block" />
-              Tour Packages (Database)
+              Tour Packages
             </button>
           </div>
 
@@ -126,7 +120,7 @@ const Hero = () => {
               <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-center gap-2">
                 <AlertCircle className="w-5 h-5 flex-shrink-0" />
                 <div>
-                  <p className="font-medium">Seach data is unavailable</p>
+                  <p className="font-medium">Search data is unavailable</p>
                   <p className="text-sm">{error}</p>
                 </div>
               </div>
@@ -135,7 +129,7 @@ const Hero = () => {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="md:col-span-2">
                 <label className="block text-xs font-medium text-gray-700 mb-1">
-                  {searchParams.type === 'cars' ? 'Pickup Location' : 'Destination'} (From Database)
+                  {searchParams.type === 'cars' ? 'Pickup Location' : 'Destination'}
                 </label>
                 <div className="relative">
                   <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
@@ -198,7 +192,7 @@ const Hero = () => {
                   <div className="flex items-center flex-wrap gap-2">
                     <span className="text-xs text-gray-500 whitespace-nowrap flex items-center">
                       <TrendingUp className="w-3 h-3 mr-1" />
-                      Popular (Database):
+                      Popular:
                     </span>
                     {popularLocations.map((location, index) => (
                       <button
@@ -236,20 +230,9 @@ const Hero = () => {
         {/* Promotional Text */}
         <div className="mt-8 text-center text-white/90">
           <p className="text-lg">
-            {loading ? 
-              'Loading exclusive deals from our database...' : 
-              'Explore amazing destinations with our exclusive deals stored in the database!'
-            }
+            Explore amazing destinations with our exclusive deals!
           </p>
         </div>
-
-        {/* Development Info */}
-        {process.env.NODE_ENV === 'development' && (
-          <div className="mt-6 text-center text-white/70 text-xs">
-            <p>Database Status: {error ? 'Error' : loading ? 'Loading' : 'Connected'} | </p>
-            <p>Locations: {popularLocations.length}</p>
-          </div>
-        )}
       </div>
     </section>
   );

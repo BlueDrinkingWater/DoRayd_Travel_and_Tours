@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Save, Edit3, Eye, FileText, Globe, Shield, Phone, CreditCard, Image as ImageIcon } from 'lucide-react';
-import DataService, { SERVER_URL } from '../../components/services/DataService';
+import { Save, Edit3, Eye, FileText, Globe, Shield, Phone, CreditCard, Image as ImageIcon, MapPin, Clock } from 'lucide-react';
+import DataService from '../../components/services/DataService';
 import { useApi } from '../../hooks/useApi';
+import ImageUpload from '../../components/ImageUpload';
 
 const ContentManagement = () => {
   const [activeTab, setActiveTab] = useState('about');
@@ -9,16 +10,21 @@ const ContentManagement = () => {
   const [editMode, setEditMode] = useState(false);
 
   const contentTabs = [
-    { key: 'about', label: 'About Us', icon: FileText, description: 'Company background and story' },
-    { key: 'mission', label: 'Mission', icon: Globe, description: 'Company mission statement' },
-    { key: 'vision', label: 'Vision', icon: Eye, description: 'Company vision and goals' },
-    { key: 'terms', label: 'Terms & Conditions', icon: Shield, description: 'Terms of service and conditions' },
-    { key: 'privacy', label: 'Privacy Policy', icon: Shield, description: 'Privacy policy and data protection' },
-    { key: 'contact', label: 'Contact Info', icon: Phone, description: 'Contact details and locations' },
-    { key: 'bookingTerms', label: 'Booking Terms', icon: FileText, description: 'Text for the booking modal agreement.' },
+    { key: 'about', label: 'About Us', icon: FileText, description: 'Company background and story', type: 'textarea' },
+    { key: 'aboutImage', label: 'About Page Image', icon: ImageIcon, description: 'The main image displayed on the About Us page.', type: 'image' },
+    { key: 'mission', label: 'Mission', icon: Globe, description: 'Company mission statement', type: 'textarea' },
+    { key: 'vision', label: 'Vision', icon: Eye, description: 'Company vision and goals', type: 'textarea' },
+    { key: 'terms', label: 'Terms & Conditions', icon: Shield, description: 'Terms of service and conditions', type: 'textarea' },
+    { key: 'privacy', label: 'Privacy Policy', icon: Shield, description: 'Privacy policy and data protection', type: 'textarea' },
+    { key: 'bookingTerms', label: 'Booking Terms', icon: FileText, description: 'Text for the booking modal agreement.', type: 'textarea' },
+    { key: 'contactPhone', label: 'Contact Phone', icon: Phone, description: 'Publicly displayed phone number.', type: 'input' },
+    { key: 'contactEmail', label: 'Contact Email', icon: Phone, description: 'Publicly displayed email address.', type: 'input' },
+    { key: 'contactAddress', label: 'Contact Address', icon: MapPin, description: 'Main office or contact address.', type: 'textarea' },
+    { key: 'contactHours', label: 'Business Hours', icon: Clock, description: 'Company operating hours.', type: 'input' },
+    { key: 'officeLocation', label: 'Office Location (Lat,Lng)', icon: MapPin, description: 'Comma-separated latitude and longitude for the map. Ex: 14.5995, 120.9842', type: 'input' },
   ];
 
-  const { data: initialContentData, loading, error, refetch: fetchAllContent } = useApi(
+  const { data: initialContentData, loading, refetch: fetchAllContent } = useApi(
     () => Promise.all(contentTabs.map(tab => DataService.fetchContent(tab.key)))
   );
   
@@ -49,6 +55,10 @@ const ContentManagement = () => {
     }));
   };
 
+  const handleImageChange = (uploadedImages) => {
+    handleContentChange('content', uploadedImages.length > 0 ? uploadedImages[0].url : '');
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
@@ -77,6 +87,55 @@ const ContentManagement = () => {
 
   const activeContent = content[activeTab] || { title: '', content: '' };
   const activeTabInfo = contentTabs.find(tab => tab.key === activeTab);
+
+  const renderInputField = () => {
+    if (activeTabInfo.type === 'image') {
+      return (
+        <ImageUpload
+          onImagesChange={handleImageChange}
+          existingImages={activeContent.content ? [{ url: activeContent.content, serverId: 'about-image' }] : []}
+          maxImages={1}
+          category="content"
+        />
+      );
+    }
+
+    if (editMode) {
+      if (activeTabInfo.type === 'textarea') {
+        return (
+          <textarea
+            value={activeContent.content}
+            onChange={(e) => handleContentChange('content', e.target.value)}
+            rows="15"
+            className="w-full p-2 border rounded mt-1"
+          />
+        );
+      }
+      return (
+        <input
+          type="text"
+          value={activeContent.content}
+          onChange={(e) => handleContentChange('content', e.target.value)}
+          className="w-full p-2 border rounded mt-1"
+        />
+      );
+    } else {
+      if (activeTabInfo.type === 'image') {
+        return (
+          <div className="p-4 bg-gray-100 rounded mt-1">
+            {activeContent.content ? (
+              <img src={activeContent.content} alt="About page image" className="max-w-sm rounded" />
+            ) : (
+              <p>No image uploaded.</p>
+            )}
+          </div>
+        )
+      }
+      return (
+        <div className="p-4 bg-gray-100 rounded mt-1 whitespace-pre-wrap min-h-[200px]">{activeContent.content}</div>
+      );
+    }
+  };
 
   return (
     <div className="p-6">
@@ -154,16 +213,7 @@ const ContentManagement = () => {
               
               <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Content</label>
-                  {editMode ? (
-                    <textarea
-                      value={activeContent.content}
-                      onChange={(e) => handleContentChange('content', e.target.value)}
-                      rows="15"
-                      className="w-full p-2 border rounded mt-1"
-                    />
-                  ) : (
-                    <div className="p-4 bg-gray-100 rounded mt-1 whitespace-pre-wrap min-h-[200px]">{activeContent.content}</div>
-                  )}
+                  {renderInputField()}
               </div>
             </div>
           )}

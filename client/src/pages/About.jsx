@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Shield, Users, Award, Star, Heart, Globe, Phone, Mail, MapPin, AlertCircle, RefreshCw } from 'lucide-react';
-import DataService from '../components/services/DataService';
+import DataService, { SERVER_URL } from '../components/services/DataService';
 import { useApi } from '../hooks/useApi';
 
 const About = () => {
@@ -8,14 +8,16 @@ const About = () => {
   const { data: missionResponse, loading: missionLoading, error: missionError } = useApi(() => DataService.fetchContent('mission'));
   const { data: visionResponse, loading: visionLoading, error: visionError } = useApi(() => DataService.fetchContent('vision'));
   const { data: aboutResponse, loading: aboutLoading, error: aboutError } = useApi(() => DataService.fetchContent('about'));
+  const { data: aboutImageResponse, loading: aboutImageLoading, error: aboutImageError } = useApi(() => DataService.fetchContent('aboutImage'));
 
-  const loading = missionLoading || visionLoading || aboutLoading;
-  const error = missionError || visionError || aboutError;
+  const loading = missionLoading || visionLoading || aboutLoading || aboutImageLoading;
+  const error = missionError || visionError || aboutError || aboutImageError;
 
   const content = {
     mission: missionResponse?.success ? missionResponse.data : null,
     vision: visionResponse?.success ? visionResponse.data : null,
-    about: aboutResponse?.success ? aboutResponse.data : null
+    about: aboutResponse?.success ? aboutResponse.data : null,
+    aboutImage: aboutImageResponse?.success ? aboutImageResponse.data : null
   }
 
   const values = [
@@ -123,11 +125,6 @@ const About = () => {
             {contentData?.content || defaultContent}
           </p>
         </div>
-        {contentData && (
-          <div className="mt-4 text-xs text-gray-500">
-            Content loaded from database at {new Date().toLocaleString()}
-          </div>
-        )}
       </div>
     );
   };
@@ -175,7 +172,7 @@ const About = () => {
             <div className="relative">
               <div className="w-full h-96 bg-gray-200 rounded-2xl overflow-hidden">
                 <img
-                  src="https://placehold.co/600x400/e2e8f0/475569?text=DoRayd+Team"
+                  src={content.aboutImage?.content ? `${SERVER_URL}${content.aboutImage.content}` : "https://placehold.co/600x400/e2e8f0/475569?text=DoRayd+Team"}
                   alt="DoRayd Team"
                   className="w-full h-full object-cover"
                   onError={(e) => {

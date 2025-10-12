@@ -1,7 +1,7 @@
 // src/components/BookingModal.jsx
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { X, Calendar, Users, Upload, CheckCircle } from 'lucide-react';
+import { X, Calendar, Users, Upload, CheckCircle, Shield, FileText } from 'lucide-react';
 import DataService, { SERVER_URL } from './services/DataService.jsx';
 import CalendarBooking from './CalendarBooking.jsx';
 import DropoffMap from './DropoffMap.jsx';
@@ -10,26 +10,48 @@ import { useAuth } from './Login.jsx';
 const BookingModal = ({ isOpen, onClose, item, itemType }) => {
   const { user } = useAuth();
 
-  const [bookingTerms, setBookingTerms] = useState('Loading terms...');
+  const [bookingTerms, setBookingTerms] = useState({ title: 'Booking Terms', content: 'Loading...' });
+  const [privacyPolicy, setPrivacyPolicy] = useState({ title: 'Privacy Policy', content: 'Loading...' });
+  const [termsAndAgreement, setTermsAndAgreement] = useState({ title: 'Terms & Agreement', content: 'Loading...' });
+  const [contentLoading, setContentLoading] = useState(true);
   const [paymentQR, setPaymentQR] = useState('');
-  const [termsLoading, setTermsLoading] = useState(true);
   const [qrLoading, setQrLoading] = useState(true);
 
   useEffect(() => {
     if (isOpen) {
       const fetchContent = async () => {
+        setContentLoading(true);
         try {
-          setTermsLoading(true);
-          const termsResponse = await DataService.fetchContent('bookingTerms');
-          if (termsResponse.success) {
-            setBookingTerms(termsResponse.data.content);
+          const [termsResponse, privacyResponse, agreementResponse] = await Promise.all([
+            DataService.fetchContent('bookingTerms'),
+            DataService.fetchContent('privacy'),
+            DataService.fetchContent('terms')
+          ]);
+
+          if (termsResponse.success && termsResponse.data) {
+            setBookingTerms(termsResponse.data);
           } else {
-            setBookingTerms('Terms and conditions could not be loaded.');
+            setBookingTerms({ title: 'Booking Terms', content: 'Could not load booking terms.' });
           }
+
+          if (privacyResponse.success && privacyResponse.data) {
+            setPrivacyPolicy(privacyResponse.data);
+          } else {
+            setPrivacyPolicy({ title: 'Privacy Policy', content: 'Could not load privacy policy.' });
+          }
+          
+          if (agreementResponse.success && agreementResponse.data) {
+            setTermsAndAgreement(agreementResponse.data);
+          } else {
+            setTermsAndAgreement({ title: 'Terms & Agreement', content: 'Could not load terms and agreement.' });
+          }
+
         } catch (error) {
-          setBookingTerms('Terms and conditions could not be loaded.');
+          setBookingTerms({ title: 'Booking Terms', content: 'Could not load booking terms.' });
+          setPrivacyPolicy({ title: 'Privacy Policy', content: 'Could not load privacy policy.' });
+          setTermsAndAgreement({ title: 'Terms & Agreement', content: 'Could not load terms and agreement.' });
         } finally {
-          setTermsLoading(false);
+          setContentLoading(false);
         }
       };
 
@@ -151,8 +173,8 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
     if (!formData.firstName || !formData.lastName || !formData.email || !formData.phone || !formData.address) {
       return setSubmitError('Please fill in all your personal information, including your address.');
     }
-    if (formData.phone.length !== 11) {
-      return setSubmitError('Please enter a valid 11-digit phone number.');
+    if (!/^\d{11}$/.test(formData.phone)) {
+        return setSubmitError('Please enter a valid 11-digit phone number (e.g., 09171234567).');
     }
     if (itemType === 'car' && (!formData.startDate || !formData.time || formData.numberOfDays < 1)) {
       return setSubmitError('Please select a start date, time, and number of days.');
@@ -173,7 +195,7 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
       return setSubmitError('Please provide all payment details.');
     }
     if (!formData.agreedToTerms) {
-      return setSubmitError('You must agree to the terms and conditions to proceed.');
+      return setSubmitError('You must agree to the terms, agreements, and policies to proceed.');
     }
 
     setSubmitting(true);
@@ -255,7 +277,7 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
                        <div><label className="block text-sm font-medium text-gray-700 mb-1">First Name *</label><input type="text" name="firstName" required value={formData.firstName} onChange={(e) => setFormData({ ...formData, firstName: e.target.value })} className="w-full p-2 border rounded-md"/></div>
                        <div><label className="block text-sm font-medium text-gray-700 mb-1">Last Name *</label><input type="text" name="lastName" required value={formData.lastName} onChange={(e) => setFormData({ ...formData, lastName: e.target.value })} className="w-full p-2 border rounded-md"/></div>
                        <div className="md:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Email *</label><input type="email" name="email" required value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="w-full p-2 border rounded-md"/></div>
-                       <div className="md:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Phone *</label><input type="tel" name="phone" required value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} className="w-full p-2 border rounded-md"/></div>
+                       <div className="md:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Phone *</label><input type="tel" name="phone" required value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} className="w-full p-2 border rounded-md" placeholder="09171234567"/></div>
                        <div className="md:col-span-2">
                           <label className="block text-sm font-medium text-gray-700 mb-1">Address *</label>
                           <textarea name="address" required value={formData.address} onChange={(e) => setFormData({ ...formData, address: e.target.value })} className="w-full p-2 border rounded-md" rows="2"></textarea>
@@ -360,12 +382,37 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
                     </div>
                   </div>
 
-                  {/* Terms */}
-                  <div className="bg-gray-50 p-4 rounded-lg overflow-y-auto border">
-                    <h3 className="font-semibold mb-2 text-sm">Terms and Conditions</h3>
-                    {termsLoading ? <p>Loading terms...</p> : <p className="text-xs text-gray-600 whitespace-pre-wrap">{bookingTerms}</p>}
+                  {/* Terms & Policies */}
+                  <div className="space-y-4">
+                     <div className="bg-gray-50 p-4 rounded-lg border">
+                        <h3 className="font-semibold mb-2 text-sm flex items-center gap-2"><FileText size={14} /> {termsAndAgreement.title}</h3>
+                        <div className="max-h-24 overflow-y-auto p-2 border rounded-md bg-white text-gray-600 text-xs whitespace-pre-wrap scrollbar-thin">
+                            {contentLoading ? 'Loading...' : termsAndAgreement.content}
+                        </div>
+                    </div>
+                    <div className="bg-gray-50 p-4 rounded-lg border">
+                      <h3 className="font-semibold mb-2 text-sm flex items-center gap-2"><FileText size={14} /> {bookingTerms.title}</h3>
+                      <div className="max-h-24 overflow-y-auto p-2 border rounded-md bg-white text-gray-600 text-xs whitespace-pre-wrap scrollbar-thin">
+                        {contentLoading ? 'Loading...' : bookingTerms.content}
+                      </div>
+                    </div>
+                    <div className="bg-gray-50 p-4 rounded-lg border">
+                      <h3 className="font-semibold mb-2 text-sm flex items-center gap-2"><Shield size={14} /> {privacyPolicy.title}</h3>
+                      <div className="max-h-24 overflow-y-auto p-2 border rounded-md bg-white text-gray-600 text-xs whitespace-pre-wrap scrollbar-thin">
+                        {contentLoading ? 'Loading...' : privacyPolicy.content}
+                      </div>
+                    </div>
+                     <div className="flex items-start mt-4">
+                        <input 
+                          type="checkbox" 
+                          id="agreedToTerms" 
+                          checked={formData.agreedToTerms} 
+                          onChange={(e) => setFormData({ ...formData, agreedToTerms: e.target.checked })} 
+                          className="h-4 w-4 text-blue-600 border-gray-300 rounded mt-0.5 flex-shrink-0"
+                        />
+                        <label htmlFor="agreedToTerms" className="ml-2 block text-sm text-gray-900">I have read and agree to the Terms & Agreement, Booking Terms, and Privacy Policy.</label>
+                      </div>
                   </div>
-                  <div className="flex items-start"><input type="checkbox" id="terms" checked={formData.agreedToTerms} onChange={(e) => setFormData({ ...formData, agreedToTerms: e.target.checked })} className="h-4 w-4 text-blue-600 border-gray-300 rounded mt-1"/><label htmlFor="terms" className="ml-2 block text-sm text-gray-900">I have read and agree to the terms and conditions.</label></div>
                 </div>
               </div>
               <div className="flex justify-end gap-3 pt-6 border-t mt-6">
@@ -381,3 +428,4 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
 };
 
 export default BookingModal;
+

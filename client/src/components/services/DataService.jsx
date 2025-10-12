@@ -1,5 +1,8 @@
 import axios from 'axios';
 
+// For local development, VITE_API_URL should be empty so the Vite proxy is used.
+// For production, VITE_API_URL should be set to your deployed backend URL if it's on a different domain.
+// If frontend and backend are on the same domain in production, this can also be empty.
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 const api = axios.create({
@@ -7,17 +10,25 @@ const api = axios.create({
   withCredentials: true,
 });
 
+// This is the server URL used for constructing asset paths.
 export const SERVER_URL = API_BASE_URL;
 
+/**
+ * Constructs a full URL for an image, handling both absolute and relative paths.
+ * @param {string} url - The URL or path of the image.
+ * @returns {string} The full, usable image URL.
+ */
 export const getImageUrl = (url) => {
   if (!url) return '';
-  // If the URL is already absolute (starts with http), return it directly.
+  // If the URL is already absolute (starts with http), return it directly. This is the expected case for Cloudinary.
   if (url.startsWith('http')) {
     return url;
   }
-  // Otherwise, construct the full URL from the relative path.
+  // Otherwise, construct the full URL from the relative path, prepending the server URL.
+  // This handles cases where local storage is used or paths are stored relatively.
   return `${SERVER_URL}${url.startsWith('/') ? '' : '/'}${url}`;
 };
+
 
 const getAuthHeader = () => {
   return {};

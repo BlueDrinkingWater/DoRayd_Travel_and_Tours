@@ -26,6 +26,24 @@
   background: #94a3b8;
 }
 
+/* Thin scrollbar for specific elements */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 20px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: #a5b4fc; /* A slightly lighter blue */
+  border-radius: 20px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: #818cf8; /* A bit darker on hover */
+}
+
+
 /* Custom animations */
 @keyframes slideInFromTop {
   from {
@@ -80,4 +98,3 @@
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
-

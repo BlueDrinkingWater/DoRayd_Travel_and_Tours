@@ -1,6 +1,6 @@
 import React from 'react';
 import { ThumbsUp, Trash2, Star, User, Heart } from 'lucide-react';
-import DataService, { SERVER_URL } from '../../components/services/DataService.jsx';
+import DataService, { getImageUrl } from '../../components/services/DataService.jsx';
 import { useApi } from '../../hooks/useApi.jsx';
 
 const ManageFeedback = () => {
@@ -55,7 +55,7 @@ const ManageFeedback = () => {
                                 <p className="text-sm text-gray-600 italic">"{feedback.comment}"</p>
                                 {feedback.image && (
                                     <div className="mt-3">
-                                        <img src={`${SERVER_URL}${feedback.image}`} alt="Feedback attachment" className="rounded-md max-h-40 w-auto" />
+                                        <img src={getImageUrl(feedback.image)} alt="Feedback attachment" className="rounded-md max-h-40 w-auto" />
                                     </div>
                                 )}
                             </div>

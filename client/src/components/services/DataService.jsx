@@ -20,13 +20,16 @@ export const SERVER_URL = API_BASE_URL;
  */
 export const getImageUrl = (url) => {
   if (!url) return '';
-  // If the URL is already absolute (starts with http), return it directly. This is the expected case for Cloudinary.
+  // If the URL is already absolute (starts with http), return it directly.
   if (url.startsWith('http')) {
     return url;
   }
-  // Otherwise, construct the full URL from the relative path, prepending the server URL.
-  // This handles cases where local storage is used or paths are stored relatively.
-  return `${SERVER_URL}${url.startsWith('/') ? '' : '/'}${url}`;
+  // If the URL is already a full path, just prepend the server URL.
+  if (url.startsWith('/uploads/')) {
+    return `${SERVER_URL}${url}`;
+  }
+  // Otherwise, construct the full URL from a relative path.
+  return `${SERVER_URL}/uploads/${url}`;
 };
 
 

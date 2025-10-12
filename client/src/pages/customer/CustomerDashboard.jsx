@@ -4,7 +4,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../components/Login.jsx';
 import { useApi } from '../../hooks/useApi.jsx';
-import DataService, { SERVER_URL } from '../../components/services/DataService.jsx';
+import DataService, { getImageUrl } from '../../components/services/DataService.jsx';
 import AccountSettings from '../shared/AccountSettings.jsx'; // Import the new component
 
 const CustomerDashboard = () => {
@@ -263,7 +263,7 @@ const MyFeedbackTab = ({ feedback }) => (
                     <p className="text-gray-800 leading-relaxed mb-4">"{item.comment}"</p>
                      {item.image && (
                         <div className="mt-4">
-                            <img src={`${SERVER_URL}${item.image}`} alt="Feedback attachment" className="max-w-xs rounded-lg border shadow-md" />
+                            <img src={getImageUrl(item.image)} alt="Feedback attachment" className="max-w-xs rounded-lg border shadow-md" />
                         </div>
                     )}
                     <p className="text-sm text-gray-500 mt-4">
@@ -619,7 +619,7 @@ const PublicFeedbackTab = ({ feedback }) => (
                             <p className="text-gray-700 text-lg leading-relaxed mb-4">"{item.comment}"</p>
                             {item.image && (
                                 <div className="mb-4">
-                                    <img src={`${SERVER_URL}${item.image}`} alt="Feedback attachment" className="max-w-xs rounded-lg border shadow-md" />
+                                    <img src={getImageUrl(item.image)} alt="Feedback attachment" className="max-w-xs rounded-lg border shadow-md" />
                                 </div>
                             )}
                             <p className="text-sm text-gray-500 font-medium">

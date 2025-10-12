@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Filter, Eye, Check, X, Clock, Calendar, Users, MapPin, Phone, Mail, FileText, Image as ImageIcon, Link as LinkIcon, Hash, Car, Package, DollarSign } from 'lucide-react';
 import { useApi } from '../../hooks/useApi';
-import DataService, { SERVER_URL } from '../../components/services/DataService';
+import DataService, { getImageUrl } from '../../components/services/DataService';
 
 const ManageBookings = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -93,16 +93,6 @@ const ManageBookings = () => {
       cancelled: { bg: 'bg-gray-100', text: 'text-gray-800', label: 'Cancelled' }
     }[status] || { bg: 'bg-gray-100', text: 'text-gray-800', label: 'Unknown' };
     return <span className={`px-2 py-1 rounded-full text-xs font-medium ${config.bg} ${config.text}`}>{config.label}</span>;
-  };
-
-  const getImageUrl = (url) => {
-    if (!url) return '';
-    // If url is an absolute path (starts with /), use it directly.
-    if (url.startsWith('/uploads/')) {
-        return `${SERVER_URL}${url}`;
-    }
-    // If it's a relative path (new format), prepend the /uploads/ base path.
-    return `${SERVER_URL}/uploads/${url}`;
   };
 
   const filteredBookings = Array.isArray(bookings) ? bookings.filter(booking => {

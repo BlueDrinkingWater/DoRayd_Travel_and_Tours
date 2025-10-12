@@ -37,6 +37,13 @@ export const upload = multer({
   fileFilter: imageFileFilter,
 });
 
+// Uploader for Feedback Images
+export const uploadFeedback = multer({
+  storage: createStorage('feedback'),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB limit
+  fileFilter: imageFileFilter,
+});
+
 // Uploader for Email Attachments (any file type)
 export const uploadAttachment = multer({
   storage: createStorage('attachments'),

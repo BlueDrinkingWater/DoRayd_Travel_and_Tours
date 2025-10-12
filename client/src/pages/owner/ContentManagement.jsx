@@ -3,6 +3,7 @@ import { Save, Edit3, Eye, FileText, Globe, Shield, Phone, CreditCard, Image as 
 import DataService from '../../components/services/DataService';
 import { useApi } from '../../hooks/useApi';
 import ImageUpload from '../../components/ImageUpload';
+import LocationPickerMap from '../../components/LocationPickerMap'; // The import path will now work
 
 const ContentManagement = () => {
   const [activeTab, setActiveTab] = useState('about');
@@ -21,7 +22,7 @@ const ContentManagement = () => {
     { key: 'contactEmail', label: 'Contact Email', icon: Phone, description: 'Publicly displayed email address.', type: 'input' },
     { key: 'contactAddress', label: 'Contact Address', icon: MapPin, description: 'Main office or contact address.', type: 'textarea' },
     { key: 'contactHours', label: 'Business Hours', icon: Clock, description: 'Company operating hours.', type: 'input' },
-    { key: 'officeLocation', label: 'Office Location (Lat,Lng)', icon: MapPin, description: 'Comma-separated latitude and longitude for the map. Ex: 14.5995, 120.9842', type: 'input' },
+    { key: 'officeLocation', label: 'Office Location (Lat,Lng)', icon: MapPin, description: 'Click on the map to set the office location.', type: 'map' },
   ];
 
   const { data: initialContentData, loading, refetch: fetchAllContent } = useApi(
@@ -57,6 +58,10 @@ const ContentManagement = () => {
 
   const handleImageChange = (uploadedImages) => {
     handleContentChange('content', uploadedImages.length > 0 ? uploadedImages[0].url : '');
+  };
+
+  const handleLocationSelect = (latlng) => {
+    handleContentChange('content', `${latlng.lat},${latlng.lng}`);
   };
 
   const handleSave = async () => {
@@ -99,6 +104,29 @@ const ContentManagement = () => {
         />
       );
     }
+
+    if (activeTabInfo.type === 'map') {
+        const coords = activeContent.content && typeof activeContent.content === 'string' && activeContent.content.split(',').length === 2
+            ? activeContent.content.split(',').map(Number)
+            : null;
+        
+        const initialPosition = coords && coords.every(isFinite) ? coords : null;
+
+        if (editMode) {
+            return (
+                <LocationPickerMap
+                    onLocationSelect={handleLocationSelect}
+                    initialPosition={initialPosition}
+                />
+            );
+        }
+        return (
+             <div className="p-4 bg-gray-100 rounded mt-1">
+                {activeContent.content || 'No location set.'}
+             </div>
+        );
+    }
+
 
     if (editMode) {
       if (activeTabInfo.type === 'textarea') {

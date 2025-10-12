@@ -149,7 +149,7 @@ const Contact = () => {
     }
   ];
 
-  const officePosition = contactInfo.location && contactInfo.location.split(',').length === 2 
+  const officePosition = (contactInfo.location && typeof contactInfo.location === 'string' && contactInfo.location.split(',').length === 2)
     ? contactInfo.location.split(',').map(Number) 
     : [14.5995, 120.9842]; // Default to Manila
 
@@ -329,7 +329,7 @@ const Contact = () => {
             <div className="bg-white rounded-xl shadow-lg p-8">
               <h2 className="text-2xl font-bold text-gray-900 mb-6">Visit Our Office</h2>
               <div className="h-64 bg-gray-200 rounded-lg z-0">
-                {!loading && (
+                {!loading && officePosition.every(isFinite) && (
                   <MapContainer center={officePosition} zoom={13} scrollWheelZoom={false} style={{ height: "100%", width: "100%" }}>
                     <TileLayer
                       attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'

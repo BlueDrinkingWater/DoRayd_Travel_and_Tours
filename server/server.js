@@ -88,6 +88,7 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser());
 app.use(mongoSanitize());
+app.set('trust proxy', 1); // FIX: Trust the first proxy hop (Render's load balancer)
 
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,

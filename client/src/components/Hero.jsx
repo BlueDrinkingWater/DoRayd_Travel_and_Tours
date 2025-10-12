@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, MapPin, Calendar, Users, Car, TrendingUp, AlertCircle } from 'lucide-react';
-import DataService from './services/DataService.jsx';
+import DataService, { SERVER_URL } from './services/DataService.jsx';
 
 const Hero = () => {
   const navigate = useNavigate();

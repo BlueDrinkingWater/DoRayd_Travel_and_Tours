@@ -78,11 +78,13 @@ export const login = async (req, res) => {
 
         user.password = undefined;
         
-        res.cookie('token', token, {
+        const cookieOptions = {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict'
-        });
+            sameSite: process.env.NODE_ENV === 'production' ? 'None' : 'strict',
+        };
+
+        res.cookie('token', token, cookieOptions);
 
         res.json({ success: true, user });
 

@@ -1,11 +1,19 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import path from 'path'
+import { fileURLToPath } from 'url' // Import necessary utilities
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
     react(),
   ],
+  resolve: {
+    alias: {
+      // This is the corrected alias setup for ES modules
+      '@': path.resolve(path.dirname(fileURLToPath(import.meta.url)), 'src'),
+    },
+  },
   server: {
     port: 3000,
     open: true,

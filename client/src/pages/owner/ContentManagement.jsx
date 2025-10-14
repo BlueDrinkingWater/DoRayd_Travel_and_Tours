@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Save, Edit3, Eye, FileText, Globe, Shield, Phone, CreditCard, Image as ImageIcon, MapPin, Clock } from 'lucide-react';
-import DataService from '../../components/services/DataService';
-import { useApi } from '../../hooks/useApi';
-import ImageUpload from '../../components/ImageUpload';
-import LocationPickerMap from '../../components/LocationPickerMap'; // The import path will now work
+import DataService from '../../components/services/DataService.jsx';
+import { useApi } from '../../hooks/useApi.jsx';
+import ImageUpload from '../../components/ImageUpload.jsx';
+import LocationPickerMap from './LocationPickerMap.jsx';
 
 const ContentManagement = () => {
   const [activeTab, setActiveTab] = useState('about');
@@ -11,18 +11,18 @@ const ContentManagement = () => {
   const [editMode, setEditMode] = useState(false);
 
   const contentTabs = [
-    { key: 'about', label: 'About Us', icon: FileText, description: 'Company background and story', type: 'textarea' },
+    { key: 'about', label: 'About Us', icon: FileText, description: 'Company background and story.', type: 'textarea' },
     { key: 'aboutImage', label: 'About Page Image', icon: ImageIcon, description: 'The main image displayed on the About Us page.', type: 'image' },
-    { key: 'mission', label: 'Mission', icon: Globe, description: 'Company mission statement', type: 'textarea' },
-    { key: 'vision', label: 'Vision', icon: Eye, description: 'Company vision and goals', type: 'textarea' },
-    { key: 'terms', label: 'Terms & Conditions', icon: Shield, description: 'Terms of service and conditions', type: 'textarea' },
-    { key: 'privacy', label: 'Privacy Policy', icon: Shield, description: 'Privacy policy and data protection', type: 'textarea' },
+    { key: 'mission', label: 'Mission', icon: Globe, description: 'Company mission statement.', type: 'textarea' },
+    { key: 'vision', label: 'Vision', icon: Eye, description: 'Company vision and goals.', type: 'textarea' },
+    { key: 'terms', label: 'Terms & Conditions', icon: Shield, description: 'Terms of service and conditions.', type: 'textarea' },
+    { key: 'privacy', label: 'Privacy Policy', icon: Shield, description: 'Privacy policy and data protection.', type: 'textarea' },
     { key: 'bookingTerms', label: 'Booking Terms', icon: FileText, description: 'Text for the booking modal agreement.', type: 'textarea' },
     { key: 'contactPhone', label: 'Contact Phone', icon: Phone, description: 'Publicly displayed phone number.', type: 'input' },
     { key: 'contactEmail', label: 'Contact Email', icon: Phone, description: 'Publicly displayed email address.', type: 'input' },
     { key: 'contactAddress', label: 'Contact Address', icon: MapPin, description: 'Main office or contact address.', type: 'textarea' },
     { key: 'contactHours', label: 'Business Hours', icon: Clock, description: 'Company operating hours.', type: 'input' },
-    { key: 'officeLocation', label: 'Office Location (Lat,Lng)', icon: MapPin, description: 'Click on the map to set the office location.', type: 'map' },
+    { key: 'officeLocation', label: 'Office Location Map', icon: MapPin, description: 'Click on the map to set the office location.', type: 'map' },
   ];
 
   const { data: initialContentData, loading, refetch: fetchAllContent } = useApi(
@@ -46,7 +46,7 @@ const ContentManagement = () => {
     }
   }, [initialContentData]);
 
-  const handleContentChange = (field, value) => {
+  const handleContentChange = useCallback((field, value) => {
     setContent(prev => ({
       ...prev,
       [activeTab]: {
@@ -54,15 +54,17 @@ const ContentManagement = () => {
         [field]: value
       }
     }));
-  };
+  }, [activeTab]);
 
-  const handleImageChange = (uploadedImages) => {
+  const handleImageChange = useCallback((uploadedImages) => {
     handleContentChange('content', uploadedImages.length > 0 ? uploadedImages[0].url : '');
-  };
+  }, [handleContentChange]);
 
-  const handleLocationSelect = (latlng) => {
-    handleContentChange('content', `${latlng.lat},${latlng.lng}`);
-  };
+  const handleLocationSelect = useCallback((latlng) => {
+    if (latlng) {
+      handleContentChange('content', `${latlng.lat},${latlng.lng}`);
+    }
+  }, [handleContentChange]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -95,74 +97,61 @@ const ContentManagement = () => {
 
   const renderInputField = () => {
     if (activeTabInfo.type === 'image') {
-      return (
+      return editMode ? (
         <ImageUpload
           onImagesChange={handleImageChange}
-          existingImages={activeContent.content ? [{ url: activeContent.content, serverId: 'about-image' }] : []}
+          existingImages={activeContent.content ? [{ url: activeContent.content, serverId: 'content-image' }] : []}
           maxImages={1}
           category="content"
         />
+      ) : (
+        <div className="p-4 bg-gray-100 rounded mt-1 min-h-[200px] flex items-center justify-center">
+            {activeContent.content ? (
+              <img src={activeContent.content} alt={activeContent.title} className="max-w-sm rounded max-h-64 object-contain" />
+            ) : (<p className="text-gray-500">No image uploaded.</p>)}
+        </div>
       );
     }
 
     if (activeTabInfo.type === 'map') {
-        const coords = activeContent.content && typeof activeContent.content === 'string' && activeContent.content.split(',').length === 2
-            ? activeContent.content.split(',').map(Number)
+        const coords = activeContent.content?.split(',').map(parseFloat);
+        const initialPosition = coords?.length === 2 && coords.every(isFinite) 
+            ? { lat: coords[0], lng: coords[1] } 
             : null;
-        
-        const initialPosition = coords && coords.every(isFinite) ? coords : null;
 
-        if (editMode) {
-            return (
-                <LocationPickerMap
-                    onLocationSelect={handleLocationSelect}
-                    initialPosition={initialPosition}
-                />
-            );
-        }
-        return (
-             <div className="p-4 bg-gray-100 rounded mt-1">
+        return editMode ? (
+            <LocationPickerMap onLocationSelect={handleLocationSelect} initialPosition={initialPosition} />
+        ) : (
+            <div className="p-4 bg-gray-100 rounded mt-1 min-h-[200px] flex items-center justify-center text-gray-700">
                 {activeContent.content || 'No location set.'}
-             </div>
+            </div>
         );
     }
 
 
     if (editMode) {
-      if (activeTabInfo.type === 'textarea') {
-        return (
-          <textarea
-            value={activeContent.content}
-            onChange={(e) => handleContentChange('content', e.target.value)}
-            rows="15"
-            className="w-full p-2 border rounded mt-1"
-          />
-        );
-      }
-      return (
+      return activeTabInfo.type === 'textarea' ? (
+        <textarea
+          value={activeContent.content}
+          onChange={(e) => handleContentChange('content', e.target.value)}
+          rows="15"
+          className="w-full p-3 border rounded-lg mt-1 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+        />
+      ) : (
         <input
           type="text"
           value={activeContent.content}
           onChange={(e) => handleContentChange('content', e.target.value)}
-          className="w-full p-2 border rounded mt-1"
+          className="w-full p-3 border rounded-lg mt-1 focus:ring-2 focus:ring-blue-500 focus:outline-none"
         />
       );
-    } else {
-      if (activeTabInfo.type === 'image') {
-        return (
-          <div className="p-4 bg-gray-100 rounded mt-1">
-            {activeContent.content ? (
-              <img src={activeContent.content} alt="About page image" className="max-w-sm rounded" />
-            ) : (
-              <p>No image uploaded.</p>
-            )}
-          </div>
-        )
-      }
-      return (
-        <div className="p-4 bg-gray-100 rounded mt-1 whitespace-pre-wrap min-h-[200px]">{activeContent.content}</div>
-      );
     }
+    
+    return (
+        <div className="p-4 bg-gray-100 rounded mt-1 whitespace-pre-wrap min-h-[200px] text-gray-800">
+            {activeContent.content || 'No content set.'}
+        </div>
+    );
   };
 
   return (
@@ -172,79 +161,77 @@ const ContentManagement = () => {
           <h1 className="text-3xl font-bold text-gray-900">Content Management</h1>
           <p className="text-gray-600">Manage website content, policies, and information</p>
         </div>
-        <div>
-          {editMode ? (
-            <div className="flex gap-2">
-              <button onClick={handleCancel} className="bg-gray-200 px-4 py-2 rounded-lg">Cancel</button>
-              <button onClick={handleSave} disabled={saving} className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center">
-                {saving ? 'Saving...' : <><Save size={16} className="mr-2" /> Save</>}
-              </button>
-            </div>
-          ) : (
-            <button onClick={() => setEditMode(true)} className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center">
-              <Edit3 size={16} className="mr-2" /> Edit Content
-            </button>
-          )}
-        </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <div className="border-b border-gray-200">
-          <nav className="flex overflow-x-auto">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        {/* Sidebar */}
+        <div className="lg:col-span-1">
+            <div className="bg-white rounded-xl shadow-lg border p-4 space-y-1 sticky top-24">
             {contentTabs.map((tab) => {
               const Icon = tab.icon;
               return (
                 <button
                   key={tab.key}
-                  onClick={() => setActiveTab(tab.key)}
+                  onClick={() => { setActiveTab(tab.key); setEditMode(false); }}
                   disabled={editMode}
-                  className={`flex items-center gap-2 px-6 py-4 text-sm font-medium whitespace-nowrap border-b-2 transition-colors disabled:cursor-not-allowed disabled:text-gray-400 ${
+                  className={`flex items-center gap-3 w-full text-left px-4 py-3 text-sm font-medium rounded-lg transition-colors disabled:cursor-not-allowed disabled:text-gray-400 ${
                     activeTab === tab.key
-                      ? 'border-blue-500 text-blue-600 bg-blue-50'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      ? 'bg-blue-100 text-blue-700'
+                      : 'text-gray-600 hover:bg-gray-50'
                   }`}
                 >
-                  <Icon className="w-4 h-4" />
-                  {tab.label}
+                  <Icon className="w-5 h-5 flex-shrink-0" />
+                  <span className="flex-1">{tab.label}</span>
                 </button>
               );
             })}
-          </nav>
+            </div>
         </div>
 
-        <div className="p-6">
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        {/* Main Content */}
+        <div className="lg:col-span-3">
+            <div className="bg-white rounded-xl shadow-lg border p-6">
+            {loading ? (
+                <div className="flex items-center justify-center py-24"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>
+            ) : (
+                <div className="space-y-6">
+                    <div className="flex justify-between items-start gap-4">
+                        <div>
+                            <h2 className="text-2xl font-bold text-gray-800">{activeTabInfo?.label}</h2>
+                            <p className="text-sm text-gray-500 mt-1">{activeTabInfo?.description}</p>
+                        </div>
+                        <div>
+                            {editMode ? (
+                                <div className="flex gap-2">
+                                <button onClick={handleCancel} className="px-4 py-2 bg-gray-200 rounded-lg text-sm font-semibold">Cancel</button>
+                                <button onClick={handleSave} disabled={saving} className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center text-sm font-semibold">
+                                    {saving ? 'Saving...' : <><Save size={14} className="mr-2" /> Save</>}
+                                </button>
+                                </div>
+                            ) : (
+                                <button onClick={() => setEditMode(true)} className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center text-sm font-semibold">
+                                <Edit3 size={14} className="mr-2" /> Edit
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                    
+                    <div className="border-t pt-6">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+                        {editMode ? (
+                        <input type="text" value={activeContent.title} onChange={(e) => handleContentChange('title', e.target.value)} className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"/>
+                        ) : (
+                        <p className="p-3 bg-gray-100 rounded-lg font-semibold">{activeContent.title}</p>
+                        )}
+                    </div>
+                    
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Content</label>
+                        {renderInputField()}
+                    </div>
+                </div>
+            )}
             </div>
-          ) : (
-            <div className="space-y-6">
-               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <p className="text-blue-800 text-sm">
-                  {activeTabInfo?.description}
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Title</label>
-                {editMode ? (
-                  <input
-                    type="text"
-                    value={activeContent.title}
-                    onChange={(e) => handleContentChange('title', e.target.value)}
-                    className="w-full p-2 border rounded mt-1"
-                  />
-                ) : (
-                  <p className="p-2 bg-gray-100 rounded mt-1">{activeContent.title}</p>
-                )}
-              </div>
-              
-              <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Content</label>
-                  {renderInputField()}
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>

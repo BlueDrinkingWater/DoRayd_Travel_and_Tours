@@ -28,8 +28,9 @@ import feedbackRoutes from './routes/feedback.js';
 import notificationRoutes from './routes/notification.js';
 import analyticsRoutes from './routes/analytics.js';
 
-// Error Handler
-import errorHandler from './middleware/errorHandler.js';
+// --- THIS IS THE CORRECTED LINE ---
+// Error Handler - Changed to a named import
+import { errorHandler } from './middleware/errorHandler.js';
 import Booking from './models/Booking.js';
 
 dotenv.config();
@@ -107,9 +108,6 @@ app.use('/api/messages', messageRoutes);
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/analytics', analyticsRoutes);
-
-// --- THIS ENTIRE BLOCK HAS BEEN REMOVED ---
-// It is no longer needed because Vercel is handling your frontend.
 
 // Error Handling Middleware
 app.use(errorHandler);

@@ -1,3 +1,5 @@
+// client/vite.config.js
+
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
@@ -6,8 +8,6 @@ import { fileURLToPath } from 'url'
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
-    // --- THIS IS THE ONLY CHANGE ---
-    // Add the jsxRuntime option to the react() plugin
     react({
       jsxRuntime: 'automatic',
     }),

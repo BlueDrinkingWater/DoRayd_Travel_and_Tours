@@ -1,3 +1,5 @@
+// server/server.js
+
 import express from 'express';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
@@ -28,8 +30,7 @@ import feedbackRoutes from './routes/feedback.js';
 import notificationRoutes from './routes/notification.js';
 import analyticsRoutes from './routes/analytics.js';
 
-// --- THIS IS THE CORRECTED LINE ---
-// Error Handler - Changed to a named import
+// Error Handler
 import { errorHandler } from './middleware/errorHandler.js';
 import Booking from './models/Booking.js';
 
@@ -42,9 +43,14 @@ const PORT = process.env.PORT || 5000;
 const corsOptions = {
     origin: function (origin, callback) {
       const whitelist = [
-        'http://localhost:3000',
-        process.env.CLIENT_URL,
+        'http://localhost:3000', // For local development
+        process.env.CLIENT_URL,  // Your main frontend production URL
       ].filter(Boolean);
+
+      // Allow Vercel preview URLs (e.g., project-git-branch-user.vercel.app)
+      if (origin && (/\.vercel\.app$/).test(origin)) {
+        return callback(null, true);
+      }
       
       if (whitelist.indexOf(origin) !== -1 || !origin) {
         callback(null, true);
@@ -91,6 +97,18 @@ io.on('connection', (socket) => {
     socket.on('disconnect', () => {
         console.log('User disconnected:', socket.id);
     });
+});
+
+// --- CORRECTED PLACEMENT OF HEALTH CHECK ROUTE ---
+app.get('/api/health', (req, res) => {
+  const dbStatus = mongoose.connection.readyState;
+  const isDbConnected = dbStatus === 1; // 1 means connected
+  
+  res.status(200).json({
+    success: true,
+    server: 'running',
+    database: isDbConnected ? 'connected' : 'disconnected',
+  });
 });
 
 // API Routes

@@ -10,26 +10,19 @@ const api = axios.create({
   withCredentials: true,
 });
 
-// This is the server URL used for constructing asset paths.
-export const SERVER_URL = API_BASE_URL;
-
-/**
- * Constructs a full URL for an image, handling both absolute and relative paths.
- * @param {string} url - The URL or path of the image.
- * @returns {string} The full, usable image URL.
- */
-export const getImageUrl = (url) => {
-  if (!url) return '';
-  // If the URL is already absolute (starts with http), return it directly.
-  if (url.startsWith('http')) {
-    return url;
+export const getImageUrl = (path) => {
+  if (!path) {
+    // Return an empty string if there's no path to avoid errors
+    return ''; 
   }
-  // If the URL is already a full path, just prepend the server URL.
-  if (url.startsWith('/uploads/')) {
-    return `${SERVER_URL}${url}`;
+  // If the path is already a full, absolute URL (like from Cloudinary), 
+  // return it directly without any changes.
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    return path;
   }
-  // Otherwise, construct the full URL from a relative path.
-  return `${SERVER_URL}/uploads/${url}`;
+  // Otherwise, it's a relative path for a locally-hosted image.
+  // Construct the full URL by combining the server URL and the path.
+  return `${SERVER_URL}${path.startsWith('/') ? '' : '/'}${path}`;
 };
 
 

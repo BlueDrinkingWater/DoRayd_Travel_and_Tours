@@ -46,39 +46,64 @@ const ContentManagement = () => {
     }
   }, [initialContentData]);
 
-  const handleContentChange = useCallback((field, value) => {
+  const handleContentChange = useCallback((tabKey, field, value) => {
     setContent(prev => ({
       ...prev,
-      [activeTab]: {
-        ...prev[activeTab],
+      [tabKey]: {
+        ...prev[tabKey],
         [field]: value
       }
     }));
-  }, [activeTab]);
+  }, []);
+
+  const handleActiveTabContentChange = useCallback((field, value) => {
+    handleContentChange(activeTab, field, value);
+  }, [activeTab, handleContentChange]);
 
   const handleImageChange = useCallback((uploadedImages) => {
-    handleContentChange('content', uploadedImages.length > 0 ? uploadedImages[0].url : '');
-  }, [handleContentChange]);
+    handleActiveTabContentChange('content', uploadedImages.length > 0 ? uploadedImages[0].url : '');
+  }, [handleActiveTabContentChange]);
 
   const handleLocationSelect = useCallback((latlng) => {
     if (latlng) {
-      handleContentChange('content', `${latlng.lat},${latlng.lng}`);
+      const { lat, lng } = latlng;
+      handleContentChange('officeLocation', 'content', `${lat},${lng}`);
+      
+      fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`)
+        .then(response => response.json())
+        .then(data => {
+          if (data && data.display_name) {
+            handleContentChange('contactAddress', 'content', data.display_name);
+          }
+        })
+        .catch(error => console.error("Error fetching address:", error));
     }
   }, [handleContentChange]);
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      const contentToSave = content[activeTab];
-      const response = await DataService.updateContent(activeTab, contentToSave);
+      // Save all modified content instead of just the active tab
+      const updatePromises = Object.keys(content).map(key => {
+        // A simple check to see if the content might have been modified
+        // This could be improved with a more robust dirty-checking mechanism if needed
+        const originalContent = initialContentData.find((res, index) => contentTabs[index].key === key)?.data?.content;
+        if (content[key].content !== originalContent) {
+          return DataService.updateContent(key, content[key]);
+        }
+        return Promise.resolve(null);
+      });
 
-      if (response.success && response.data) {
-        setContent(prev => ({ ...prev, [activeTab]: response.data }));
-        alert('Content updated successfully!');
-        setEditMode(false);
-      } else {
-        throw new Error(response.message || "Failed to save content.");
+      const results = await Promise.all(updatePromises);
+      
+      const failed = results.filter(res => res && !res.success);
+      if (failed.length > 0) {
+        throw new Error('Some content failed to save.');
       }
+
+      alert('Content updated successfully!');
+      setEditMode(false);
+      fetchAllContent(); // Refetch all content to get fresh state
     } catch (error) {
       console.error("Failed to save content:", error);
       alert(`Error saving content: ${error.message}`);
@@ -95,53 +120,55 @@ const ContentManagement = () => {
   const activeContent = content[activeTab] || { title: '', content: '' };
   const activeTabInfo = contentTabs.find(tab => tab.key === activeTab);
 
-  const renderInputField = () => {
-    if (activeTabInfo.type === 'image') {
-      return editMode ? (
+  const renderInputField = (tabKey) => {
+    const currentTabInfo = contentTabs.find(tab => tab.key === tabKey);
+    const currentContent = content[tabKey] || { title: '', content: '' };
+
+    if (currentTabInfo.type === 'image') {
+      return editMode && activeTab === tabKey ? (
         <ImageUpload
-          onImagesChange={handleImageChange}
-          existingImages={activeContent.content ? [{ url: activeContent.content, serverId: 'content-image' }] : []}
+          onImagesChange={(images) => handleContentChange(tabKey, 'content', images.length > 0 ? images[0].url : '')}
+          existingImages={currentContent.content ? [{ url: currentContent.content, serverId: 'content-image' }] : []}
           maxImages={1}
           category="content"
         />
       ) : (
         <div className="p-4 bg-gray-100 rounded mt-1 min-h-[200px] flex items-center justify-center">
-            {activeContent.content ? (
-              <img src={activeContent.content} alt={activeContent.title} className="max-w-sm rounded max-h-64 object-contain" />
+            {currentContent.content ? (
+              <img src={currentContent.content} alt={currentContent.title} className="max-w-sm rounded max-h-64 object-contain" />
             ) : (<p className="text-gray-500">No image uploaded.</p>)}
         </div>
       );
     }
 
-    if (activeTabInfo.type === 'map') {
-        const coords = activeContent.content?.split(',').map(parseFloat);
+    if (currentTabInfo.type === 'map') {
+        const coords = currentContent.content?.split(',').map(parseFloat);
         const initialPosition = coords?.length === 2 && coords.every(isFinite) 
             ? { lat: coords[0], lng: coords[1] } 
             : null;
 
-        return editMode ? (
+        return editMode && activeTab === tabKey ? (
             <LocationPickerMap onLocationSelect={handleLocationSelect} initialPosition={initialPosition} />
         ) : (
             <div className="p-4 bg-gray-100 rounded mt-1 min-h-[200px] flex items-center justify-center text-gray-700">
-                {activeContent.content || 'No location set.'}
+                {currentContent.content || 'No location set.'}
             </div>
         );
     }
 
-
-    if (editMode) {
-      return activeTabInfo.type === 'textarea' ? (
+    if (editMode && activeTab === tabKey) {
+      return currentTabInfo.type === 'textarea' ? (
         <textarea
-          value={activeContent.content}
-          onChange={(e) => handleContentChange('content', e.target.value)}
+          value={currentContent.content}
+          onChange={(e) => handleContentChange(tabKey, 'content', e.target.value)}
           rows="15"
           className="w-full p-3 border rounded-lg mt-1 focus:ring-2 focus:ring-blue-500 focus:outline-none"
         />
       ) : (
         <input
           type="text"
-          value={activeContent.content}
-          onChange={(e) => handleContentChange('content', e.target.value)}
+          value={currentContent.content}
+          onChange={(e) => handleContentChange(tabKey, 'content', e.target.value)}
           className="w-full p-3 border rounded-lg mt-1 focus:ring-2 focus:ring-blue-500 focus:outline-none"
         />
       );
@@ -149,7 +176,7 @@ const ContentManagement = () => {
     
     return (
         <div className="p-4 bg-gray-100 rounded mt-1 whitespace-pre-wrap min-h-[200px] text-gray-800">
-            {activeContent.content || 'No content set.'}
+            {currentContent.content || 'No content set.'}
         </div>
     );
   };
@@ -173,8 +200,8 @@ const ContentManagement = () => {
                 <button
                   key={tab.key}
                   onClick={() => { setActiveTab(tab.key); setEditMode(false); }}
-                  disabled={editMode}
-                  className={`flex items-center gap-3 w-full text-left px-4 py-3 text-sm font-medium rounded-lg transition-colors disabled:cursor-not-allowed disabled:text-gray-400 ${
+                  disabled={editMode && activeTab !== tab.key}
+                  className={`flex items-center gap-3 w-full text-left px-4 py-3 text-sm font-medium rounded-lg transition-colors disabled:cursor-not-allowed disabled:text-gray-400 disabled:bg-gray-50 ${
                     activeTab === tab.key
                       ? 'bg-blue-100 text-blue-700'
                       : 'text-gray-600 hover:bg-gray-50'
@@ -205,7 +232,7 @@ const ContentManagement = () => {
                                 <div className="flex gap-2">
                                 <button onClick={handleCancel} className="px-4 py-2 bg-gray-200 rounded-lg text-sm font-semibold">Cancel</button>
                                 <button onClick={handleSave} disabled={saving} className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center text-sm font-semibold">
-                                    {saving ? 'Saving...' : <><Save size={14} className="mr-2" /> Save</>}
+                                    {saving ? 'Saving...' : <><Save size={14} className="mr-2" /> Save Changes</>}
                                 </button>
                                 </div>
                             ) : (
@@ -219,7 +246,7 @@ const ContentManagement = () => {
                     <div className="border-t pt-6">
                         <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
                         {editMode ? (
-                        <input type="text" value={activeContent.title} onChange={(e) => handleContentChange('title', e.target.value)} className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"/>
+                        <input type="text" value={activeContent.title} onChange={(e) => handleActiveTabContentChange('title', e.target.value)} className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"/>
                         ) : (
                         <p className="p-3 bg-gray-100 rounded-lg font-semibold">{activeContent.title}</p>
                         )}
@@ -227,7 +254,7 @@ const ContentManagement = () => {
                     
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Content</label>
-                        {renderInputField()}
+                        {renderInputField(activeTab)}
                     </div>
                 </div>
             )}

@@ -258,7 +258,7 @@ const DataService = {
   },
 
   // --- Bookings ---
-  createBooking: async (bookingData) => {
+   createBooking: async (bookingData) => {
     try {
       const authHeader = getAuthHeader();
       const headers = {
@@ -282,9 +282,13 @@ const DataService = {
     }
   },
 
-  fetchAllBookings: async () => {
+  // --- MODIFIED: This function now accepts search/filter parameters ---
+  fetchAllBookings: async (params = {}) => {
     try {
-      const response = await api.get('/api/bookings', { headers: getAuthHeader() });
+      const response = await api.get('/api/bookings', { 
+        headers: getAuthHeader(),
+        params: params // Pass params to the API call
+      });
       return response.data;
     } catch (error) {
       return handleError(error);

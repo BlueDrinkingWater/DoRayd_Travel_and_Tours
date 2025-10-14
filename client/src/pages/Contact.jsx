@@ -91,18 +91,29 @@ const Contact = () => {
     }
   };
 
-  const contactInfoCards = loading ? [] : [
-    { icon: Phone, title: 'Phone', details: contactInfo.phone || '+63 917 123 4567', description: '24/7 Customer Support' },
-    { icon: Mail, title: 'Email', details: contactInfo.email || 'info@dorayd.com', description: 'Send us your questions' },
-    { icon: MapPin, title: 'Address', details: contactInfo.address || 'Manila, Philippines', description: 'Visit our office' },
-    { icon: Clock, title: 'Business Hours', details: contactInfo.hours || '24/7 Service', description: 'Always here for you' }
-  ];
-
   const coords = contactInfo.location?.split(',').map(parseFloat);
   const officePosition = coords?.length === 2 && coords.every(isFinite) 
       ? { lat: coords[0], lng: coords[1] } 
-      : { lat: 14.5995, lng: 120.9842 };
+      : { lat: 14.5995, lng: 120.9842 }; // Default fallback
 
+  const officeMapLink = officePosition 
+      ? `https://www.google.com/maps/search/?api=1&query=${officePosition.lat},${officePosition.lng}`
+      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(contactInfo.address || 'Manila, Philippines')}`;
+
+  const contactInfoCards = loading ? [] : [
+    { icon: Phone, title: 'Phone', details: contactInfo.phone || '+63 917 123 4567', description: '24/7 Customer Support' },
+    { icon: Mail, title: 'Email', details: contactInfo.email || 'info@dorayd.com', description: 'Send us your questions' },
+    { 
+      icon: MapPin, 
+      title: 'Address', 
+      details: contactInfo.address || 'Manila, Philippines', 
+      description: 'Visit our office',
+      isLink: true,
+      href: officeMapLink
+    },
+    { icon: Clock, title: 'Business Hours', details: contactInfo.hours || '24/7 Service', description: 'Always here for you' }
+  ];
+  
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="bg-gradient-to-br from-blue-600 to-indigo-700 text-white">
@@ -184,7 +195,13 @@ const Contact = () => {
                     <div className="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center flex-shrink-0"><info.icon className="w-6 h-6 text-blue-600" /></div>
                     <div>
                       <h3 className="font-semibold text-gray-900">{info.title}</h3>
-                      <p className="text-lg text-blue-600 font-medium">{info.details}</p>
+                      {info.isLink ? (
+                        <a href={info.href} target="_blank" rel="noopener noreferrer" className="text-lg text-blue-600 font-medium hover:underline">
+                          {info.details}
+                        </a>
+                      ) : (
+                        <p className="text-lg text-blue-600 font-medium">{info.details}</p>
+                      )}
                       <p className="text-sm text-gray-600">{info.description}</p>
                     </div>
                   </div>
@@ -193,7 +210,10 @@ const Contact = () => {
             </div>
 
             <div className="bg-white rounded-xl shadow-lg p-8">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">Visit Our Office</h2>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">Visit Our Office</h2>
+              <a href={officeMapLink} target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-blue-600 hover:underline transition-colors block mb-4">
+                {contactInfo.address || 'Location not set'}
+              </a>
               <div className="h-64 bg-gray-200 rounded-lg z-0">
                 {!loading && officePosition && typeof officePosition.lat === 'number' && (
                   <MapContainer center={officePosition} zoom={15} scrollWheelZoom={false} style={{ height: "100%", width: "100%" }}>

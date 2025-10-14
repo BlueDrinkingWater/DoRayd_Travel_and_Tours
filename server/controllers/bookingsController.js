@@ -31,10 +31,29 @@ export const getBookingAvailability = async (req, res) => {
   }
 };
 
-// Get all bookings (for admin/employee)
+// Get all bookings (for admin/employee) with filtering and searching
 export const getAllBookings = async (req, res) => {
   try {
-    const bookings = await Booking.find({})
+    const { search, status } = req.query;
+    const query = {};
+
+    if (status && status !== 'all') {
+      query.status = status;
+    }
+
+    if (search) {
+      const searchRegex = new RegExp(search, 'i');
+      query.$or = [
+        { bookingReference: searchRegex },
+        { paymentReference: searchRegex },
+        { firstName: searchRegex },
+        { lastName: searchRegex },
+        { email: searchRegex },
+        { itemName: searchRegex },
+      ];
+    }
+
+    const bookings = await Booking.find(query)
         .populate({
             path: 'itemId',
             select: 'brand model title'
@@ -73,7 +92,7 @@ export const createBooking = async (req, res) => {
         const {
             itemType, itemId, itemName, startDate, endDate, dropoffCoordinates,
             paymentReference, amountPaid, firstName, lastName, email, phone,
-            address, // This is now correctly handled below
+            address, 
             numberOfGuests, specialRequests, agreedToTerms, deliveryMethod,
             pickupLocation, dropoffLocation, totalPrice
         } = req.body;
@@ -117,7 +136,7 @@ export const createBooking = async (req, res) => {
             lastName: finalLastName,
             email: finalEmail,
             phone: finalPhone,
-            address: address, // <-- THE FIX IS HERE
+            address: address,
             numberOfGuests: Number(numberOfGuests) || 1,
             specialRequests,
             agreedToTerms: agreedToTerms === 'true' || agreedToTerms === true,

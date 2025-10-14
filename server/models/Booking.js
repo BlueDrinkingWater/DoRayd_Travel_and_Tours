@@ -37,7 +37,7 @@ const bookingSchema = new mongoose.Schema({
   lastName: { type: String, required: true, trim: true },
   email: { type: String, required: true, trim: true, lowercase: true },
   phone: { type: String, required: true, trim: true },
-  address: { type: String, required: true, trim: true }, // --- ADDED address field ---
+  address: { type: String, required: true, trim: true },
   
   // Booking Details
   startDate: { type: Date, required: true },
@@ -56,7 +56,12 @@ const bookingSchema = new mongoose.Schema({
   
   totalPrice: { type: Number, required: true, min: 0 },
   paymentProofUrl: { type: String },
-  paymentReference: { type: String, trim: true },
+  // --- MODIFIED: Added a field to store the client-generated reference code ---
+  paymentReference: { 
+    type: String, 
+    trim: true,
+    required: [true, 'A payment reference code is required.']
+  },
   amountPaid: { type: Number, min: 0 },
   
   // Verification & Status
@@ -70,7 +75,7 @@ const bookingSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Generate booking reference before saving
+// Generate internal booking reference before saving
 bookingSchema.pre('save', function(next) {
   if (this.isNew && !this.bookingReference) {
     const prefix = this.itemType === 'car' ? 'CAR' : 'TOUR';

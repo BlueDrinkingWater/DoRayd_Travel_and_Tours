@@ -36,22 +36,17 @@ const NotificationBell = ({ notifications, markOneAsRead, markAllAsRead }) => {
     markAllAsRead();
   };
 
-  const formatTimeAgo = (dateString) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const seconds = Math.floor((now - date) / 1000);
-    
-    let interval = seconds / 31536000;
-    if (interval > 1) return Math.floor(interval) + " years ago";
-    interval = seconds / 2592000;
-    if (interval > 1) return Math.floor(interval) + " months ago";
-    interval = seconds / 86400;
-    if (interval > 1) return Math.floor(interval) + " days ago";
-    interval = seconds / 3600;
-    if (interval > 1) return Math.floor(interval) + " hours ago";
-    interval = seconds / 60;
-    if (interval > 1) return Math.floor(interval) + " minutes ago";
-    return "Just now";
+  // --- MODIFIED: This function now shows the full date and time ---
+  const formatNotificationDate = (dateString) => {
+    if (!dateString) return '';
+    return new Date(dateString).toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
   };
 
   return (
@@ -89,8 +84,9 @@ const NotificationBell = ({ notifications, markOneAsRead, markAllAsRead }) => {
                     <p className="text-sm font-medium leading-none text-gray-800">
                       {notif.message}
                     </p>
+                    {/* --- MODIFIED: Use the new date formatting function --- */}
                     <p className="text-sm text-gray-500">
-                      {formatTimeAgo(notif.createdAt)}
+                      {formatNotificationDate(notif.createdAt)}
                     </p>
                   </div>
                 </div>

@@ -1,7 +1,7 @@
 // src/components/BookingModal.jsx
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { X, Calendar, Users, Upload, CheckCircle, Shield, FileText } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { X, Calendar, Users, Upload, CheckCircle, Shield, FileText, AlertTriangle } from 'lucide-react';
 import DataService, { SERVER_URL } from './services/DataService.jsx';
 import CalendarBooking from './CalendarBooking.jsx';
 import DropoffMap from './DropoffMap.jsx';
@@ -16,6 +16,17 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
   const [contentLoading, setContentLoading] = useState(true);
   const [paymentQR, setPaymentQR] = useState('');
   const [qrLoading, setQrLoading] = useState(true);
+
+  // --- MODIFIED: Enhanced unique payment reference generation with a timestamp ---
+  const paymentReferenceCode = useMemo(() => {
+    if (!isOpen) return '';
+    const prefix = 'DRYD';
+    // Convert current timestamp to a compact base-36 string
+    const timestamp = Date.now().toString(36).toUpperCase();
+    // Add a short random component for extra uniqueness
+    const random = Math.random().toString(36).substr(2, 4).toUpperCase();
+    return `${prefix}-${timestamp}-${random}`;
+  }, [isOpen]);
 
   useEffect(() => {
     if (isOpen) {
@@ -92,7 +103,6 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
     dropoffLocation: '',
     dropoffCoordinates: null,
     deliveryMethod: 'pickup',
-    paymentReference: '',
     amountPaid: ''
   });
 
@@ -121,7 +131,6 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
           dropoffLocation: '',
           dropoffCoordinates: null,
           deliveryMethod: 'pickup',
-          paymentReference: '',
           amountPaid: ''
       };
 
@@ -191,8 +200,8 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
     if (!formData.paymentProof) {
         return setSubmitError('Please upload your proof of payment.');
     }
-    if (!formData.paymentReference || !formData.amountPaid) {
-      return setSubmitError('Please provide all payment details.');
+    if (!formData.amountPaid) {
+      return setSubmitError('Please provide the amount paid.');
     }
     if (!formData.agreedToTerms) {
       return setSubmitError('You must agree to the terms, agreements, and policies to proceed.');
@@ -213,6 +222,7 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
         }
       });
       
+      bookingData.append('paymentReference', paymentReferenceCode);
       bookingData.set('startDate', fullStartDate);
       bookingData.set('endDate', fullEndDate);
       bookingData.set('totalPrice', totalPrice);
@@ -347,10 +357,26 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
                   {/* Payment */}
                   <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
                     <h3 className="font-semibold mb-3 text-blue-800">Payment Details</h3>
+                    <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-4 rounded-md mb-4">
+                      <div className="flex">
+                        <div className="flex-shrink-0">
+                          <AlertTriangle className="h-5 w-5" />
+                        </div>
+                        <div className="ml-3">
+                          <p className="text-sm font-bold">IMPORTANT PAYMENT INSTRUCTIONS</p>
+                          <p className="text-xs mt-1">
+                            To confirm your booking, you MUST include your unique <strong>Payment Reference Code</strong> in the transaction notes/remarks. Bookings without this code will be rejected.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                     <div className="flex flex-col items-center">
                         {qrLoading ? <p>Loading QR...</p> : paymentQR ? <img src={paymentQR} alt="Payment QR Code" className="w-48 h-48 object-contain mb-4 border rounded-md" /> : <p className="text-sm text-gray-500 mb-4">QR code not available.</p>}
                         <div className="w-full space-y-4">
-                          <input type="text" placeholder="Payment Reference Number *" name="paymentReference" required value={formData.paymentReference} onChange={(e) => setFormData({ ...formData, paymentReference: e.target.value })} className="w-full p-2 border rounded-md"/>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Your Payment Reference Code *</label>
+                            <input type="text" readOnly value={paymentReferenceCode} className="w-full p-2 border rounded-md bg-gray-100 font-bold text-center text-lg tracking-wider" />
+                          </div>
                           <input type="number" placeholder="Amount Paid *" name="amountPaid" required value={formData.amountPaid} onChange={(e) => setFormData({ ...formData, amountPaid: e.target.value })} className="w-full p-2 border rounded-md"/>
                           <label htmlFor="paymentProof" className="w-full text-center cursor-pointer bg-white border-2 border-dashed rounded-lg p-4 hover:bg-gray-50"><Upload className="w-8 h-8 mx-auto text-gray-400 mb-2"/><span className="text-sm font-medium text-gray-700">{formData.paymentProof ? formData.paymentProof.name : 'Upload Payment Proof *'}</span><input id="paymentProof" type="file" name="paymentProof" required onChange={handleFileChange} className="hidden"/></label>
                         </div>
@@ -428,4 +454,3 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
 };
 
 export default BookingModal;
-

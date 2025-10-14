@@ -12,8 +12,24 @@ const ManageBookings = () => {
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [adminNotes, setAdminNotes] = useState('');
   const [updating, setUpdating] = useState(false);
+  
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(searchTerm);
 
-  const { data: bookingsData, loading, error, refetch: fetchBookings } = useApi(DataService.fetchAllBookings);
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 500); 
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchTerm]);
+
+  const { data: bookingsData, loading, error, refetch: fetchBookings } = useApi(
+    () => DataService.fetchAllBookings({ search: debouncedSearchTerm, status: filterStatus }),
+    [debouncedSearchTerm, filterStatus] 
+  );
+  
   const bookings = bookingsData?.data || [];
 
   const handleStatusUpdate = async (bookingId, newStatus) => {
@@ -95,15 +111,6 @@ const ManageBookings = () => {
     return <span className={`px-2 py-1 rounded-full text-xs font-medium ${config.bg} ${config.text}`}>{config.label}</span>;
   };
 
-  const filteredBookings = Array.isArray(bookings) ? bookings.filter(booking => {
-    const s = searchTerm.toLowerCase();
-    return (
-      booking.bookingReference?.toLowerCase().includes(s) ||
-      `${booking.firstName} ${booking.lastName}`.toLowerCase().includes(s) ||
-      booking.email?.toLowerCase().includes(s)
-    ) && (filterStatus === 'all' || booking.status === filterStatus);
-  }) : [];
-
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
@@ -120,7 +127,7 @@ const ManageBookings = () => {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
                 <input
                     type="text"
-                    placeholder="Search by ref, name, or email..."
+                    placeholder="Search by ref, payment ID, name, or email..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="w-full pl-10 pr-4 py-2 border rounded-lg"
@@ -153,18 +160,18 @@ const ManageBookings = () => {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Reference</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Service</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Start Date</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredBookings.map((booking) => (
+                {bookings.map((booking) => (
                   <tr key={booking._id} className="hover:bg-gray-50">
                     <td className="px-6 py-4">
                       <div className="font-medium text-gray-900">{booking.bookingReference}</div>
-                      <div className="text-sm text-gray-500">{formatDate(booking.createdAt)}</div>
+                      <div className="text-sm text-gray-500">{formatDateTime(booking.createdAt)}</div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="font-medium text-gray-900">{booking.firstName} {booking.lastName}</div>
@@ -183,7 +190,7 @@ const ManageBookings = () => {
               </tbody>
             </table>
           </div>
-          {filteredBookings.length === 0 && ( <div className="text-center py-12 text-gray-500"><Calendar size={48} className="mx-auto mb-2" /><p>No bookings found.</p></div> )}
+          {bookings.length === 0 && ( <div className="text-center py-12 text-gray-500"><Calendar size={48} className="mx-auto mb-2" /><p>No bookings found.</p></div> )}
         </div>
       )}
 
@@ -230,7 +237,7 @@ const ManageBookings = () => {
                         {selectedBooking.dropoffCoordinates && (
                           <div className="mt-2">
                             <a 
-                              href={`https://maps.google.com/?q=${selectedBooking.dropoffCoordinates.lat},${selectedBooking.dropoffCoordinates.lng}`} 
+                              href={`https://www.google.com/maps/search/?api=1&query=${selectedBooking.dropoffCoordinates.lat},${selectedBooking.dropoffCoordinates.lng}`} 
                               target="_blank" 
                               rel="noopener noreferrer"
                               className="text-sm text-blue-600 hover:underline flex items-center gap-1"

@@ -1,5 +1,3 @@
-// server/server.js
-
 import express from 'express';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
@@ -8,6 +6,7 @@ import cookieParser from 'cookie-parser';
 import http from 'http';
 import { Server } from 'socket.io';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
 // Security Middleware
 import helmet from 'helmet';
@@ -38,6 +37,11 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 
 // CORS configuration
 const corsOptions = {
@@ -71,10 +75,16 @@ app.use(cookieParser());
 // Security Middleware
 app.use(helmet());
 app.use(mongoSanitize());
-app.use(rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // limit each IP to 100 requests per windowMs
-}));
+
+// --- CORRECTED RATE LIMITER ---
+// Only apply rate limiting in production to avoid issues with React's StrictMode double-invoking effects in development
+if (process.env.NODE_ENV === 'production') {
+    app.use(rateLimit({
+        windowMs: 15 * 60 * 1000, // 15 minutes
+        max: 200, // Increased limit for production
+    }));
+}
+// --- END OF CORRECTION ---
 
 // Socket.IO setup
 const server = http.createServer(app);
@@ -99,7 +109,7 @@ io.on('connection', (socket) => {
     });
 });
 
-// --- CORRECTED PLACEMENT OF HEALTH CHECK ROUTE ---
+// Health check endpoint
 app.get('/api/health', (req, res) => {
   const dbStatus = mongoose.connection.readyState;
   const isDbConnected = dbStatus === 1; // 1 means connected
@@ -166,3 +176,4 @@ mongoose
   .catch((err) => console.error('❌ MongoDB Connection Error:', err));
 
 export default app;
+

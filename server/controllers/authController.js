@@ -78,11 +78,14 @@ export const login = async (req, res) => {
 
         user.password = undefined;
         
+        // --- THIS IS THE CORRECTED CODE FOR THE COOKIE ---
         const cookieOptions = {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: process.env.NODE_ENV === 'production' ? 'None' : 'Lax',
+            expires: new Date(Date.now() + 24 * 60 * 60 * 1000), // 1 day
+            secure: process.env.NODE_ENV === 'production', // Use 'true' in production
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'Lax', // Required for cross-site cookies
         };
+        // --- END OF CORRECTED CODE ---
 
         res.cookie('token', token, cookieOptions);
 

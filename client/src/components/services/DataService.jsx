@@ -1,13 +1,10 @@
-// client/src/components/services/DataService.jsx
-
 import axios from 'axios';
 
-// For local development, this will be an empty string, and Vite's proxy will be used.
-// In production, you can set VITE_API_URL to your deployed backend URL.
+// For local development, VITE_API_URL should be empty so the Vite proxy is used.
+// For production, VITE_API_URL should be set to your deployed backend URL if it's on a different domain.
+// If frontend and backend are on the same domain in production, this can also be empty.
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
-
-// SERVER_URL should point to the backend for assets like images.
-export const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:5000';
+export const SERVER_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -16,11 +13,16 @@ const api = axios.create({
 
 export const getImageUrl = (path) => {
   if (!path) {
-    return ''; 
+    // Return a placeholder or an empty string if there's no path to avoid errors
+    return 'https://placehold.co/600x400/e2e8f0/475569?text=No+Image';
   }
+  // If the path is already a full, absolute URL (like from Cloudinary),
+  // return it directly without any changes.
   if (path.startsWith('http://') || path.startsWith('https://')) {
     return path;
   }
+  // Otherwise, it's a relative path for a locally-hosted image.
+  // Construct the full URL by combining the server URL and the path.
   return `${SERVER_URL}${path.startsWith('/') ? '' : '/'}${path}`;
 };
 
@@ -622,7 +624,7 @@ const DataService = {
   
   fetchAllFaqs: async () => {
     try {
-      const response = await api.get('/api/faqs');
+      const response = await api.get('/api/faq');
       return response.data;
     } catch (error) {
       return handleError(error, 'Failed to fetch FAQs.');
@@ -712,3 +714,4 @@ const DataService = {
 };
 
 export default DataService;
+

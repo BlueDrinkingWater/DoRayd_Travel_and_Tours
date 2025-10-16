@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, MapPin, Calendar, Users, Car, TrendingUp, AlertCircle } from 'lucide-react';
 import DataService from './services/DataService.jsx';
+import bgHome from '../assets/bgHome.jpg';
 
 const Hero = () => {
   const navigate = useNavigate();
@@ -69,11 +70,14 @@ const Hero = () => {
   };
 
   return (
-    <section className="bg-gradient-to-br from-blue-600 to-indigo-700 text-white relative">
+    <section 
+      className="bg-cover bg-center text-white relative"
+      style={{ backgroundImage: `url(${bgHome})` }}
+    >
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute inset-0 bg-black opacity-30"></div>
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-900 to-indigo-900 opacity-50"></div>
-        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-black/50 to-transparent"></div>
+        <div className="absolute inset-0 bg-black opacity-50"></div>
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-900 to-indigo-900 opacity-60"></div>
+        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-black/60 to-transparent"></div>
       </div>
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-32 relative z-10">

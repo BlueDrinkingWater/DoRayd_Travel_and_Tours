@@ -20,7 +20,7 @@ import {
   TrendingUp
 } from 'lucide-react';
 import Hero from '../components/Hero.jsx';
-import DataService, { SERVER_URL } from '../components/services/DataService.jsx';
+import DataService, { getImageUrl } from '../components/services/DataService.jsx';
 import MarqueeHero from '../components/MarqueeHero.jsx';
 
 const Home = () => {
@@ -224,7 +224,7 @@ const Home = () => {
                   <div className="h-48 bg-gray-200 flex items-center justify-center">
                     {car.images && car.images.length > 0 ? (
                       <img
-                        src={`${SERVER_URL}${car.images[0]}`}
+                        src={getImageUrl(car.images[0])}
                         alt={`${car.brand} ${car.model}`}
                         className="w-full h-full object-cover"
                         onError={(e) => {
@@ -327,7 +327,7 @@ const Home = () => {
                   <div className="h-48 bg-gray-200 flex items-center justify-center">
                     {tour.images && tour.images.length > 0 ? (
                       <img
-                        src={`${SERVER_URL}${tour.images[0]}`}
+                        src={getImageUrl(tour.images[0])}
                         alt={tour.title || tour.name}
                         className="w-full h-full object-cover"
                         onError={(e) => {

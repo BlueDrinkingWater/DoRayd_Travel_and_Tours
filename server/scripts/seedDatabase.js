@@ -65,11 +65,13 @@ const seedDatabase = async () => {
     await Car.create([
       {
         brand: 'Toyota', model: 'Vios', year: 2023, category: 'sedan', pricePerDay: 1500, seats: 5, location: 'Manila',
-        description: 'A reliable and fuel-efficient sedan for city driving.', images: ['/uploads/cars/vios.jpg']
+        description: 'A reliable and fuel-efficient sedan for city driving.', 
+        images: ['https://res.cloudinary.com/YOUR_CLOUD_NAME/image/upload/v123456789/dorayd/cars/vios.jpg'] // <-- REPLACE WITH YOUR CLOUDINARY URL
       },
       {
         brand: 'Mitsubishi', model: 'Montero Sport', year: 2024, category: 'suv', pricePerDay: 3000, seats: 7, location: 'Cebu',
-        description: 'A rugged and spacious SUV for family adventures.', images: ['/uploads/cars/montero.jpg']
+        description: 'A rugged and spacious SUV for family adventures.', 
+        images: ['https://res.cloudinary.com/YOUR_CLOUD_NAME/image/upload/v123456789/dorayd/cars/montero.jpg'] // <-- REPLACE WITH YOUR CLOUDINARY URL
       },
     ]);
     
@@ -79,11 +81,13 @@ const seedDatabase = async () => {
     await Tour.create([
         {
             title: 'El Nido Island Hopping', destination: 'Palawan', price: 2500, duration: '1 Day', maxGroupSize: 12,
-            description: 'Discover the pristine beaches and lagoons of El Nido.', images: ['/uploads/tours/elnido.jpg']
+            description: 'Discover the pristine beaches and lagoons of El Nido.', 
+            images: ['https://res.cloudinary.com/YOUR_CLOUD_NAME/image/upload/v123456789/dorayd/tours/elnido.jpg'] // <-- REPLACE WITH YOUR CLOUDINARY URL
         },
         {
             title: 'Bohol Countryside Tour', destination: 'Bohol', price: 1800, duration: '1 Day', maxGroupSize: 10,
-            description: 'See the Chocolate Hills and the cute Tarsiers.', images: ['/uploads/tours/bohol.jpg']
+            description: 'See the Chocolate Hills and the cute Tarsiers.', 
+            images: ['https://res.cloudinary.com/YOUR_CLOUD_NAME/image/upload/v123456789/dorayd/tours/bohol.jpg'] // <-- REPLACE WITH YOUR CLOUDINARY URL
         },
     ]);
 

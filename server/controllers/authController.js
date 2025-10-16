@@ -110,6 +110,9 @@ export const googleLogin = async (req, res) => {
     let user = await User.findOne({ email });
 
     if (user) {
+      if (user.authProvider !== 'google') {
+        return res.status(400).json({ success: false, message: 'This email is already registered with a different login method.' });
+        }
       if (user.role !== 'customer') {
         return res.status(403).json({ success: false, message: 'This email is registered as staff. Please use the staff login.' });
       }
@@ -166,6 +169,9 @@ export const facebookLogin = async (req, res) => {
     let user = await User.findOne({ email });
     
     if (user) {
+      if (user.authProvider !== 'facebook') {
+        return res.status(400).json({ success: false, message: 'This email is already registered with a different login method.' });
+        }
       if (user.role !== 'customer') {
         return res.status(403).json({ success: false, message: 'This email is registered as staff. Please use the staff login.' });
       }

@@ -1,7 +1,7 @@
 import express from 'express';
 import multer from 'multer';
 import { uploadSingleImage, deleteImage } from '../controllers/uploadController.js';
-import { auth } from '../middleware/auth.js';
+import { auth, authorize } from '../middleware/auth.js';
 import { v2 as cloudinary } from 'cloudinary';
 import { CloudinaryStorage } from 'multer-storage-cloudinary';
 
@@ -19,9 +19,9 @@ const storage = new CloudinaryStorage({
 const upload = multer({ storage: storage });
 
 // Route for uploading a single image
-router.post('/image', auth, upload.single('image'), uploadSingleImage);
+router.post('/image', auth, authorize('admin', 'employee'), upload.single('image'), uploadSingleImage);
 
 // Route for deleting an image using its public_id. The (*) allows slashes.
-router.delete('/image/:public_id(*)', auth, deleteImage);
+router.delete('/image/:public_id(*)', auth, authorize('admin', 'employee'), deleteImage);
 
 export default router;

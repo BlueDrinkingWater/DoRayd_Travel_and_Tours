@@ -65,6 +65,18 @@ const Contact = () => {
       return;
     }
 
+    if (!formData.email.includes('@')) {
+      setSubmitError('Please enter a valid email address.');
+      setSubmitting(false);
+      return;
+    }
+
+    if (formData.phone && !/^\d+$/.test(formData.phone)) {
+        setSubmitError('Phone number should only contain numbers.');
+        setSubmitting(false);
+        return;
+    }
+
     try {
       const messageData = {
         name: formData.name.trim(),

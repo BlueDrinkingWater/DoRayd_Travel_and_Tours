@@ -166,7 +166,8 @@ const ContentManagement = () => {
         />
       ) : (
         <input
-          type="text"
+          type={tabKey === 'contactPhone' ? 'tel' : 'text'}
+          pattern={tabKey === 'contactPhone' ? '[0-9]*' : undefined}
           value={currentContent.content}
           onChange={(e) => handleContentChange(tabKey, 'content', e.target.value)}
           className="w-full p-3 border rounded-lg mt-1 focus:ring-2 focus:ring-blue-500 focus:outline-none"

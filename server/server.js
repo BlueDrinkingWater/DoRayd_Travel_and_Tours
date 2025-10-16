@@ -101,7 +101,7 @@ app.set('io', io);
 
 io.on('connection', (socket) => {
     console.log('A user connected:', socket.id);
-    socket.on('joinRoom', (room) => {
+    socket.on('join', (room) => {
         socket.join(room);
         console.log(`User ${socket.id} joined room: ${room}`);
     });

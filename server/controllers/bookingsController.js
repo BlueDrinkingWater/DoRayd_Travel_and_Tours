@@ -164,7 +164,7 @@ export const createBooking = async (req, res) => {
             await createNotification(
               { roles: ['admin', 'employee'], module: 'bookings' },
               notification.message,
-              notification.link
+              { admin: '/owner/manage-bookings', employee: '/employee/manage-bookings' }
             );
         }
         

@@ -103,7 +103,8 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
     dropoffLocation: '',
     dropoffCoordinates: null,
     deliveryMethod: 'pickup',
-    amountPaid: ''
+    amountPaid: '',
+    manualPaymentReference: ''
   });
 
   const [totalPrice, setTotalPrice] = useState(0);
@@ -131,7 +132,8 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
           dropoffLocation: '',
           dropoffCoordinates: null,
           deliveryMethod: 'pickup',
-          amountPaid: ''
+          amountPaid: '',
+          manualPaymentReference: ''
       };
 
       if (itemType === 'tour' && item) {
@@ -179,6 +181,16 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
     e.preventDefault();
     setSubmitError('');
     
+    if (!/^[a-zA-Z\s]*$/.test(formData.firstName) || !/^[a-zA-Z\s]*$/.test(formData.lastName)) {
+        return setSubmitError('Name should only contain letters.');
+    }
+    if (!formData.email.includes('@')) {
+        return setSubmitError('Please enter a valid email address.');
+    }
+    if (!/^\d+$/.test(formData.phone)) {
+        return setSubmitError('Phone number should only contain numbers.');
+    }
+
     if (!formData.firstName || !formData.lastName || !formData.email || !formData.phone || !formData.address) {
       return setSubmitError('Please fill in all your personal information, including your address.');
     }
@@ -222,7 +234,8 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
         }
       });
       
-      bookingData.append('paymentReference', paymentReferenceCode);
+      const finalPaymentReference = formData.manualPaymentReference.trim() || paymentReferenceCode;
+      bookingData.set('paymentReference', finalPaymentReference);
       bookingData.set('startDate', fullStartDate);
       bookingData.set('endDate', fullEndDate);
       bookingData.set('totalPrice', totalPrice);
@@ -376,6 +389,10 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Your Payment Reference Code *</label>
                             <input type="text" readOnly value={paymentReferenceCode} className="w-full p-2 border rounded-md bg-gray-100 font-bold text-center text-lg tracking-wider" />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Or Enter Your Bank Reference Number</label>
+                            <input type="text" name="manualPaymentReference" value={formData.manualPaymentReference} onChange={(e) => setFormData({ ...formData, manualPaymentReference: e.target.value })} className="w-full p-2 border rounded-md" placeholder="e.g., from your bank receipt"/>
                           </div>
                           <input type="number" placeholder="Amount Paid *" name="amountPaid" required value={formData.amountPaid} onChange={(e) => setFormData({ ...formData, amountPaid: e.target.value })} className="w-full p-2 border rounded-md"/>
                           <label htmlFor="paymentProof" className="w-full text-center cursor-pointer bg-white border-2 border-dashed rounded-lg p-4 hover:bg-gray-50"><Upload className="w-8 h-8 mx-auto text-gray-400 mb-2"/><span className="text-sm font-medium text-gray-700">{formData.paymentProof ? formData.paymentProof.name : 'Upload Payment Proof *'}</span><input id="paymentProof" type="file" name="paymentProof" required onChange={handleFileChange} className="hidden"/></label>

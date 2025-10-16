@@ -2,14 +2,14 @@ import Notification from '../models/Notification.js';
 import User from '../models/User.js';
 
 /**
- * Creates and saves notifications.
+ * Creates, saves, and emits notifications via socket.io.
+ * @param {Object} io - The socket.io server instance.
  * @param {Object} recipients - Object containing user ID or roles.
  * @param {string} message - The notification message.
- * @param {Object} linkMap - An object mapping roles to specific links.
- * @param {string} [initiatorId] - The ID of the user who triggered the action, to be excluded from notifications.
- * Example: { admin: '/owner/link', employee: '/employee/link', default: '#' }
+ * @param {Object|string} linkMap - An object mapping roles to links, or a single link string.
+ * @param {string} [initiatorId] - The ID of the user who triggered the action (to be excluded).
  */
-export const createNotification = async (recipients, message, linkMap, initiatorId = null) => {
+export const createNotification = async (io, recipients, message, linkMap, initiatorId = null) => {
     try {
         let usersToNotify = [];
 
@@ -23,17 +23,14 @@ export const createNotification = async (recipients, message, linkMap, initiator
             usersToNotify.push(...usersInRoles);
         }
 
-        // Filter out the initiator and then get unique users
         const uniqueUsers = Array.from(new Map(
             usersToNotify
                 .filter(u => !initiatorId || u._id.toString() !== initiatorId)
                 .map(u => [u._id.toString(), u])
         ).values());
 
-
-        const notifications = uniqueUsers.map(user => {
-            // --- FIX: Determine the correct link based on the user's role ---
-            const link = linkMap[user.role] || linkMap.default || '#';
+        const notificationsToCreate = uniqueUsers.map(user => {
+            const link = typeof linkMap === 'object' ? (linkMap[user.role] || linkMap.default || '#') : linkMap;
 
             if (user.role === 'employee' && recipients.module) {
                 const hasPermission = user.permissions.some(p => p.module === recipients.module);
@@ -43,9 +40,19 @@ export const createNotification = async (recipients, message, linkMap, initiator
             return { user: user._id, message, link };
         }).filter(Boolean);
 
-        if (notifications.length > 0) {
-            const createdNotifications = await Notification.insertMany(notifications);
-            console.log(`Created ${notifications.length} notifications.`);
+        if (notificationsToCreate.length > 0) {
+            const createdNotifications = await Notification.insertMany(notificationsToCreate);
+            
+            // Emit a socket event to each user individually
+            if (io && createdNotifications) {
+                createdNotifications.forEach(notification => {
+                    const userSocketRoom = notification.user.toString();
+                    // Emitting a generic 'notification' event that the client listens for
+                    io.to(userSocketRoom).emit('notification', notification);
+                });
+            }
+            
+            console.log(`Created and emitted ${createdNotifications.length} notifications.`);
             return createdNotifications;
         }
         return [];

@@ -17,7 +17,7 @@ const Messages = () => {
 
   const handleMarkAsRead = async (messageId) => {
     try {
-      await DataService.markMessageAsRead(messageId);
+      await DataService.updateMessageStatus(messageId, 'read');
       fetchMessages();
     } catch (error) {
       console.error('Error marking message as read:', error);

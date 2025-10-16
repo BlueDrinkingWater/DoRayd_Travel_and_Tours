@@ -58,7 +58,13 @@ export const createPromotion = async (req, res) => {
 // @access  Admin
 export const updatePromotion = async (req, res) => {
   try {
-    const promotion = await Promotion.findByIdAndUpdate(req.params.id, req.body, {
+    const promotionData = { ...req.body };
+    promotionData.discountValue = Number(promotionData.discountValue);
+    if (isNaN(promotionData.discountValue)) {
+      promotionData.discountValue = 0;
+    }
+
+    const promotion = await Promotion.findByIdAndUpdate(req.params.id, promotionData, {
       new: true,
       runValidators: true,
     });

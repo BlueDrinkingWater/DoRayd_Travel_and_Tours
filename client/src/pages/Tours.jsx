@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Search, Filter, MapPin, Users, Star, Calendar, Clock, Grid, List, AlertCircle, RefreshCw, ChevronLeft, ChevronRight, Award } from 'lucide-react';
 import BookingModal from '../components/BookingModal';
-import DataService, { SERVER_URL } from '../components/services/DataService';
+import DataService, { getImageUrl } from '../components/services/DataService';
 import { useApi } from '../hooks/useApi.jsx';
 
 const Tours = () => {
@@ -144,7 +144,7 @@ const Tours = () => {
           <div className={`${viewMode === 'list' ? 'w-80 h-48' : 'h-48'} bg-gray-200 overflow-hidden relative`}>
             {tour.images && tour.images.length > 0 ? (
               <img
-                src={`${SERVER_URL}${tour.images[0]}`}
+                src={getImageUrl(tour.images[0])}
                 alt={tour.title || tour.name}
                 className="w-full h-full object-cover"
               />

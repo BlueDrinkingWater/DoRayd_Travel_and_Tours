@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Users, Fuel, Settings2, MapPin, Check, Star } from 'lucide-react';
 import { useApi } from '../hooks/useApi';
-import DataService, { SERVER_URL } from '../components/services/DataService';
+import DataService, { getImageUrl } from '../components/services/DataService';
 import BookingModal from '../components/BookingModal';
 
 // --- Reviews Section Component ---
@@ -93,7 +93,7 @@ const CarDetails = () => {
             <div className="bg-white rounded-xl shadow-lg overflow-hidden p-6">
               <div className="h-96 w-full mb-4 rounded-lg overflow-hidden bg-gray-200">
                 <img
-                  src={`${SERVER_URL}${mainImage}`}
+                  src={getImageUrl(mainImage)}
                   alt={`${car.brand} ${car.model}`}
                   className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
                 />
@@ -107,7 +107,7 @@ const CarDetails = () => {
                       className={`h-20 rounded-md overflow-hidden cursor-pointer border-2 ${mainImage === img ? 'border-blue-600' : 'border-transparent'}`}
                       onClick={() => setMainImage(img)}
                     >
-                      <img src={`${SERVER_URL}${img}`} alt={`Thumbnail ${index + 1}`} className="w-full h-full object-cover" />
+                      <img src={getImageUrl(img)} alt={`Thumbnail ${index + 1}`} className="w-full h-full object-cover" />
                     </div>
                   ))}
                 </div>

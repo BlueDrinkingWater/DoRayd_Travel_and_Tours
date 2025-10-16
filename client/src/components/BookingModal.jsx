@@ -1,7 +1,7 @@
 // src/components/BookingModal.jsx
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { X, Calendar, Users, Upload, CheckCircle, Shield, FileText, AlertTriangle } from 'lucide-react';
+import { X, Calendar, Users, Upload, CheckCircle, Shield, FileText, AlertTriangle, Tag } from 'lucide-react';
 import DataService, { SERVER_URL } from './services/DataService.jsx';
 import CalendarBooking from './CalendarBooking.jsx';
 import DropoffMap from './DropoffMap.jsx';
@@ -389,7 +389,15 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
                     <div className="space-y-3">
                       {itemType === 'car' ? (
                         <>
-                          <div className="flex justify-between text-sm"><span className="text-gray-600">Daily Rate:</span><span>{formatPrice(item.pricePerDay || 0)}</span></div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-600">Daily Rate:</span>
+                            <span>
+                                {item.originalPrice && item.originalPrice > item.pricePerDay && (
+                                    <span className="text-gray-500 line-through mr-2">{formatPrice(item.originalPrice)}</span>
+                                )}
+                                {formatPrice(item.pricePerDay || 0)}
+                            </span>
+                          </div>
                           <div className="flex justify-between text-sm"><span className="text-gray-600">Rental Duration:</span><span>{formData.numberOfDays > 0 ? `${formData.numberOfDays} ${formData.numberOfDays === 1 ? 'day' : 'days'}` : '...'}</span></div>
                           {formData.startDate && <div className="flex justify-between text-sm"><span className="text-gray-600">Start Date:</span><span>{new Date(formData.startDate).toLocaleDateString()}</span></div>}
                           {calculatedEndDate && <div className="flex justify-between text-sm"><span className="text-gray-600">Return Date:</span><span>{calculatedEndDate.toLocaleDateString()}</span></div>}
@@ -399,9 +407,22 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
                         </>
                       ) : (
                         <>
-                          <div className="flex justify-between text-sm"><span className="text-gray-600">Price per Person:</span><span>{formatPrice(item.price || 0)}</span></div>
-                          <div className="flex justify-between text-sm"><span className="text-gray-600">Number of Guests:</span><span>{formData.numberOfGuests}</span></div>
+                           <div className="flex justify-between text-sm">
+                                <span className="text-gray-600">Price per Person:</span>
+                                <span>
+                                    {item.originalPrice && item.originalPrice > item.price && (
+                                        <span className="text-gray-500 line-through mr-2">{formatPrice(item.originalPrice)}</span>
+                                    )}
+                                    {formatPrice(item.price || 0)}
+                                </span>
+                           </div>
+                           <div className="flex justify-between text-sm"><span className="text-gray-600">Number of Guests:</span><span>{formData.numberOfGuests}</span></div>
                         </>
+                      )}
+                      {item.promotion && (
+                          <div className="flex justify-between text-sm text-green-600 bg-green-50 p-2 rounded-md">
+                              <span className="font-semibold flex items-center gap-1"><Tag size={14}/> {item.promotion.title}</span>
+                          </div>
                       )}
                       <hr className="border-gray-200" />
                       <div className="flex justify-between items-center"><span className="text-lg font-semibold text-gray-900">Total Amount:</span><span className="text-2xl font-bold text-blue-600">{formatPrice(totalPrice)}</span></div>

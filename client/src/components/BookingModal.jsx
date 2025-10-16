@@ -210,7 +210,7 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
       return setSubmitError('Tour date information is missing. Please contact support.');
     }
     if (!formData.paymentProof) {
-        return setSubmitError('Please upload your proof of payment.');
+        return setSubmitError('required to upload proof of payment');
     }
     if (!formData.amountPaid) {
       return setSubmitError('Please provide the amount paid.');
@@ -395,7 +395,13 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
                             <input type="text" name="manualPaymentReference" value={formData.manualPaymentReference} onChange={(e) => setFormData({ ...formData, manualPaymentReference: e.target.value })} className="w-full p-2 border rounded-md" placeholder="e.g., from your bank receipt"/>
                           </div>
                           <input type="number" placeholder="Amount Paid *" name="amountPaid" required value={formData.amountPaid} onChange={(e) => setFormData({ ...formData, amountPaid: e.target.value })} className="w-full p-2 border rounded-md"/>
-                          <label htmlFor="paymentProof" className="w-full text-center cursor-pointer bg-white border-2 border-dashed rounded-lg p-4 hover:bg-gray-50"><Upload className="w-8 h-8 mx-auto text-gray-400 mb-2"/><span className="text-sm font-medium text-gray-700">{formData.paymentProof ? formData.paymentProof.name : 'Upload Payment Proof *'}</span><input id="paymentProof" type="file" name="paymentProof" required onChange={handleFileChange} className="hidden"/></label>
+                          <div className="flex justify-center">
+                            <label htmlFor="paymentProof" className="w-3/4 text-center cursor-pointer bg-white border-2 border-dashed rounded-lg p-4 hover:bg-gray-50">
+                                <Upload className="w-8 h-8 mx-auto text-gray-400 mb-2"/>
+                                <span className="text-sm font-medium text-gray-700">{formData.paymentProof ? formData.paymentProof.name : 'Upload Payment Proof *'}</span>
+                                <input id="paymentProof" type="file" name="paymentProof" required onChange={handleFileChange} className="hidden"/>
+                            </label>
+                          </div>
                         </div>
                     </div>
                   </div>

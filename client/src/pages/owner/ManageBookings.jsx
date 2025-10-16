@@ -1,7 +1,7 @@
 // src/pages/owner/ManageBookings.jsx
 
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, Eye, Check, X, Clock, Calendar, Users, MapPin, Phone, Mail, FileText, Image as ImageIcon, Link as LinkIcon, Hash, Car, Package, DollarSign } from 'lucide-react';
+import { Search, Filter, Eye, Check, X, Clock, Calendar, Users, MapPin, Phone, Mail, FileText, Image as ImageIcon, Link as LinkIcon, Hash, Car, Package, DollarSign, Tag } from 'lucide-react';
 import { useApi } from '../../hooks/useApi';
 import DataService, { getImageUrl } from '../../components/services/DataService';
 
@@ -254,6 +254,14 @@ const ManageBookings = () => {
                 {/* Right Column */}
                 <div className="space-y-6">
                   <InfoBlock title="Payment Details" icon={ImageIcon}>
+                    {selectedBooking.originalPrice && selectedBooking.originalPrice > selectedBooking.totalPrice ? (
+                        <>
+                            <InfoRow label="Original Price" value={formatPrice(selectedBooking.originalPrice)} />
+                            <InfoRow label="Discount Applied" value={`- ${formatPrice(selectedBooking.discountApplied)}`} />
+                            {selectedBooking.promotionTitle && <InfoRow label="Promotion" value={selectedBooking.promotionTitle} icon={Tag} />}
+                            <hr className="my-2 border-gray-200"/>
+                        </>
+                    ) : null}
                     <div className="flex justify-between items-center mb-2">
                         <span className="font-semibold text-gray-800">Total Amount Due:</span>
                         <span className="text-2xl font-bold text-blue-600">{formatPrice(selectedBooking.totalPrice)}</span>

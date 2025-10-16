@@ -40,19 +40,15 @@ export const submitReview = async (req, res) => {
         
         const io = req.app.get('io');
         if (io) {
-            const notification = {
-                message: 'A new review has been submitted for approval.',
-                linkMap: {
-                  admin: '/owner/manage-reviews',
-                  employee: '/employee/manage-reviews'
-                },
-                review
-            };
-            io.to('admin').to('employee').emit('new-review', notification);
+            const notificationMessage = 'A new review has been submitted for approval.';
             await createNotification(
+              io,
               { roles: ['admin', 'employee'], module: 'reviews' },
-              notification.message,
-              notification.linkMap
+              notificationMessage,
+              {
+                admin: '/owner/manage-reviews',
+                employee: '/employee/manage-reviews'
+              }
             );
         }
 

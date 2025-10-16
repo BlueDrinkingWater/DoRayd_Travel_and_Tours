@@ -57,25 +57,17 @@ export const useSocket = () => {
 
         socket.on('connect', onConnect);
         socket.on('disconnect', onDisconnect);
-        socket.on('new-booking', onNotification);
-        socket.on('new-message', onNotification);
-        socket.on('new-review', onNotification);
-        socket.on('new-user', onNotification);
+        
+        // Listen for a single, generic 'notification' event for all real-time updates
+        socket.on('notification', onNotification);
         socket.on('booking-update', onNotification);
-        socket.on('new-car', onNotification);
-        socket.on('new-tour', onNotification);
         socket.on('permissions-updated', onPermissionsUpdated);
 
         return () => {
           socket.off('connect', onConnect);
           socket.off('disconnect', onDisconnect);
-          socket.off('new-booking', onNotification);
-          socket.off('new-message', onNotification);
-          socket.off('new-review', onNotification);
-          socket.off('new-user', onNotification);
+          socket.off('notification', onNotification);
           socket.off('booking-update', onNotification);
-          socket.off('new-car', onNotification);
-          socket.off('new-tour', onNotification);
           socket.off('permissions-updated', onPermissionsUpdated);
         };
     } else {

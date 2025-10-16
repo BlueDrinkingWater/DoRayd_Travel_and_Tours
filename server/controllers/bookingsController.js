@@ -94,7 +94,8 @@ export const createBooking = async (req, res) => {
             paymentReference, amountPaid, firstName, lastName, email, phone,
             address, 
             numberOfGuests, specialRequests, agreedToTerms, deliveryMethod,
-            pickupLocation, dropoffLocation, totalPrice
+            pickupLocation, dropoffLocation, totalPrice,
+            originalPrice, discountApplied, promotionTitle // Promotion fields
         } = req.body;
 
         const finalFirstName = isUserLoggedIn ? req.user.firstName : firstName;
@@ -144,6 +145,9 @@ export const createBooking = async (req, res) => {
             pickupLocation,
             dropoffLocation,
             totalPrice: Number(totalPrice) || 0,
+            originalPrice: Number(originalPrice) || null,
+            discountApplied: Number(discountApplied) || null,
+            promotionTitle: promotionTitle || null
         });
 
         await newBooking.save();
@@ -154,16 +158,12 @@ export const createBooking = async (req, res) => {
 
         const io = req.app.get('io');
         if (io) {
-            const notification = {
-                message: `New booking received: ${newBooking.bookingReference}`,
-                link: '/owner/manage-bookings',
-                booking: newBooking
-            };
-            io.to('admin').to('employee').emit('new-booking', notification);
+            const notificationMessage = `New booking received: ${newBooking.bookingReference}`;
             
             await createNotification(
+              io,
               { roles: ['admin', 'employee'], module: 'bookings' },
-              notification.message,
+              notificationMessage,
               { admin: '/owner/manage-bookings', employee: '/employee/manage-bookings' }
             );
         }
@@ -201,17 +201,13 @@ export const updateBookingStatus = async (req, res) => {
 
     const io = req.app.get('io');
     if (io && booking.user) {
-      const notification = {
-        message: `Your booking ${booking.bookingReference} has been ${status}.`,
-        link: '/my-bookings',
-        booking,
-      };
-      io.to(booking.user._id.toString()).emit('booking-update', notification);
+      const notificationMessage = `Your booking ${booking.bookingReference} has been ${status}.`;
       
       await createNotification(
+        io,
         { user: booking.user._id },
-        notification.message,
-        notification.link,
+        notificationMessage,
+        '/my-bookings',
         req.user.id
       );
     }
@@ -251,17 +247,12 @@ export const cancelBooking = async (req, res) => {
     
     const io = req.app.get('io');
     if (io && booking.user) {
-        const notification = {
-            message: `Your booking ${booking.bookingReference} has been cancelled.`,
-            link: '/my-bookings',
-            booking,
-        };
-      io.to(booking.user._id.toString()).emit('booking-update', notification);
-       
+       const notificationMessage = `Your booking ${booking.bookingReference} has been cancelled.`;
        await createNotification(
+        io,
         { user: booking.user._id },
-        notification.message,
-        notification.link,
+        notificationMessage,
+        '/my-bookings',
         req.user.id
       );
     }
@@ -302,12 +293,11 @@ export const uploadPaymentProof = async (req, res) => {
         
         const io = req.app.get('io');
         if (io) {
-            io.to('admin').to('employee').emit('payment-proof-uploaded', booking);
-            
             await createNotification(
+              io,
               { roles: ['admin', 'employee'], module: 'bookings' },
               `Payment proof uploaded for booking ${booking.bookingReference}`,
-              '/owner/manage-bookings'
+              { admin: '/owner/manage-bookings', employee: '/employee/manage-bookings' }
             );
         }
         

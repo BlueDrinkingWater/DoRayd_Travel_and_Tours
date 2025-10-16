@@ -19,18 +19,13 @@ export const createMessage = async (req, res) => {
     
     const io = req.app.get('io');
     if (io) {
-        const notification = {
-            message: `New message from ${message.name}`,
-            link: '/owner/messages',
-            messageObj: message
-        };
-      io.to('admin').to('employee').emit('new-message', notification);
-      
-      await createNotification(
-        { roles: ['admin', 'employee'], module: 'messages' },
-        notification.message,
-        { admin: '/owner/messages', employee: '/employee/messages' }
-      );
+        const notificationMessage = `New message from ${message.name}`;
+        await createNotification(
+          io,
+          { roles: ['admin', 'employee'], module: 'messages' },
+          notificationMessage,
+          { admin: '/owner/messages', employee: '/employee/messages' }
+        );
     }
     
     res.status(201).json({ success: true, data: message });
@@ -60,10 +55,19 @@ export const replyToMessage = async (req, res) => {
     // Notify the original sender
     if (io && message.user) {
       const userSocketId = message.user.toString();
-      io.to(userSocketId).emit('notification', {
+      const notification = {
         message: `You have a new reply to your message: "${message.subject}"`,
         link: '/my-feedback' 
-      });
+      };
+
+      io.to(userSocketId).emit('notification', notification);
+      
+      await createNotification(
+        io,
+        { user: message.user },
+        notification.message,
+        notification.link
+      );
     }
 
     // Prepare attachment if it exists

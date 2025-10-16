@@ -35,15 +35,12 @@ export const register = async (req, res) => {
 
     const io = req.app.get('io');
     if (io) {
-      const notification = {
-        message: `New customer registered: ${user.firstName} ${user.lastName}`,
-        link: '/owner/customer-management'
-      };
-      io.to('admin').to('employee').emit('new-user', notification);
+      const notificationMessage = `New customer registered: ${user.firstName} ${user.lastName}`;
       await createNotification(
+        io,
         { roles: ['admin', 'employee'] },
-        notification.message,
-        notification.link
+        notificationMessage,
+        { admin: '/owner/customer-management', employee: '/employee/customer-management' }
       );
     }
 
@@ -53,6 +50,7 @@ export const register = async (req, res) => {
   }
 };
 
+// ... (The rest of the file remains unchanged)
 // Login user
 export const login = async (req, res) => {
     const errors = validationResult(req);

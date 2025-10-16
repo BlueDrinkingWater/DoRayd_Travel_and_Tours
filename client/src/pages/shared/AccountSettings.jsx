@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { useAuth } from '../../components/Login.jsx';
-import DataService, { SERVER_URL } from '../../components/services/DataService.jsx';
+import DataService, { getImageUrl } from '../../components/services/DataService.jsx';
 import { User, Edit, Save, X, Key, Shield, AlertTriangle, Upload } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -13,7 +13,6 @@ const AccountSettings = () => {
         lastName: user?.lastName || '',
         email: user?.email || '',
         phone: user?.phone || '',
-        // --- ADDED: Initialize address state ---
         address: user?.address || '',
     });
     const [passwordData, setPasswordData] = useState({
@@ -127,7 +126,7 @@ const AccountSettings = () => {
                 <div className="flex items-center gap-6 mt-4">
                     <div className="relative">
                         <img
-                            src={user?.profilePicture ? `${SERVER_URL}${user.profilePicture}` : `https://ui-avatars.com/api/?name=${user?.firstName}+${user?.lastName}&background=random&color=fff`}
+                            src={getImageUrl(user?.profilePicture) || `https://ui-avatars.com/api/?name=${user?.firstName}+${user?.lastName}&background=random&color=fff`}
                             alt="Profile"
                             className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-md"
                         />
@@ -146,7 +145,6 @@ const AccountSettings = () => {
                             <input type="email" name="email" value={profileData.email} onChange={handleProfileChange} disabled={!isEditing} className="w-full p-2 border rounded-md disabled:bg-gray-100" />
                             <input name="phone" value={profileData.phone} onChange={handleProfileChange} disabled={!isEditing} className="w-full p-2 border rounded-md disabled:bg-gray-100" />
                         </div>
-                        {/* --- ADDED: Address textarea --- */}
                         <div className="col-span-1 md:col-span-2">
                              <textarea name="address" value={profileData.address} onChange={handleProfileChange} disabled={!isEditing} className="w-full p-2 border rounded-md disabled:bg-gray-100" placeholder="Your Address" rows="3"></textarea>
                         </div>

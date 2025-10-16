@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Edit3, Archive, Eye, EyeOff, Search, Car, Users, Fuel, Settings2, X, MapPin, RotateCcw } from 'lucide-react';
-import DataService, { SERVER_URL } from '../../components/services/DataService';
+import DataService, { getImageUrl } from '../../components/services/DataService';
 import ImageUpload from '../../components/ImageUpload';
 import { useApi } from '../../hooks/useApi';
 
@@ -210,7 +210,7 @@ const ManageCars = () => {
             <div key={car._id} className="bg-white rounded-lg shadow-sm border overflow-hidden">
               <div className="h-48 bg-gray-200 relative">
                 <img
-                  src={car.images && car.images.length > 0 ? `${SERVER_URL}${car.images[0]}` : ''}
+                  src={car.images && car.images.length > 0 ? getImageUrl(car.images[0]) : ''}
                   alt={`${car.brand} ${car.model}`}
                   className="w-full h-full object-cover"
                 />

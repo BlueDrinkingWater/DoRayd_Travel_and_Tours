@@ -1,6 +1,6 @@
 import React from 'react';
 import { Shield, Users, Award, Star, Heart, Globe, Phone, Mail, MapPin, AlertCircle, RefreshCw } from 'lucide-react';
-import DataService, { SERVER_URL } from '../components/services/DataService';
+import DataService, { getImageUrl } from '../components/services/DataService';
 import { useApi } from '../hooks/useApi';
 
 const About = () => {
@@ -172,7 +172,7 @@ const About = () => {
             <div className="relative">
               <div className="w-full h-96 bg-gray-200 rounded-2xl overflow-hidden">
                 <img
-                  src={content.aboutImage?.content ? `${SERVER_URL}${content.aboutImage.content}` : "https://placehold.co/600x400/e2e8f0/475569?text=DoRayd+Team"}
+                  src={getImageUrl(content.aboutImage?.content) || "https://placehold.co/600x400/e2e8f0/475569?text=DoRayd+Team"}
                   alt="DoRayd Team"
                   className="w-full h-full object-cover"
                   onError={(e) => {

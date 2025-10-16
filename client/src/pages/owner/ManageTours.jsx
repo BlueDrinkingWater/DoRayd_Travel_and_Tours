@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Plus, Edit3, Archive, Eye, EyeOff, Search, MapPin, X, RotateCcw } from 'lucide-react';
-import DataService, { SERVER_URL } from '../../components/services/DataService.jsx';
+import DataService, { getImageUrl } from '../../components/services/DataService.jsx';
 import ImageUpload from '../../components/ImageUpload.jsx';
 import { useApi } from '../../hooks/useApi.jsx';
 
@@ -166,10 +166,10 @@ const handleEdit = (tour) => {
           {filteredTours.length > 0 ? filteredTours.map((tour) => (
             <div key={tour._id} className="bg-white rounded-lg shadow-sm border overflow-hidden">
               <div className="h-48 bg-gray-200 relative">
-                <img src={tour.images && tour.images.length > 0 ? (typeof tour.images[0] === 'string' ? `${SERVER_URL}${tour.images[0]}` : `${SERVER_URL}${tour.images[0].url || tour.images[0]}`): ''} 
-  alt={tour.title} 
-  className="w-full h-full object-cover" 
-/>
+              <img src={tour.images && tour.images.length > 0 ? getImageUrl(typeof tour.images[0] === 'string' ? tour.images[0] : (tour.images[0].url || tour.images[0])) : ''} 
+                  alt={tour.title} 
+                  className="w-full h-full object-cover" 
+                />
                 <div className="absolute top-2 right-2 flex gap-1">
                   {tour.archived ? (
                     <button onClick={() => handleRestore(tour._id)} className="p-2 bg-white rounded-full shadow-md" title="Restore Tour"><RotateCcw className="w-4 h-4 text-green-600" /></button>

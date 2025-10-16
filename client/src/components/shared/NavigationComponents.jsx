@@ -6,7 +6,7 @@ import { useAuth } from '../Login';
 import logo from '../../assets/logo.svg';
 import { useSocket } from '../../hooks/useSocket';
 import NotificationBell from './NotificationBell.jsx';
-import { SERVER_URL } from '../services/DataService.jsx'; // Import SERVER_URL
+import { getImageUrl } from '../services/DataService.jsx'; // Import getImageUrl
 
 export const Navbar = ({ onCustomerLogin, onStaffLogin, onRegister }) => {
   const { isAuthenticated, user, logout } = useAuth();
@@ -116,7 +116,7 @@ export const Navbar = ({ onCustomerLogin, onStaffLogin, onRegister }) => {
                   >
                     <div className="w-9 h-9 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-md overflow-hidden">
                         {user.profilePicture ? (
-                            <img src={`${SERVER_URL}${user.profilePicture}`} alt="Profile" className="w-full h-full object-cover" />
+                            <img src={getImageUrl(user.profilePicture)} alt="Profile" className="w-full h-full object-cover" />
                         ) : (
                             <span className="text-white text-sm font-semibold">
                                 {user.firstName?.charAt(0)}{user.lastName?.charAt(0)}
@@ -136,7 +136,7 @@ export const Navbar = ({ onCustomerLogin, onStaffLogin, onRegister }) => {
                         <div className="flex items-center space-x-3">
                             <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center overflow-hidden">
                                 {user.profilePicture ? (
-                                    <img src={`${SERVER_URL}${user.profilePicture}`} alt="Profile" className="w-full h-full object-cover" />
+                                    <img src={getImageUrl(user.profilePicture)} alt="Profile" className="w-full h-full object-cover" />
                                 ) : (
                                     <span className="text-white font-semibold">
                                         {user.firstName?.charAt(0)}{user.lastName?.charAt(0)}

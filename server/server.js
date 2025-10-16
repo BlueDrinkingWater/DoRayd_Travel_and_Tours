@@ -28,6 +28,7 @@ import messageRoutes from './routes/messages.js';
 import feedbackRoutes from './routes/feedback.js';
 import notificationRoutes from './routes/notification.js';
 import analyticsRoutes from './routes/analytics.js';
+import activityLogRoutes from './routes/activityLog.js'; // Make sure this is imported
 
 // Error Handler
 import { errorHandler } from './middleware/errorHandler.js';
@@ -136,6 +137,7 @@ app.use('/api/messages', messageRoutes);
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/activity-log', activityLogRoutes); // <-- THIS LINE IS ADDED
 
 // Error Handling Middleware
 app.use(errorHandler);

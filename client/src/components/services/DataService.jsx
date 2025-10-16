@@ -550,6 +550,15 @@ const DataService = {
     }
   },
 
+  markMessageAsRead: async (messageId) => {
+    try {
+      const response = await api.put(`/api/messages/${messageId}/status`, { status: 'read' }, { headers: getAuthHeader() });
+      return response.data;
+    } catch (error) {
+      return handleError(error, 'Failed to mark message as read.');
+    }
+  },
+
   fetchAllEmployees: async () => {
     try {
       const response = await api.get('/api/users/employees', { headers: getAuthHeader() });
@@ -633,7 +642,7 @@ const DataService = {
 
   fetchAllFaqsAdmin: async () => {
     try {
-      const response = await api.get('/api/faqs/admin', { headers: getAuthHeader() });
+      const response = await api.get('/api/faq/admin', { headers: getAuthHeader() });
       return response.data;
     } catch (error) {
       return handleError(error, 'Failed to fetch FAQs for admin.');
@@ -642,7 +651,7 @@ const DataService = {
 
   createFaq: async (faqData) => {
     try {
-      const response = await api.post('/api/faqs', faqData, { headers: getAuthHeader() });
+      const response = await api.post('/api/faq', faqData, { headers: getAuthHeader() });
       return response.data;
     } catch (error) {
       return handleError(error, 'Failed to create FAQ.');
@@ -651,7 +660,7 @@ const DataService = {
 
   updateFaq: async (id, faqData) => {
     try {
-      const response = await api.put(`/api/faqs/${id}`, faqData, { headers: getAuthHeader() });
+      const response = await api.put(`/api/faq/${id}`, faqData, { headers: getAuthHeader() });
       return response.data;
     } catch (error) {
       return handleError(error, 'Failed to update FAQ.');
@@ -660,7 +669,7 @@ const DataService = {
 
   deleteFaq: async (id) => {
     try {
-      const response = await api.delete(`/api/faqs/${id}`, { headers: getAuthHeader() });
+      const response = await api.delete(`/api/faq/${id}`, { headers: getAuthHeader() });
       return response.data;
     } catch (error) {
       return handleError(error, 'Failed to delete FAQ.');

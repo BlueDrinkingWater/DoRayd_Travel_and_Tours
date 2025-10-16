@@ -53,10 +53,11 @@ const ManagePromotions = () => {
     const handleSave = async () => {
         setSubmitting(true);
         try {
+            const payload = { ...formData, discountValue: Number(formData.discountValue) || 0 };
             if (editingPromotion) {
-                await DataService.updatePromotion(editingPromotion._id, formData);
+                await DataService.updatePromotion(editingPromotion._id, payload);
             } else {
-                await DataService.createPromotion(formData);
+                await DataService.createPromotion(payload);
             }
             fetchPromotions();
             setShowModal(false);

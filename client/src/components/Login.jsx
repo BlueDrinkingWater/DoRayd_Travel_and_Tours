@@ -1,5 +1,3 @@
-// src/components/Login.jsx
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Navigate, useLocation, useNavigate, Link } from 'react-router-dom';
 import { Eye, EyeOff, Shield, User, UserCheck, X } from 'lucide-react';
@@ -26,12 +24,15 @@ export const AuthProvider = ({ children }) => {
         setUser(response.user);
         setIsAuthenticated(true);
       } else {
-        logout();
+        setUser(null);
+        setIsAuthenticated(false);
       }
     } catch (error) {
-      logout();
+      setUser(null);
+      setIsAuthenticated(false);
+    } finally {
+        setLoading(false);
     }
-    setLoading(false);
   };
 
 
@@ -244,6 +245,11 @@ export const UnifiedLoginPortal = ({ isOpen, onClose, showRegistration = false }
     } else {
       if (activeTab === 'staff') {
         setError("Staff cannot register through this form.");
+        setLoading(false);
+        return;
+      }
+      if (formData.password.length < 8) {
+        setError("Password must be at least 8 characters long.");
         setLoading(false);
         return;
       }

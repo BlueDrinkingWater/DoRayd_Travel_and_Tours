@@ -50,7 +50,6 @@ export const register = async (req, res) => {
   }
 };
 
-// ... (The rest of the file remains unchanged)
 // Login user
 export const login = async (req, res) => {
     const errors = validationResult(req);
@@ -76,14 +75,12 @@ export const login = async (req, res) => {
 
         user.password = undefined;
         
-        // --- THIS IS THE CORRECTED CODE FOR THE COOKIE ---
         const cookieOptions = {
             httpOnly: true,
             expires: new Date(Date.now() + 24 * 60 * 60 * 1000), // 1 day
-            secure: process.env.NODE_ENV === 'production', // Use 'true' in production
-            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'Lax', // Required for cross-site cookies
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
         };
-        // --- END OF CORRECTED CODE ---
 
         res.cookie('token', token, cookieOptions);
 
@@ -92,6 +89,17 @@ export const login = async (req, res) => {
     } catch (error) {
         res.status(500).json({ success: false, message: 'Server Error' });
     }
+};
+
+// ADD THIS ENTIRE FUNCTION
+export const logout = (req, res) => {
+  res.cookie('token', 'loggedout', {
+    expires: new Date(Date.now() + 10 * 1000),
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'Lax',
+  });
+  res.status(200).json({ success: true, message: 'User logged out' });
 };
 
 // Social Login - Google
@@ -137,7 +145,16 @@ export const googleLogin = async (req, res) => {
     const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1d' });
 
     user.password = undefined;
-    res.json({ success: true, token, user });
+    
+    const cookieOptions = {
+        httpOnly: true,
+        expires: new Date(Date.now() + 24 * 60 * 60 * 1000), // 1 day
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    };
+
+    res.cookie('token', token, cookieOptions);
+    res.json({ success: true, user });
 
   } catch (error) {
     console.error('Google Login Error:', error);
@@ -196,7 +213,16 @@ export const facebookLogin = async (req, res) => {
     const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1d' });
 
     user.password = undefined;
-    res.json({ success: true, token, user });
+
+    const cookieOptions = {
+        httpOnly: true,
+        expires: new Date(Date.now() + 24 * 60 * 60 * 1000), // 1 day
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    };
+
+    res.cookie('token', token, cookieOptions);
+    res.json({ success: true, user });
 
   } catch (error) {
     console.error('Facebook Login Error:', error.response ? error.response.data : error.message);

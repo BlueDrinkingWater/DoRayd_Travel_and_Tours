@@ -2,6 +2,7 @@ import express from 'express';
 import { 
     register, 
     login, 
+    logout,
     getMe, 
     forgotPassword, 
     resetPassword, 
@@ -27,6 +28,8 @@ router.post('/login',
     body('password').not().isEmpty(),
     login
 );
+
+router.get('/logout', logout);
 
 router.get('/me', auth, getMe);
 

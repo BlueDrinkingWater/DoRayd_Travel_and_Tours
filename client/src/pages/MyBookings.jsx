@@ -1,10 +1,7 @@
-import React, { useEffect, useState } from 'react';
-import DataService from '../components/services/DataService';
-import { useAuth } from '../components/Login';
-import { Car, MapPin, Calendar, Clock } from 'lucide-react';
-import { useApi } from '../hooks/useApi';
+import React from 'react';
+import { Car, MapPin, Calendar, Eye } from 'lucide-react';
 
-const MyBookings = () => {
+const MyBookings = ({ onBookingSelect }) => {
   const { user } = useAuth();
   const { data: bookingsData, loading, error } = useApi(() => DataService.fetchUserBookings(), [user]);
   const bookings = bookingsData?.data || [];
@@ -41,9 +38,17 @@ const MyBookings = () => {
                   {getStatusBadge(booking.status)}
                 </div>
                 <p className="text-sm text-gray-500">Ref: {booking.bookingReference}</p>
-                <div className="text-sm text-gray-700 mt-2 flex gap-4">
-                  <span className="flex items-center gap-1"><Calendar size={14}/> {new Date(booking.startDate).toLocaleDateString()}</span>
-                  <span className="font-bold text-lg">₱{booking.totalPrice.toLocaleString()}</span>
+                <div className="text-sm text-gray-700 mt-2 flex items-center justify-between">
+                    <div className="flex gap-4">
+                        <span className="flex items-center gap-1"><Calendar size={14}/> {new Date(booking.startDate).toLocaleDateString()}</span>
+                        <span className="font-bold text-lg">₱{booking.totalPrice.toLocaleString()}</span>
+                    </div>
+                    <button
+                        onClick={() => onBookingSelect(booking)}
+                        className="bg-blue-100 text-blue-700 hover:bg-blue-200 px-3 py-1 rounded-full text-sm font-semibold flex items-center gap-1"
+                    >
+                        <Eye size={14} /> View
+                    </button>
                 </div>
               </div>
             </div>

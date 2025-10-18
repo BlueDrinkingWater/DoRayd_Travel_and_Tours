@@ -65,11 +65,16 @@ const Tours = () => {
   useEffect(() => {
     const state = location.state;
     if (state) {
-      if (state.destination) {
-        setFilters(prev => ({ ...prev, destination: state.destination }));
-      }
+      setFilters(prev => ({
+        ...prev,
+        destination: state.location || '',
+        maxGroupSize: state.guests || '',
+        // date is not directly used for filtering tours on the backend yet,
+        // but you could implement it if needed
+      }));
     }
   }, [location.state]);
+
 
   const handleFilterChange = (key, value) => {
     setFilters(prev => ({ ...prev, [key]: value }));

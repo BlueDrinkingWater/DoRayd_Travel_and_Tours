@@ -67,9 +67,13 @@ const Cars = () => {
   useEffect(() => {
     const state = location.state;
     if (state) {
-      if (state.location) {
-        setFilters(prev => ({ ...prev, location: state.location }));
-      }
+      setFilters(prev => ({
+        ...prev,
+        location: state.location || '',
+        seats: state.guests || '',
+        // date is not directly used for filtering cars on the backend yet,
+        // but you could implement it if needed
+      }));
     }
   }, [location.state]);
 

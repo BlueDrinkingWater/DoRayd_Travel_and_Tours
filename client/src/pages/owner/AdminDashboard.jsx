@@ -2,16 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { Outlet, useLocation, useNavigate, Link } from 'react-router-dom';
 import {
     LayoutDashboard, Calendar, FileText, Settings, MessageSquare, Users,
-    Car, MapPin, LogOut, Menu, X, Bell, User, ChevronDown, Globe,
-    Clock, CheckCircle, AlertTriangle, Eye, Plus, BarChart3, Activity, RefreshCw, RotateCcw, Edit, Archive, Star, HelpCircle, Tag, QrCode
+    Car, MapPin, LogOut, Menu, X, Bell, User, Star, HelpCircle, Tag, QrCode, Activity, Clock
 } from 'lucide-react';
 import { useAuth } from '../../components/Login.jsx';
 import DataService from '../../components/services/DataService.jsx';
 import BookingCalendar from './BookingCalendar';
 import { useSocket } from '../../hooks/useSocket.jsx';
 import { useApi } from '../../hooks/useApi.jsx';
+import adBG from '../../assets/adBG.jpg';
 
-// Re-usable helper components
+// --- Helper Functions ---
 const formatDate = (dateString) => new Date(dateString).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 const formatCurrency = (amount) => new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(amount);
 
@@ -20,11 +20,11 @@ const AdminDashboard = () => {
     const navigate = useNavigate();
     const { user, logout } = useAuth();
     const { socket } = useSocket();
+    const [sidebarOpen, setSidebarOpen] = useState(true);
 
-    const [sidebarOpen, setSidebarOpen] = useState(false);
-    
     const isDashboardPage = location.pathname === '/owner' || location.pathname === '/owner/dashboard';
 
+    // --- Data Fetching Hooks ---
     const { data: dashboardData, loading, error, refetch: fetchDashboardData } = useApi(() => DataService.fetchDashboardAnalytics(), [], { immediate: isDashboardPage });
     const { data: activityLogData, loading: activityLogLoading, refetch: fetchActivityLogs } = useApi(() => DataService.fetchActivityLogs(), [], { immediate: isDashboardPage });
 
@@ -45,17 +45,16 @@ const AdminDashboard = () => {
         { name: 'Customer Management', href: '/owner/customer-management', icon: Users },
         { name: 'Account Settings', href: '/owner/account-settings', icon: Settings },
     ];
-    
+
+    // --- Real-time Updates ---
     useEffect(() => {
-        if (isDashboardPage) {
+        if (isDashboardPage && socket) {
             const handleRealtimeUpdate = () => {
                 fetchDashboardData();
                 fetchActivityLogs();
             };
-
             socket.on('new-booking', handleRealtimeUpdate);
             socket.on('activity-log-update', handleRealtimeUpdate);
-
             return () => {
                 socket.off('new-booking', handleRealtimeUpdate);
                 socket.off('activity-log-update', handleRealtimeUpdate);
@@ -63,35 +62,37 @@ const AdminDashboard = () => {
         }
     }, [isDashboardPage, socket, fetchDashboardData, fetchActivityLogs]);
 
-
     const handleLogout = () => {
         logout();
         navigate('/');
     };
     
+    // --- Main Dashboard View ---
     const renderDashboardView = () => (
-        <div className="space-y-6">
-            <div className="bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl p-6 text-white shadow-lg">
-                <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-                <p>Welcome back, {user?.firstName}! Here's a real-time overview of your business.</p>
+        <div className="space-y-8">
+            <div className="bg-white/80 backdrop-blur-md p-6 rounded-2xl shadow-lg border border-white/20">
+                <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
+                <p className="text-gray-600">Welcome back, {user?.firstName}! Here's a real-time overview of your business.</p>
             </div>
             
             {error && <div className="bg-red-100 text-red-700 p-4 rounded-lg">{error.message}</div>}
             
-            {loading ? <p>Loading statistics...</p> : dashboardData && dashboardData.data && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-                    <StatCard title="Total Cars" value={dashboardData.data.summary.totalCars || 0} icon={Car} />
-                    <StatCard title="Total Tours" value={dashboardData.data.summary.totalTours || 0} icon={MapPin} />
-                    <StatCard title="Total Bookings" value={dashboardData.data.summary.totalBookings || 0} icon={Calendar} />
-                    <StatCard title="Pending Bookings" value={dashboardData.data.summary.pendingBookings || 0} icon={Clock} />
-                    <StatCard title="Total Messages" value={dashboardData.data.summary.totalMessages || 0} icon={MessageSquare} />
-                    <StatCard title="New Messages" value={dashboardData.data.summary.newMessages || 0} icon={Bell} />
+            {loading ? <p className="text-center py-8 text-gray-500">Loading statistics...</p> : dashboardData && dashboardData.data && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
+                    <StatCard title="Total Cars" value={dashboardData.data.summary.totalCars || 0} icon={Car} color="blue" />
+                    <StatCard title="Total Tours" value={dashboardData.data.summary.totalTours || 0} icon={MapPin} color="purple" />
+                    <StatCard title="Total Bookings" value={dashboardData.data.summary.totalBookings || 0} icon={Calendar} color="green" />
+                    <StatCard title="Pending Bookings" value={dashboardData.data.summary.pendingBookings || 0} icon={Clock} color="yellow" />
+                    <StatCard title="Total Messages" value={dashboardData.data.summary.totalMessages || 0} icon={MessageSquare} color="pink" />
+                    <StatCard title="New Messages" value={dashboardData.data.summary.newMessages || 0} icon={Bell} color="red" />
                 </div>
             )}
             
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2">
-                    <h2 className="text-2xl font-semibold text-gray-800 mb-4">Booking Calendar</h2>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="lg:col-span-2 bg-white/80 backdrop-blur-md rounded-2xl shadow-lg p-6 border border-white/20">
+                    <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                        <Calendar className="text-blue-600" /> Booking Calendar
+                    </h2>
                     <BookingCalendar />
                 </div>
                 <div>
@@ -100,7 +101,7 @@ const AdminDashboard = () => {
             </div>
             
             {dashboardData && dashboardData.data && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     <RecentActivityList title="Recent Bookings" items={dashboardData.data.recentBookings} type="booking" />
                     <RecentActivityList title="Recent Messages" items={dashboardData.data.recentMessages} type="message" />
                 </div>
@@ -109,95 +110,118 @@ const AdminDashboard = () => {
     );
 
     return (
-        <div className="min-h-screen bg-slate-50 flex">
-            <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-xl transform transition-transform lg:relative lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-                <div className="flex items-center justify-between h-16 px-4 bg-gradient-to-r from-indigo-600 to-violet-600">
-                    <span className="text-white font-semibold text-lg">DoRayd Admin</span>
-                    <button onClick={() => setSidebarOpen(false)} className="lg:hidden text-white"><X /></button>
-                </div>
-                <nav className="mt-2 px-3 flex-1 overflow-y-auto">
-                    {navigation.map((item) => (
-                        <Link key={item.name} to={item.href} onClick={() => setSidebarOpen(false)} className={`group flex items-center w-full px-3 py-2 text-sm font-medium rounded-xl my-1 ${location.pathname.startsWith(item.href) ? 'bg-indigo-100 text-indigo-700' : 'text-slate-700 hover:bg-slate-100'}`}>
-                            <item.icon className={`mr-3 h-5 w-5 ${location.pathname.startsWith(item.href) ? 'text-indigo-600' : 'text-slate-400 group-hover:text-indigo-500'}`} />
-                            {item.name}
-                        </Link>
-                    ))}
-                </nav>
-                <div className="p-4 border-t absolute bottom-0 w-full">
-                    <p className="font-semibold">{user?.firstName} {user?.lastName}</p>
-                    <p className="text-xs text-gray-500">{user?.email}</p>
-                    <button onClick={handleLogout} className="w-full mt-2 text-left flex items-center text-sm text-red-600 hover:bg-red-50 p-2 rounded-lg">
-                        <LogOut className="w-4 h-4 mr-2" /> Sign Out
-                    </button>
-                </div>
-            </div>
-            
-            <div className="flex-1 flex flex-col">
-                <header className="sticky top-0 z-40 bg-white shadow-sm border-b">
-                    <div className="flex items-center justify-between h-16 px-4">
-                        <button onClick={() => setSidebarOpen(true)} className="lg:hidden text-slate-500"><Menu /></button>
-                        <h1 className="text-xl font-bold text-slate-800">{navigation.find(nav => location.pathname.startsWith(nav.href))?.name || 'Dashboard'}</h1>
+        <div className="flex h-screen bg-gray-50 overflow-hidden" style={{ backgroundImage: `url(${adBG})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
+             <div className="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
+            <aside className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-black/30 backdrop-blur-lg text-white transition-all duration-300 flex flex-col shadow-2xl z-20`}>
+                <div className="p-6 border-b border-white/10">
+                    <div className="flex items-center justify-between">
+                        {sidebarOpen && (
+                            <div>
+                                <h2 className="text-xl font-bold">DoRayd</h2>
+                                <p className="text-white/70 text-xs">Admin Portal</p>
+                            </div>
+                        )}
+                        <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2 hover:bg-white/10 rounded-lg transition-colors">
+                            {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
+                        </button>
                     </div>
-                </header>
-                <main className="flex-1 p-6 overflow-y-auto">
+                </div>
+                <nav className="flex-1 overflow-y-auto py-4">
+                    {navigation.map((item) => {
+                        const Icon = item.icon;
+                        const isActive = location.pathname.startsWith(item.href);
+                        return (
+                            <Link key={item.name} to={item.href} className={`flex items-center gap-3 px-6 py-3 transition-all ${isActive ? 'bg-white/90 text-blue-600' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
+                                <Icon size={20} className={!sidebarOpen ? 'mx-auto' : ''} />
+                                {sidebarOpen && <span className="font-medium">{item.name}</span>}
+                            </Link>
+                        );
+                    })}
+                </nav>
+            </aside>
+            <main className="flex-1 overflow-y-auto z-10">
+                <div className="bg-black/10 backdrop-blur-lg text-white px-8 py-4 sticky top-0 z-10">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h1 className="text-2xl font-bold text-white">{navigation.find(t => location.pathname.startsWith(t.href))?.name || 'Dashboard'}</h1>
+                            <p className="text-white/80 text-sm">Welcome back, {user?.firstName}!</p>
+                        </div>
+                    </div>
+                </div>
+                <div className="p-8">
                     {isDashboardPage ? renderDashboardView() : <Outlet />}
-                </main>
-            </div>
+                </div>
+            </main>
         </div>
     );
 };
 
-const StatCard = ({ title, value, icon: Icon }) => (
-    <div className="bg-white p-4 rounded-xl shadow-sm border">
-      <Icon className="w-8 h-8 text-indigo-500 mb-2" />
-      <p className="text-2xl font-bold text-slate-800">{value}</p>
-      <p className="text-sm text-slate-500">{title}</p>
+// --- Re-styled Components ---
+const StatCard = ({ title, value, icon: Icon, color }) => {
+    const colorMap = {
+        blue: 'from-blue-500 to-blue-600',
+        purple: 'from-purple-500 to-purple-600',
+        green: 'from-green-500 to-green-600',
+        yellow: 'from-yellow-500 to-orange-500',
+        pink: 'from-pink-500 to-rose-500',
+        red: 'from-red-500 to-red-600'
+    };
+    return (
+        <div className="bg-white/80 backdrop-blur-md p-6 rounded-xl shadow-lg border border-white/20 hover:shadow-xl transition-all hover:-translate-y-1">
+            <div className={`w-12 h-12 bg-gradient-to-br ${colorMap[color]} rounded-lg flex items-center justify-center mb-3 shadow-md`}>
+                <Icon className="text-white" size={24} />
+            </div>
+            <p className="text-3xl font-bold text-gray-900">{value}</p>
+            <p className="text-sm text-gray-600 mt-1">{title}</p>
+        </div>
+    );
+};
+const RecentActivityList = ({ title, items, type }) => (
+    <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-white/20 overflow-hidden">
+        <div className="p-6 border-b bg-gradient-to-r from-slate-50 to-blue-50/50">
+            <h3 className="text-xl font-bold text-gray-900">{title}</h3>
+        </div>
+        <div className="p-6 space-y-4">
+            {items && items.length > 0 ? items.map(item => (
+                <div key={item._id} className="flex justify-between items-center p-4 bg-white/50 rounded-xl border border-gray-200 hover:shadow-md transition-all">
+                    <div>
+                        <p className="font-semibold text-gray-900">{type === 'booking' ? item.bookingReference : item.subject}</p>
+                        <p className="text-gray-600 text-sm">{type === 'booking' ? `${item.user?.firstName} ${item.user?.lastName}` : item.name}</p>
+                    </div>
+                    <div className="text-right">
+                        {type === 'booking' && <p className="font-bold text-blue-600">{formatCurrency(item.totalPrice)}</p>}
+                        <p className="text-gray-500 text-sm">{formatDate(item.createdAt)}</p>
+                    </div>
+                </div>
+            )) : <p className="text-center text-gray-500 py-8">No recent activity.</p>}
+        </div>
     </div>
 );
-  
-const RecentActivityList = ({ title, items, type }) => (
-      <div className="bg-white rounded-xl shadow-sm border">
-          <div className="p-4 border-b"><h3 className="text-lg font-semibold">{title}</h3></div>
-          <div className="p-4 space-y-3">
-              {items && items.length > 0 ? items.map(item => (
-                  <div key={item._id} className="flex justify-between items-center text-sm">
-                      <div>
-                          <p className="font-medium">{type === 'booking' ? item.bookingReference : item.subject}</p>
-                          <p className="text-slate-500">{type === 'booking' ? `${item.user?.firstName} ${item.user?.lastName}` : item.name}</p>
-                      </div>
-                      <div className="text-right">
-                          {type === 'booking' && <p className="font-semibold">{formatCurrency(item.totalPrice)}</p>}
-                          <p className="text-slate-500">{formatDate(item.createdAt)}</p>
-                      </div>
-                  </div>
-              )) : <p className="text-center text-slate-500 py-4">No recent activity.</p>}
-          </div>
-      </div>
-);
-  
 const ActivityLogTracker = ({ logs, loading }) => (
-      <div className="bg-white rounded-xl shadow-sm border h-full">
-          <div className="p-4 border-b"><h3 className="text-lg font-semibold flex items-center gap-2"><Activity /> Employee Activity</h3></div>
-          <div className="p-4 space-y-3 overflow-y-auto h-[calc(100%-65px)]">
-              {loading ? <p className="text-center text-slate-500 py-4">Loading activities...</p> : 
-               logs.length > 0 ? logs.map(log => (
-                  <Link to={log.link || '#'} key={log._id} className="block hover:bg-gray-50 p-2 rounded-lg">
-                      <div className="flex items-start gap-3 text-sm">
-                          <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
-                              <User size={16} className="text-gray-500" />
-                          </div>
-                          <div>
-                              <p className="font-medium text-gray-800">
-                                  {log.employee.firstName} {log.employee.lastName}
-                                  <span className="text-gray-500 font-normal"> {log.action.replace(/_/g, ' ').toLowerCase()}</span>
-                              </p>
-                              <p className="text-xs text-gray-500">{new Date(log.createdAt).toLocaleString()}</p>
-                          </div>
-                      </div>
-                  </Link>
-              )) : <p className="text-center text-slate-500 py-4">No employee activity yet.</p>}
-          </div>
-      </div>
+    <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-white/20 h-full flex flex-col overflow-hidden">
+        <div className="p-6 border-b bg-gradient-to-r from-slate-50 to-purple-50/50">
+            <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                <Activity className="text-purple-600" /> Employee Activity
+            </h3>
+        </div>
+        <div className="p-6 space-y-3 overflow-y-auto flex-1">
+            {loading ? <p className="text-center text-gray-500 py-8">Loading activities...</p> : 
+             logs.length > 0 ? logs.map(log => (
+                <Link to={log.link || '#'} key={log._id} className="block hover:bg-white/50 p-3 rounded-xl transition-all">
+                    <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center flex-shrink-0 shadow-md">
+                            <User size={18} className="text-white" />
+                        </div>
+                        <div className="flex-1">
+                            <p className="font-semibold text-gray-900">{log.employee.firstName} {log.employee.lastName}</p>
+                            <p className="text-sm text-gray-600">{log.action.replace(/_/g, ' ').toLowerCase()}</p>
+                            <p className="text-xs text-gray-500 mt-1">{new Date(log.createdAt).toLocaleString()}</p>
+                        </div>
+                    </div>
+                </Link>
+            )) : <p className="text-center text-gray-500 py-8">No employee activity yet.</p>}
+        </div>
+    </div>
 );
 
 export default AdminDashboard;

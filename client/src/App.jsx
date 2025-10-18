@@ -20,7 +20,7 @@ import Contact from './pages/Contact.jsx';
 import NotFound from './pages/NotFound.jsx';
 import ForgotPassword from './pages/auth/ForgotPassword.jsx';
 import ResetPassword from './pages/auth/ResetPassword.jsx';
-import PublicFeedback from './pages/PublicFeedback.jsx';
+import PublicFeedback from '@/pages/PublicFeedback.jsx'; // Corrected path using alias
 
 // Shared Authed Pages
 import AccountSettings from './pages/shared/AccountSettings.jsx';
@@ -28,7 +28,7 @@ import AccountSettings from './pages/shared/AccountSettings.jsx';
 // Customer Pages
 import CustomerDashboard from './pages/customer/CustomerDashboard.jsx';
 
-// Admin/Owner Pages & Layout
+// Admin/Owner Pages
 import AdminDashboard from './pages/owner/AdminDashboard.jsx';
 import ManageCars from './pages/owner/ManageCars.jsx';
 import ManageTours from './pages/owner/ManageTours.jsx';
@@ -44,13 +44,10 @@ import ManageFaqs from './pages/owner/ManageFaqs.jsx';
 import ManagePromotions from './pages/owner/ManagePromotions.jsx';
 import ManageQRCode from './pages/owner/ManageQRCode.jsx'; 
 
-// Employee Pages & Layout
+// Employee Pages
 import EmployeeDashboard from './pages/employee/EmployeeDashboard.jsx';
 
 import DataService from './components/services/DataService.jsx';
-
-const AdminLayout = () => <AdminDashboard><Outlet /></AdminDashboard>;
-const EmployeeLayout = () => <EmployeeDashboard><Outlet /></EmployeeDashboard>;
 
 function App() {
   const [systemReady, setSystemReady] = useState(false);
@@ -126,10 +123,10 @@ return (
             element={<ProtectedRoute requiredRole="customer"><CustomerDashboard /></ProtectedRoute>}
           />
 
-          {/* Admin Protected Routes */}
-          <Route path="/owner" element={<ProtectedRoute requiredRole="admin"><AdminLayout /></ProtectedRoute>}>
-            <Route index element={<AdminDashboard />} />
-            <Route path="dashboard" element={<AdminDashboard />} />
+          {/* Admin Protected Routes - SIMPLIFIED */}
+          <Route path="/owner" element={<ProtectedRoute requiredRole="admin"><AdminDashboard /></ProtectedRoute>}>
+            <Route index element={null} /> {/* The parent AdminDashboard component will render the overview */}
+            <Route path="dashboard" element={null} /> {/* This path also renders the overview via the parent */}
             <Route path="manage-cars" element={<ManageCars />} />
             <Route path="manage-tours" element={<ManageTours />} />
             <Route path="manage-bookings" element={<ManageBookings />} />
@@ -146,10 +143,10 @@ return (
             <Route path="account-settings" element={<AccountSettings />} />
           </Route>
 
-          {/* Employee Protected Routes */}
-          <Route path="/employee" element={<ProtectedRoute requiredRole="employee"><EmployeeLayout /></ProtectedRoute>}>
-             <Route index element={<EmployeeDashboard />} />
-             <Route path="dashboard" element={<EmployeeDashboard />} />
+          {/* Employee Protected Routes - SIMPLIFIED */}
+          <Route path="/employee" element={<ProtectedRoute requiredRole="employee"><EmployeeDashboard /></ProtectedRoute>}>
+             <Route index element={null} /> {/* The parent EmployeeDashboard component will render its overview */}
+             <Route path="dashboard" element={null} /> {/* This path also renders the overview via the parent */}
              <Route path="manage-bookings" element={<ManageBookings />} />
              <Route path="messages" element={<Messages />} />
              <Route path="manage-cars" element={<ManageCars />} />

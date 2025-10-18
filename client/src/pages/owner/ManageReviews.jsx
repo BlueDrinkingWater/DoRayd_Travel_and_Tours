@@ -32,7 +32,9 @@ const ManageReviews = () => {
                             <div className="flex justify-between items-start">
                                 <div>
                                     <div className="flex items-center gap-2">
-                                        <span className="font-bold">{review.user.firstName} {review.user.lastName}</span>
+                                        <span className="font-bold">
+                                            {review.user ? `${review.user.firstName} ${review.user.lastName}` : 'Deleted User'}
+                                        </span>
                                         <div className="flex">
                                             {[...Array(5)].map((_, i) => (
                                                 <Star key={i} className={`w-4 h-4 ${i < review.rating ? 'text-yellow-400' : 'text-gray-300'}`} />

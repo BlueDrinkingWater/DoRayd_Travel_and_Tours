@@ -12,6 +12,7 @@ export const getAllCars = async (req, res) => {
     if (filters.brand) query.brand = new RegExp(filters.brand, 'i');
     if (filters.location) query.location = new RegExp(filters.location, 'i');
     if (filters.isAvailable) query.isAvailable = filters.isAvailable === 'true';
+    if (filters.seats) query.seats = { $gte: Number(filters.seats) }; // Added this line
 
     if (filters.minPrice || filters.maxPrice) {
         query.pricePerDay = {};

@@ -154,10 +154,19 @@ export const approveReview = async (req, res) => {
             req.params.id, 
             { isApproved: true }, 
             { new: true }
-        );
+        ).populate('user', 'firstName lastName');
         if (!review) {
             return res.status(404).json({ success: false, message: 'Review not found.' });
         }
+        
+        // --- ACTIVITY LOGGING ---
+        const io = req.app.get('io');
+        if (io && req.user.role === 'employee') {
+            const userName = review.user ? `${review.user.firstName} ${review.user.lastName}` : 'an unknown user';
+            const newLog = await createActivityLog(req.user.id, 'APPROVE_REVIEW', `Approved review from ${userName}`, '/owner/manage-reviews');
+            io.to('admin').emit('activity-log-update', newLog);
+        }
+
         res.json({ success: true, data: review });
     } catch (error) {
         console.error('Error approving review:', error);
@@ -190,10 +199,19 @@ export const disapproveReview = async (req, res) => {
             req.params.id, 
             { isApproved: false }, 
             { new: true }
-        );
+        ).populate('user', 'firstName lastName');
         if (!review) {
             return res.status(404).json({ success: false, message: 'Review not found.' });
         }
+        
+        // --- ACTIVITY LOGGING ---
+        const io = req.app.get('io');
+        if (io && req.user.role === 'employee') {
+            const userName = review.user ? `${review.user.firstName} ${review.user.lastName}` : 'an unknown user';
+            const newLog = await createActivityLog(req.user.id, 'DISAPPROVE_REVIEW', `Disapproved review from ${userName}`, '/owner/manage-reviews');
+            io.to('admin').emit('activity-log-update', newLog);
+        }
+
         res.json({ success: true, data: review });
     } catch (error) {
         console.error('Error disapproving review:', error);
@@ -216,5 +234,28 @@ export const disapproveFeedback = async (req, res) => {
     } catch (error) {
         console.error('Error disapproving feedback:', error);
         res.status(500).json({ success: false, message: 'Failed to disapprove feedback.' });
+    }
+};
+
+// ADMIN: Delete a review
+export const deleteReview = async (req, res) => {
+    try {
+        const review = await Review.findByIdAndDelete(req.params.id).populate('user', 'firstName lastName');
+        if (!review) {
+            return res.status(404).json({ success: false, message: 'Review not found' });
+        }
+
+        // --- ACTIVITY LOGGING ---
+        const io = req.app.get('io');
+        if (io && req.user.role === 'employee') {
+            const userName = review.user ? `${review.user.firstName} ${review.user.lastName}` : 'an unknown user';
+            const newLog = await createActivityLog(req.user.id, 'DELETE_REVIEW', `Deleted review from ${userName}`, '/owner/manage-reviews');
+            io.to('admin').emit('activity-log-update', newLog);
+        }
+
+        res.json({ success: true, message: 'Review deleted successfully.' });
+    } catch (error) {
+        console.error('Error deleting review:', error);
+        res.status(500).json({ success: false, message: 'Failed to delete review.' });
     }
 };

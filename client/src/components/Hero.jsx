@@ -74,7 +74,7 @@ const Hero = () => {
                   value={searchParams.location}
                   onChange={(e) => handleInputChange('location', e.target.value)}
                   placeholder="City, Airport, or Hotel"
-                  className="w-full pl-10 p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full pl-10 p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-gray-900"
                 />
               </div>
             </div>
@@ -88,7 +88,7 @@ const Hero = () => {
                   value={searchParams.date}
                   onChange={(e) => handleInputChange('date', e.target.value)}
                   min={new Date().toISOString().split('T')[0]}
-                  className="w-full pl-10 p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full pl-10 p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-gray-900"
                 />
               </div>
             </div>
@@ -101,8 +101,15 @@ const Hero = () => {
                   type="number"
                   value={searchParams.guests}
                   min="1"
-                  onChange={(e) => handleInputChange('guests', parseInt(e.target.value))}
-                  className="w-full pl-10 p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    // This prevents NaN by setting the value to an empty string if cleared
+                    const numericValue = value === '' ? '' : parseInt(value, 10);
+                    if (!isNaN(numericValue)) {
+                      handleInputChange('guests', numericValue);
+                    }
+                  }}
+                  className="w-full pl-10 p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-gray-900"
                 />
               </div>
             </div>

@@ -3,7 +3,6 @@ import bcrypt from 'bcryptjs';
 
 export const updateUserProfile = async (req, res) => {
     try {
-        // --- UPDATED: Destructure address from req.body ---
         const { firstName, lastName, email, phone, address } = req.body;
         const user = await User.findById(req.user.id);
 
@@ -15,9 +14,7 @@ export const updateUserProfile = async (req, res) => {
         user.lastName = lastName || user.lastName;
         user.email = email || user.email;
         user.phone = phone || user.phone;
-        // --- UPDATED: Save the address ---
         user.address = address || user.address;
-
 
         await user.save({ validateBeforeSave: true });
 
@@ -27,7 +24,6 @@ export const updateUserProfile = async (req, res) => {
     }
 };
 
-// ... (rest of the file remains the same)
 export const uploadProfilePicture = async (req, res) => {
     try {
         if (!req.file) {
@@ -79,15 +75,14 @@ export const createEmployee = async (req, res) => {
         if (!password) {
             return res.status(400).json({ success: false, message: 'Password is required.' });
         }
-        const hashedPassword = await bcrypt.hash(password, 12);
-
+        
         const newRole = (role === 'admin' || role === 'employee') ? role : 'employee';
 
         const employee = new User({ 
             firstName, 
             lastName, 
             email, 
-            password: hashedPassword,
+            password,
             phone, 
             position, 
             permissions, 
@@ -98,12 +93,20 @@ export const createEmployee = async (req, res) => {
         employee.password = undefined;
         res.status(201).json({ success: true, data: employee });
     } catch (error) {
+        // Handle validation errors specifically
+        if (error.name === 'ValidationError') {
+            const messages = Object.values(error.errors).map(val => val.message);
+            return res.status(400).json({ success: false, message: messages.join(', ') });
+        }
+        // Handle duplicate key errors (e.g., email already exists)
         if (error.code === 11000) {
             return res.status(400).json({ success: false, message: 'An account with this email already exists.' });
         }
-        res.status(400).json({ success: false, message: error.message });
+        // Handle all other errors
+        res.status(400).json({ success: false, message: error.message || 'An unknown error occurred.' });
     }
 };
+
 
 export const updateEmployee = async (req, res) => {
     try {
@@ -129,12 +132,16 @@ export const updateEmployee = async (req, res) => {
 export const deleteEmployee = async (req, res) => {
     try {
         const employee = await User.findByIdAndDelete(req.params.id);
-        if (!employee) return res.status(404).json({ success: false, message: 'Employee not found' });
-        res.json({ success: true, message: 'Employee deleted' });
+        if (!employee) {
+            return res.status(404).json({ success: false, message: 'Employee not found' });
+        }
+        res.json({ success: true, message: 'Employee deleted successfully' });
     } catch (error) {
-        res.status(500).json({ success: false, message: 'Server Error' });
+        console.error("Error deleting employee:", error);
+        res.status(500).json({ success: false, message: 'Server Error: Could not delete employee.' });
     }
 };
+
 
 export const changeEmployeePassword = async (req, res) => {
     try {

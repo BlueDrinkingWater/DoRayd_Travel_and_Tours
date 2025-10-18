@@ -13,6 +13,7 @@ export const getAllTours = async (req, res) => {
     if (filters.featured) query.featured = filters.featured === 'true';
     if (filters.isAvailable) query.isAvailable = filters.isAvailable === 'true';
     if (filters.destination) query.destination = new RegExp(filters.destination, 'i');
+    if (filters.maxGroupSize) query.maxGroupSize = { $gte: Number(filters.maxGroupSize) }; // Added this line
 
     if (filters.minPrice || filters.maxPrice) {
         query.price = {};

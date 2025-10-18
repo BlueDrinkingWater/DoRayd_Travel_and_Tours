@@ -524,12 +524,12 @@ const DataService = {
     }
   },
 
-  markMessageAsRead: async (messageId) => {
+  updateMessageStatus: async (messageId, status) => {
     try {
-      const response = await api.put(`/api/messages/${messageId}/status`, { status: 'read' });
+      const response = await api.put(`/api/messages/${messageId}/status`, { status });
       return response.data;
     } catch (error) {
-      return handleError(error, 'Failed to mark message as read.');
+      return handleError(error, 'Failed to update message status.');
     }
   },
 

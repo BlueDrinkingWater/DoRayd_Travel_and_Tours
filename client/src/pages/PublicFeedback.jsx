@@ -29,19 +29,22 @@ const PublicFeedback = () => {
     }
 
     return (
-        <div className="bg-gray-50 dark:bg-gray-900 py-16" id="reviews">
+        // DESIGN UPDATE: Added a gradient background for a softer feel
+        <div className="bg-gradient-to-br from-slate-50 to-gray-100 py-16" id="reviews">
             <div className="max-w-7xl mx-auto px-6 md:px-12 xl:px-6">
                 <div className="mb-10 space-y-4 px-6 md:px-0">
-                    <h2 className="text-center text-3xl font-bold text-gray-800 dark:text-white md:text-4xl">
+                    <h2 className="text-center text-3xl font-bold text-gray-800 md:text-4xl">
                         We have some fans.
                     </h2>
-                    <p className="text-center text-lg text-gray-600 dark:text-gray-300">See what our valued customers are saying about their experience.</p>
+                    <p className="text-center text-lg text-gray-600">See what our valued customers are saying about their experience.</p>
                 </div>
 
                 {feedback.length > 0 ? (
+                    // DESIGN UPDATE: Using columns for a masonry-style layout
                     <div className="md:columns-2 lg:columns-3 gap-8 space-y-8">
                         {feedback.map(item => (
-                            <div key={item._id} className="aspect-auto p-8 border border-gray-100 rounded-3xl bg-white dark:bg-gray-800 dark:border-gray-700 shadow-2xl shadow-gray-600/10 dark:shadow-none break-inside-avoid">
+                            // DESIGN UPDATE: Elevated card design with hover effects
+                            <div key={item._id} className="aspect-auto p-8 border border-gray-100 rounded-3xl bg-white shadow-2xl shadow-gray-600/10 dark:shadow-none break-inside-avoid transform transition-transform duration-300 hover:-translate-y-2 hover:shadow-cyan-200/50">
                                 <div className="flex justify-between items-start">
                                     <div className="flex gap-4">
                                         <img
@@ -53,27 +56,28 @@ const PublicFeedback = () => {
                                             loading="lazy"
                                         />
                                         <div>
-                                            <h6 className="text-lg font-medium text-gray-700 dark:text-white">
+                                            <h6 className="text-lg font-medium text-gray-700">
                                                 {item.isAnonymous ? 'Anonymous Customer' : `${item.user?.firstName} ${item.user?.lastName}`}
                                             </h6>
-                                            <p className="text-sm text-gray-500 dark:text-gray-300">
+                                            <p className="text-sm text-gray-500">
                                                 {new Date(item.createdAt).toLocaleDateString()}
                                             </p>
                                         </div>
                                     </div>
                                     {renderStars(item.rating)}
                                 </div>
-                                <p className="mt-8 text-gray-700 dark:text-gray-300">
+                                <p className="mt-8 text-gray-700">
                                     {item.comment}
                                 </p>
                             </div>
                         ))}
                     </div>
                 ) : (
-                    <div className="text-center py-16 bg-white rounded-lg shadow-md">
-                        <MessageSquare className="mx-auto h-12 w-12 text-gray-400" />
-                        <h3 className="mt-2 text-lg font-medium text-gray-900">No public feedback yet</h3>
-                        <p className="mt-1 text-sm text-gray-500">Be the first to share your experience!</p>
+                    // DESIGN UPDATE: More engaging "no feedback" state
+                    <div className="text-center py-16 bg-white rounded-2xl shadow-lg border">
+                        <MessageSquare className="mx-auto h-16 w-16 text-gray-400" />
+                        <h3 className="mt-4 text-xl font-medium text-gray-900">No public feedback yet</h3>
+                        <p className="mt-2 text-gray-500">Be the first to share your experience!</p>
                     </div>
                 )}
             </div>

@@ -129,9 +129,9 @@ export const Navbar = ({ onCustomerLogin, onStaffLogin, onRegister }) => {
                     </div>
                   </button>
 
-                  {/* User Dropdown Menu */}
+                  {/* DESIGN UPDATE: User Dropdown Menu with Glassmorphism and animation */}
                   {userMenuOpen && (
-                    <div className="absolute right-0 mt-3 w-64 bg-white rounded-2xl shadow-2xl border border-gray-200 z-50 overflow-hidden">
+                    <div className="absolute right-0 mt-3 w-64 bg-white/80 backdrop-blur-lg border border-white/30 rounded-2xl shadow-2xl z-50 overflow-hidden animate-scale-in">
                       <div className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 border-b border-gray-200">
                         <div className="flex items-center space-x-3">
                             <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center overflow-hidden">

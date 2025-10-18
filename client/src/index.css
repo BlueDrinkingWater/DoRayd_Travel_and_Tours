@@ -8,6 +8,12 @@
   font-family: "Inter", sans-serif;
 }
 
+/* DESIGN UPDATE: Added font smoothing for better text rendering */
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
@@ -63,6 +69,15 @@
 .slide-in-from-top {
   animation: slideInFromTop 0.3s ease-out;
 }
+
+/* DESIGN UPDATE: Added helper for icon slide animation on buttons */
+.group .icon-slide {
+  transition: transform 0.3s ease;
+}
+.group:hover .icon-slide {
+  transform: translateX(4px);
+}
+
 
 /* Line clamp utility */
 .line-clamp-1 {

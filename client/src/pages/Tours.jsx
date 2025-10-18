@@ -6,6 +6,25 @@ import DataService, { getImageUrl } from '../components/services/DataService';
 import { useApi } from '../hooks/useApi.jsx';
 import bgTour from '../assets/bgTour.jpg';
 
+const SkeletonCard = ({ viewMode }) => (
+  <div className={`bg-white rounded-xl shadow-lg overflow-hidden animate-pulse ${viewMode === 'list' ? 'flex' : ''}`}>
+    <div className={`${viewMode === 'list' ? 'w-80 h-48' : 'h-48'} bg-slate-200`}></div>
+    <div className={`p-6 space-y-4 ${viewMode === 'list' ? 'flex-1' : ''}`}>
+      <div className="flex justify-between">
+        <div className="h-4 bg-slate-200 rounded w-1/4"></div>
+        <div className="h-4 bg-slate-200 rounded w-1/4"></div>
+      </div>
+      <div className="h-6 bg-slate-200 rounded w-3/4"></div>
+      <div className="h-3 bg-slate-200 rounded"></div>
+      <div className="h-3 bg-slate-200 rounded w-5/6"></div>
+      <div className="flex justify-between items-center pt-2">
+        <div className="h-8 bg-slate-200 rounded w-1/3"></div>
+        <div className="h-10 bg-slate-200 rounded-lg w-1/4"></div>
+      </div>
+    </div>
+  </div>
+);
+
 const Tours = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -139,7 +158,8 @@ const Tours = () => {
       const { price, originalPrice } = getDiscountedPrice(tour);
       
       return (
-        <div key={tour._id} className={`bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 ${
+        // DESIGN UPDATE: Elevated card design with hover effects
+        <div key={tour._id} className={`bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2 ${
           viewMode === 'list' ? 'flex' : ''
         }`}>
           <div className={`${viewMode === 'list' ? 'w-80 h-48' : 'h-48'} bg-gray-200 overflow-hidden relative`}>
@@ -207,7 +227,7 @@ const Tours = () => {
               <button
                   onClick={() => handleBookTour(tour)}
                   disabled={!tour.isAvailable}
-                  className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-6 py-2 rounded-lg font-semibold"
+                  className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-6 py-2 rounded-lg font-semibold transform hover:scale-105 transition-transform"
               >
                   {tour.isAvailable ? 'Book Now' : 'Unavailable'}
               </button>
@@ -265,7 +285,8 @@ const Tours = () => {
   );
   
   return (
-    <div className="min-h-screen bg-gray-50">
+    // DESIGN UPDATE: Main background color
+    <div className="min-h-screen bg-slate-50">
       {/* Header */}
       <section 
         className="relative bg-cover bg-center text-white"
@@ -294,23 +315,26 @@ const Tours = () => {
       </section>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* DESIGN UPDATE: Animated and styled filter section */}
         {showFilters && (
-            <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
+            <div className="bg-white rounded-xl shadow-lg p-6 mb-8 animate-in fade-in slide-in-from-top-4 duration-500">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Filter Tours</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <input type="text" placeholder="Search" value={filters.search} onChange={e => handleFilterChange('search', e.target.value)} className="w-full px-3 py-2 border rounded-lg" />
-                    <input type="text" placeholder="Destination" value={filters.destination} onChange={e => handleFilterChange('destination', e.target.value)} className="w-full px-3 py-2 border rounded-lg" />
-                    <input type="number" placeholder="Min Price" value={filters.minPrice} onChange={e => handleFilterChange('minPrice', e.target.value)} className="w-full px-3 py-2 border rounded-lg" />
-                    <input type="number" placeholder="Max Price" value={filters.maxPrice} onChange={e => handleFilterChange('maxPrice', e.target.value)} className="w-full px-3 py-2 border rounded-lg" />
+                    <input type="text" placeholder="Search" value={filters.search} onChange={e => handleFilterChange('search', e.target.value)} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500" />
+                    <input type="text" placeholder="Destination" value={filters.destination} onChange={e => handleFilterChange('destination', e.target.value)} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500" />
+                    <input type="number" placeholder="Min Price" value={filters.minPrice} onChange={e => handleFilterChange('minPrice', e.target.value)} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500" />
+                    <input type="number" placeholder="Max Price" value={filters.maxPrice} onChange={e => handleFilterChange('maxPrice', e.target.value)} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500" />
                 </div>
                 <div className="flex justify-end gap-3 mt-4">
-                    <button onClick={clearFilters} className="px-4 py-2 text-gray-700">Clear</button>
-                    <button onClick={applyFilters} className="px-4 py-2 bg-green-600 text-white rounded-lg">Apply</button>
+                    <button onClick={clearFilters} className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg">Clear</button>
+                    <button onClick={applyFilters} className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg">Apply</button>
                 </div>
             </div>
         )}
         {loading ? (
-          <div className="text-center py-16"><div className="animate-spin rounded-full h-16 w-16 border-b-2 border-green-600 mx-auto"></div></div>
+           <div className={`${viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6' : 'space-y-6'}`}>
+            {[...Array(6)].map((_, i) => <SkeletonCard key={i} viewMode={viewMode} />)}
+          </div>
         ) : error ? (
             <div className="text-center py-16 bg-red-50 text-red-700 rounded-xl">
                 <AlertCircle className="w-12 h-12 mx-auto mb-4" />

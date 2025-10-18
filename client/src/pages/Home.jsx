@@ -104,7 +104,7 @@ const Home = () => {
   };
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-slate-50">
       {/* Hero Section */}
       <Hero />
       <MarqueeHero />
@@ -127,7 +127,7 @@ const Home = () => {
       )}
 
       {/* Stats Section */}
-      <section className="py-16 bg-gray-50">
+      <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold text-gray-900 mb-4">
@@ -169,14 +169,14 @@ const Home = () => {
                 bgColor: 'bg-red-100'
               }
             ].map((stat, index) => (
-              <div key={index} className="text-center">
+              <div key={index} className="text-center p-6 bg-slate-50 rounded-xl transform transition-transform duration-300 hover:-translate-y-2">
                 <div className={`w-16 h-16 ${stat.bgColor} rounded-full flex items-center justify-center mx-auto mb-4`}>
                   <stat.icon className={`w-8 h-8 ${stat.color}`} />
                 </div>
-                <div className="text-3xl font-bold text-gray-900 mb-2">
+                <div className="text-4xl font-bold text-gray-900 mb-2">
                   {typeof stat.value === 'number' ? stat.value.toLocaleString() : stat.value}
                 </div>
-                <div className="text-gray-600">{stat.label}</div>
+                <div className="text-gray-600 font-medium">{stat.label}</div>
               </div>
             ))}
           </div>
@@ -184,7 +184,7 @@ const Home = () => {
       </section>
 
       {/* Featured Cars Section */}
-      <section className="py-16">
+      <section className="py-20 bg-slate-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between mb-12">
             <div>
@@ -197,7 +197,7 @@ const Home = () => {
             </div>
             <button
               onClick={handleViewCars}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors flex items-center gap-2"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors flex items-center gap-2 transform hover:scale-105"
             >
               View All Cars
               <ArrowRight className="w-5 h-5" />
@@ -220,7 +220,7 @@ const Home = () => {
           ) : featuredCars.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {featuredCars.map((car) => (
-                <div key={car._id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+                <div key={car._id} className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2">
                   <div className="h-48 bg-gray-200 flex items-center justify-center">
                     {car.images && car.images.length > 0 ? (
                       <img
@@ -240,7 +240,7 @@ const Home = () => {
                       <h3 className="text-xl font-semibold text-gray-900">
                         {car.brand} {car.model}
                       </h3>
-                      <span className={`text-sm px-2 py-1 rounded ${car.isAvailable ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                      <span className={`text-sm px-2 py-1 rounded-full ${car.isAvailable ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                         {car.isAvailable ? 'Available' : 'Unavailable'}
                       </span>
                     </div>
@@ -267,7 +267,7 @@ const Home = () => {
                       <button
                         onClick={() => handleBookNow(car, 'car')}
                         disabled={!car.isAvailable}
-                        className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg font-semibold transition-colors"
+                        className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg font-semibold transition-colors transform hover:scale-105"
                       >
                         {car.isAvailable ? 'Book Now' : 'Unavailable'}
                       </button>
@@ -287,7 +287,7 @@ const Home = () => {
       </section>
 
       {/* Featured Tours Section */}
-      <section className="py-16 bg-gray-50">
+      <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between mb-12">
             <div>
@@ -300,7 +300,7 @@ const Home = () => {
             </div>
             <button
               onClick={handleViewTours}
-              className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors flex items-center gap-2"
+              className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors flex items-center gap-2 transform hover:scale-105"
             >
               View All Tours
               <ArrowRight className="w-5 h-5" />
@@ -323,7 +323,7 @@ const Home = () => {
           ) : featuredTours.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {featuredTours.map((tour) => (
-                <div key={tour._id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+                <div key={tour._id} className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2">
                   <div className="h-48 bg-gray-200 flex items-center justify-center">
                     {tour.images && tour.images.length > 0 ? (
                       <img
@@ -343,7 +343,7 @@ const Home = () => {
                       <h3 className="text-xl font-semibold text-gray-900">
                         {tour.title || tour.name}
                       </h3>
-                      <span className={`text-sm px-2 py-1 rounded ${tour.isAvailable ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                      <span className={`text-sm px-2 py-1 rounded-full ${tour.isAvailable ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                         {tour.isAvailable ? 'Available' : 'Unavailable'}
                       </span>
                     </div>
@@ -370,7 +370,7 @@ const Home = () => {
                       <button
                         onClick={() => handleBookNow(tour, 'tour')}
                         disabled={!tour.isAvailable}
-                        className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg font-semibold transition-colors"
+                        className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg font-semibold transition-colors transform hover:scale-105"
                       >
                         {tour.isAvailable ? 'Book Now' : 'Unavailable'}
                       </button>
@@ -390,7 +390,7 @@ const Home = () => {
       </section>
 
       {/* Features Section */}
-      <section className="py-16">
+      <section className="py-20 bg-slate-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold text-gray-900 mb-4">Why Choose DoRayd?</h2>
@@ -422,7 +422,7 @@ const Home = () => {
                 description: 'Real-time booking confirmation'
               }
             ].map((feature, index) => (
-              <div key={index} className="text-center">
+              <div key={index} className="text-center p-6 bg-white rounded-xl shadow-lg transform transition-all duration-300 hover:shadow-xl hover:-translate-y-2">
                 <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <feature.icon className={`w-8 h-8 text-blue-600`} />
                 </div>
@@ -435,23 +435,23 @@ const Home = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="py-16 bg-gradient-to-r from-blue-600 to-indigo-700 text-white">
+      <section className="py-20 bg-gradient-to-r from-blue-600 to-indigo-700 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl font-bold mb-4">Ready for Your Next Adventure?</h2>
-          <p className="text-xl mb-8 text-blue-100">
+          <h2 className="text-4xl font-bold mb-4 animate-in fade-in slide-in-from-bottom-4 duration-1000">Ready for Your Next Adventure?</h2>
+          <p className="text-xl mb-8 text-blue-100 animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-200">
             Start planning your perfect trip with our booking platform
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <div className="flex flex-col sm:flex-row gap-4 justify-center animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-400">
             <button
               onClick={handleViewCars}
-              className="bg-white text-blue-600 hover:bg-gray-100 px-8 py-3 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2"
+              className="bg-white text-blue-600 hover:bg-gray-100 px-8 py-3 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2 transform hover:scale-105"
             >
               <Car className="w-5 h-5" />
               Browse Cars
             </button>
             <button
               onClick={handleViewTours}
-              className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2"
+              className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2 transform hover:scale-105"
             >
               <Globe className="w-5 h-5" />
               Explore Tours

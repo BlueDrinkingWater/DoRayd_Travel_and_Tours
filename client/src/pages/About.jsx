@@ -76,14 +76,14 @@ const About = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
       {/* Hero Section */}
       <div className="relative bg-cover bg-center text-white" style={{ backgroundImage: `url(${aboutBG})` }}>
         <div className="absolute inset-0 bg-black/60"></div>
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 sm:py-32">
           <div className="text-center">
-            <h1 className="text-4xl md:text-6xl font-bold mb-6 drop-shadow-lg">About DoRayd</h1>
-            <p className="text-xl md:text-2xl text-white/90 max-w-3xl mx-auto drop-shadow-md">
+            <h1 className="text-4xl md:text-6xl font-bold mb-6 drop-shadow-lg animate-in fade-in slide-in-from-top-4 duration-1000">About DoRayd</h1>
+            <p className="text-xl md:text-2xl text-white/90 max-w-3xl mx-auto drop-shadow-md animate-in fade-in slide-in-from-top-4 duration-1000 delay-300">
               {loading ? 'Loading our story...' : 
                'Your trusted partner in exploring the magnificent beauty of the Philippines'}
             </p>
@@ -96,8 +96,8 @@ const About = () => {
         <section className="py-16">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             {stats.map((stat, index) => (
-              <div key={index} className="text-center">
-                <div className="text-3xl md:text-4xl font-bold text-blue-600 mb-2">
+              <div key={index} className="text-center transform transition-transform duration-300 hover:scale-105">
+                <div className="text-4xl md:text-5xl font-bold text-blue-600 mb-2">
                   {stat.number}
                 </div>
                 <div className="text-gray-600 font-medium">{stat.label}</div>
@@ -109,15 +109,15 @@ const About = () => {
         {/* About Content Sections */}
         <section className="py-16 border-t border-gray-200">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            <div>
+            <div className="transform transition-transform duration-500 hover:scale-105">
               {renderContentSection(
                 'About Us', 
                 'about',
                 'DoRayd Travel & Tours is a premier travel service provider dedicated to showcasing the natural beauty and rich culture of the Philippines. Founded in 2020, we have been committed to providing exceptional travel experiences through our comprehensive car rental and tour package services. Our team of experienced professionals ensures that every journey with us becomes a memorable adventure, whether you\'re exploring bustling cities or discovering hidden tropical paradises.'
               )}
             </div>
-            <div className="relative">
-              <div className="w-full h-96 bg-gray-200 rounded-2xl overflow-hidden">
+            <div className="relative transform transition-transform duration-500 hover:scale-105">
+              <div className="w-full h-96 bg-gray-200 rounded-2xl overflow-hidden shadow-2xl">
                 <img
                   src={getImageUrl(content.aboutImage?.content) || "https://placehold.co/600x400/e2e8f0/475569?text=DoRayd+Team"}
                   alt="DoRayd Team"
@@ -135,14 +135,14 @@ const About = () => {
         <section className="py-16 bg-gray-100 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8">
             <div className="max-w-7xl mx-auto">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-                    <div className="bg-white rounded-2xl p-8 shadow-lg">
+                    <div className="bg-white rounded-2xl p-8 shadow-xl hover:shadow-2xl transition-shadow duration-300 transform hover:-translate-y-1">
                     {renderContentSection(
                         'Our Mission',
                         'mission',
                         'To provide exceptional and safe travel experiences that showcase the natural beauty and rich culture of the Philippines, while ensuring customer satisfaction through premium vehicles, expert guides, and personalized service that creates lasting memories for every traveler.'
                     )}
                     </div>
-                    <div className="bg-white rounded-2xl p-8 shadow-lg">
+                    <div className="bg-white rounded-2xl p-8 shadow-xl hover:shadow-2xl transition-shadow duration-300 transform hover:-translate-y-1">
                     {renderContentSection(
                         'Our Vision',
                         'vision',

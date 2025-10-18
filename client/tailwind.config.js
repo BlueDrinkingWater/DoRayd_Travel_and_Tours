@@ -6,22 +6,32 @@ export default {
   ],
   theme: {
     extend: {
-      backgroundImage: {
-        'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
-      },
-      animation: {
-        'spin-slow': 'spin 3s linear infinite',
-        'bounce-slow': 'bounce 2s infinite',
-        'pulse-slow': 'pulse 3s infinite',
-      },
       colors: {
         primary: {
-          50: '#eff6ff',
-          500: '#3b82f6',
-          600: '#2563eb',
-          700: '#1d4ed8',
-        }
-      }
+          light: '#60a5fa',
+          DEFAULT: '#3b82f6',
+          dark: '#2563eb',
+        },
+        secondary: {
+          light: '#34d399',
+          DEFAULT: '#10b981',
+          dark: '#059669',
+        },
+      },
+      keyframes: {
+        'slide-in-from-top': {
+          '0%': { transform: 'translateY(-20px)', opacity: '0' },
+          '100%': { transform: 'translateY(0)', opacity: '1' },
+        },
+        'scale-in': {
+          '0%': { opacity: '0', transform: 'scale(0.95)' },
+          '100%': { opacity: '1', transform: 'scale(1)' },
+        },
+      },
+      animation: {
+        'slide-in-from-top': 'slide-in-from-top 0.5s ease-out forwards',
+        'scale-in': 'scale-in 0.2s ease-out forwards',
+      },
     },
   },
   plugins: [],

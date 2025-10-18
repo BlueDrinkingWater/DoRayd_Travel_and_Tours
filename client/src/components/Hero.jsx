@@ -32,77 +32,86 @@ const Hero = () => {
       <div className="absolute inset-0 bg-black/60"></div>
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
-        <h1 className="text-4xl md:text-5xl font-bold mb-4 drop-shadow-lg">
+        <h1 className="text-4xl md:text-6xl font-bold mb-4 drop-shadow-lg animate-in fade-in slide-in-from-top-4 duration-1000">
           Welcome To Our <br/> Travel Agency
         </h1>
-        <p className="text-lg text-white/90 mb-8">
-          Your journey begins here. Book premium cars and exciting tour packages!
+        <p className="text-lg md:text-xl text-white/90 mb-8 max-w-2xl mx-auto animate-in fade-in slide-in-from-top-4 duration-1000 delay-200">
+          Your journey begins here. Book premium cars and exciting tour packages with real-time availability and secure payment.
         </p>
 
         {/* Search Box */}
-        <div className="max-w-4xl mx-auto bg-white/95 backdrop-blur-sm rounded-xl shadow-2xl overflow-hidden text-left">
+        <div className="max-w-4xl mx-auto bg-white/95 backdrop-blur-sm rounded-xl shadow-2xl overflow-hidden text-left animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-400">
           <div className="flex border-b border-gray-200">
             <button
               onClick={() => handleInputChange('type', 'cars')}
-              className={`flex-1 py-3 px-4 text-center font-medium text-sm transition-colors ${
+              className={`flex-1 py-3 px-4 text-center font-medium text-sm transition-colors flex items-center justify-center gap-2 ${
                 searchParams.type === 'cars'
                   ? 'text-blue-600 border-b-2 border-blue-600'
                   : 'text-gray-600 hover:bg-gray-100'
               }`}
             >
-              Car Rental
+              <Car size={16} /> Car Rental
             </button>
             <button
               onClick={() => handleInputChange('type', 'tours')}
-              className={`flex-1 py-3 px-4 text-center font-medium text-sm transition-colors ${
+              className={`flex-1 py-3 px-4 text-center font-medium text-sm transition-colors flex items-center justify-center gap-2 ${
                 searchParams.type === 'tours'
-                  ? 'text-blue-600 border-b-2 border-blue-600'
+                  ? 'text-green-600 border-b-2 border-green-600'
                   : 'text-gray-600 hover:bg-gray-100'
               }`}
             >
-              Tour Packages
+              <MapPin size={16} /> Tour Packages
             </button>
           </div>
 
           <div className="p-4 grid grid-cols-1 md:grid-cols-4 lg:grid-cols-5 gap-4 items-end">
             <div className="md:col-span-2">
               <label className="block text-xs font-medium text-gray-700">Location</label>
-              <input
-                type="text"
-                value={searchParams.location}
-                onChange={(e) => handleInputChange('location', e.target.value)}
-                placeholder="City, Airport, or Hotel"
-                className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              />
+              <div className="relative mt-1">
+                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <input
+                  type="text"
+                  value={searchParams.location}
+                  onChange={(e) => handleInputChange('location', e.target.value)}
+                  placeholder="City, Airport, or Hotel"
+                  className="w-full pl-10 p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
             </div>
 
             <div>
               <label className="block text-xs font-medium text-gray-700">Date</label>
-              <input
-                type="date"
-                value={searchParams.date}
-                onChange={(e) => handleInputChange('date', e.target.value)}
-                min={new Date().toISOString().split('T')[0]}
-                className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              />
+              <div className="relative mt-1">
+                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <input
+                  type="date"
+                  value={searchParams.date}
+                  onChange={(e) => handleInputChange('date', e.target.value)}
+                  min={new Date().toISOString().split('T')[0]}
+                  className="w-full pl-10 p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
             </div>
             
             <div>
               <label className="block text-xs font-medium text-gray-700">Guests</label>
-               <input
-                type="number"
-                value={searchParams.guests}
-                min="1"
-                onChange={(e) => handleInputChange('guests', parseInt(e.target.value))}
-                className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              />
+              <div className="relative mt-1">
+                <Users className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <input
+                  type="number"
+                  value={searchParams.guests}
+                  min="1"
+                  onChange={(e) => handleInputChange('guests', parseInt(e.target.value))}
+                  className="w-full pl-10 p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
             </div>
 
             <button
               onClick={handleSearch}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-lg font-semibold lg:col-span-1"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-lg font-semibold lg:col-span-1 flex items-center justify-center gap-2 transform hover:scale-105 transition-transform"
             >
-              Search
+              <Search size={18} /> Search
             </button>
           </div>
         </div>

@@ -146,13 +146,12 @@ export const googleLogin = async (req, res) => {
 
     user.password = undefined;
     
-    const cookieOptions = {
-        httpOnly: true,
-        expires: new Date(Date.now() + 24 * 60 * 60 * 1000), // 1 day
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-    };
-
+const cookieOptions = {
+    httpOnly: true,
+    expires: new Date(Date.now() + 24 * 60 * 60 * 1000), // 1 day
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+};
     res.cookie('token', token, cookieOptions);
     res.json({ success: true, user });
 

@@ -2,6 +2,7 @@ import React from 'react';
 import { Shield, Users, Award, Star, Heart, Globe, Phone, Mail, MapPin, AlertCircle, RefreshCw } from 'lucide-react';
 import DataService, { getImageUrl } from '../components/services/DataService';
 import { useApi } from '../hooks/useApi';
+import aboutBG from '../assets/aboutBG.jpg'; // Import the background image
 
 const About = () => {
 
@@ -19,61 +20,6 @@ const About = () => {
     about: aboutResponse?.success ? aboutResponse.data : null,
     aboutImage: aboutImageResponse?.success ? aboutImageResponse.data : null
   }
-
-  const values = [
-    {
-      icon: Shield,
-      title: 'Safety First',
-      description: 'Your safety is our top priority. All our vehicles and tours are fully insured and regularly maintained.',
-      color: 'blue'
-    },
-    {
-      icon: Heart,
-      title: 'Customer Care',
-      description: 'We treat every customer like family, ensuring personalized service and unforgettable experiences.',
-      color: 'red'
-    },
-    {
-      icon: Globe,
-      title: 'Sustainability',
-      description: 'We are committed to responsible tourism that preserves the natural beauty of the Philippines.',
-      color: 'green'
-    },
-    {
-      icon: Star,
-      title: 'Excellence',
-      description: 'Committed to maintaining the highest standards in everything we do.',
-      color: 'yellow'
-    }
-  ];
-
-  const achievements = [
-    {
-      year: '2020',
-      title: 'Company Founded',
-      description: 'DoRayd Travel & Tours was established with a vision to showcase the beauty of the Philippines'
-    },
-    {
-      year: '2021',
-      title: 'First 100 Happy Customers',
-      description: 'Reached our first milestone of serving 100 satisfied customers with memorable experiences'
-    },
-    {
-      year: '2022',
-      title: 'Fleet Expansion',
-      description: 'Expanded our vehicle fleet to include premium cars and specialized tour vehicles'
-    },
-    {
-      year: '2023',
-      title: 'Digital Platform Launch',
-      description: 'Launched our comprehensive online booking platform for seamless customer experience'
-    },
-    {
-      year: '2024',
-      title: 'Award Recognition',
-      description: 'Recognized as one of the top travel service providers in the Philippines'
-    }
-  ];
 
   const stats = [
     { number: '1000+', label: 'Happy Customers' },
@@ -130,13 +76,14 @@ const About = () => {
   };
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-gray-50">
       {/* Hero Section */}
-      <div className="bg-gradient-to-br from-blue-600 to-indigo-700 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+      <div className="relative bg-cover bg-center text-white" style={{ backgroundImage: `url(${aboutBG})` }}>
+        <div className="absolute inset-0 bg-black/60"></div>
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 sm:py-32">
           <div className="text-center">
-            <h1 className="text-4xl md:text-6xl font-bold mb-6">About DoRayd</h1>
-            <p className="text-xl md:text-2xl text-blue-100 max-w-3xl mx-auto">
+            <h1 className="text-4xl md:text-6xl font-bold mb-6 drop-shadow-lg">About DoRayd</h1>
+            <p className="text-xl md:text-2xl text-white/90 max-w-3xl mx-auto drop-shadow-md">
               {loading ? 'Loading our story...' : 
                'Your trusted partner in exploring the magnificent beauty of the Philippines'}
             </p>
@@ -185,23 +132,25 @@ const About = () => {
         </section>
 
         {/* Mission & Vision */}
-        <section className="py-16 bg-gray-50 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-            <div className="bg-white rounded-2xl p-8 shadow-lg">
-              {renderContentSection(
-                'Our Mission',
-                'mission',
-                'To provide exceptional and safe travel experiences that showcase the natural beauty and rich culture of the Philippines, while ensuring customer satisfaction through premium vehicles, expert guides, and personalized service that creates lasting memories for every traveler.'
-              )}
+        <section className="py-16 bg-gray-100 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8">
+            <div className="max-w-7xl mx-auto">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                    <div className="bg-white rounded-2xl p-8 shadow-lg">
+                    {renderContentSection(
+                        'Our Mission',
+                        'mission',
+                        'To provide exceptional and safe travel experiences that showcase the natural beauty and rich culture of the Philippines, while ensuring customer satisfaction through premium vehicles, expert guides, and personalized service that creates lasting memories for every traveler.'
+                    )}
+                    </div>
+                    <div className="bg-white rounded-2xl p-8 shadow-lg">
+                    {renderContentSection(
+                        'Our Vision',
+                        'vision',
+                        'To become the leading travel service provider in the Philippines, recognized for our commitment to excellence, sustainability, and authentic cultural experiences. We envision a future where every visitor discovers the true magic of the Philippines through our carefully crafted journeys and exceptional hospitality.'
+                    )}
+                    </div>
+                </div>
             </div>
-            <div className="bg-white rounded-2xl p-8 shadow-lg">
-              {renderContentSection(
-                'Our Vision',
-                'vision',
-                'To become the leading travel service provider in the Philippines, recognized for our commitment to excellence, sustainability, and authentic cultural experiences. We envision a future where every visitor discovers the true magic of the Philippines through our carefully crafted journeys and exceptional hospitality.'
-              )}
-            </div>
-          </div>
         </section>
       </div>
     </div>

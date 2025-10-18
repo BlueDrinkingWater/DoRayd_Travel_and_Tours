@@ -694,6 +694,42 @@ const DataService = {
       return handleError(error, 'Failed to delete promotion.');
     }
   },
+  
+  searchCars: async (searchTerm) => {
+    try {
+      const response = await api.post('/api/cars/search', { searchTerm });
+      return response.data;
+    } catch (error) {
+      return handleError(error, 'Failed to search cars.');
+    }
+  },
+
+  filterCars: async (filterOptions) => {
+    try {
+      const response = await api.post('/api/cars/filter', filterOptions);
+      return response.data;
+    } catch (error) {
+      return handleError(error, 'Failed to filter cars.');
+    }
+  },
+
+  searchTours: async (searchTerm) => {
+    try {
+      const response = await api.post('/api/tours/search', { searchTerm });
+      return response.data;
+    } catch (error) {
+      return handleError(error, 'Failed to search tours.');
+    }
+  },
+
+  filterTours: async (filterOptions) => {
+    try {
+      const response = await api.post('/api/tours/filter', filterOptions);
+      return response.data;
+    } catch (error) {
+      return handleError(error, 'Failed to filter tours.');
+    }
+  },
 };
 
 export default DataService;

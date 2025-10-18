@@ -5,6 +5,7 @@ import L from 'leaflet';
 import { MapPin, Phone, Mail, Clock, Send, CheckCircle, AlertCircle, RefreshCw } from 'lucide-react';
 import DataService from '../components/services/DataService';
 import { useApi } from '../hooks/useApi';
+import contactBG from '../assets/contactBG.jpg'; // Import the background image
 
 // Fix for default icon issue in React-Leaflet
 delete L.Icon.Default.prototype._getIconUrl;
@@ -109,8 +110,8 @@ const Contact = () => {
       : { lat: 14.5995, lng: 120.9842 }; // Default fallback
 
   const officeMapLink = officePosition 
-      ? `https://www.google.com/maps/search/?api=1&query=${officePosition.lat},${officePosition.lng}`
-      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(contactInfo.address || 'Manila, Philippines')}`;
+      ? `http://googleusercontent.com/maps/search/?api=1&query=${officePosition.lat},${officePosition.lng}`
+      : `http://googleusercontent.com/maps/search/?api=1&query=${encodeURIComponent(contactInfo.address || 'Manila, Philippines')}`;
 
   const contactInfoCards = loading ? [] : [
     { icon: Phone, title: 'Phone', details: contactInfo.phone || '+63 917 123 4567', description: '24/7 Customer Support' },
@@ -128,11 +129,12 @@ const Contact = () => {
   
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="bg-gradient-to-br from-blue-600 to-indigo-700 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+      <div className="relative bg-cover bg-center text-white" style={{ backgroundImage: `url(${contactBG})` }}>
+        <div className="absolute inset-0 bg-black/60"></div>
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 sm:py-32">
           <div className="text-center">
-            <h1 className="text-4xl md:text-5xl font-bold mb-6">Contact Us</h1>
-            <p className="text-xl md:text-2xl text-blue-100 max-w-3xl mx-auto">We're here to help you plan your perfect adventure. Get in touch with our team!</p>
+            <h1 className="text-4xl md:text-5xl font-bold mb-6 drop-shadow-lg">Contact Us</h1>
+            <p className="text-xl md:text-2xl text-white/90 max-w-3xl mx-auto drop-shadow-md">We're here to help you plan your perfect adventure. Get in touch with our team!</p>
           </div>
         </div>
       </div>

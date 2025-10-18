@@ -298,29 +298,25 @@ const Tours = () => {
         style={{ backgroundImage: `url(${bgTour})` }}
       >
         <div className="absolute inset-0 bg-black/60"></div>
-        <div className="relative z-10">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div>
-                  <h1 className="text-3xl font-bold text-white drop-shadow-md">Tour Packages</h1>
-                  <p className="text-gray-200 mt-1 drop-shadow-sm">
-                    {loading ? 'Loading tours...' : `${toursPagination.total} amazing destinations available`}
-                  </p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="flex bg-white/20 backdrop-blur-sm rounded-lg p-1">
-                    <button onClick={() => setViewMode('grid')} className={`p-2 rounded ${viewMode === 'grid' ? 'bg-white/80 shadow-sm text-green-600' : 'text-white'}`}><Grid className="w-4 h-4" /></button>
-                    <button onClick={() => setViewMode('list')} className={`p-2 rounded ${viewMode === 'list' ? 'bg-white/80 shadow-sm text-green-600' : 'text-white'}`}><List className="w-4 h-4" /></button>
-                  </div>
-                  <button onClick={() => setShowFilters(!showFilters)} className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2"><Filter className="w-4 h-4" />Filters</button>
-                </div>
-              </div>
-            </div>
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 sm:py-32">
+          <div className="text-center">
+            <h1 className="text-4xl md:text-6xl font-bold text-white drop-shadow-md">Tour Packages</h1>
+            <p className="text-xl md:text-2xl text-white/90 max-w-3xl mx-auto drop-shadow-md mt-4">
+              {loading ? 'Loading tours...' : `${toursPagination.total} amazing destinations available`}
+            </p>
+          </div>
         </div>
       </section>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* DESIGN UPDATE: Animated and styled filter section */}
+        <div className="flex justify-end gap-3 mb-8">
+            <div className="flex bg-white shadow-sm rounded-lg p-1 border">
+                <button onClick={() => setViewMode('grid')} className={`p-2 rounded ${viewMode === 'grid' ? 'bg-green-500 text-white' : 'text-gray-600'}`}><Grid className="w-4 h-4" /></button>
+                <button onClick={() => setViewMode('list')} className={`p-2 rounded ${viewMode === 'list' ? 'bg-green-500 text-white' : 'text-gray-600'}`}><List className="w-4 h-4" /></button>
+            </div>
+            <button onClick={() => setShowFilters(!showFilters)} className="bg-white shadow-sm border text-gray-700 px-4 py-2 rounded-lg font-medium flex items-center gap-2"><Filter className="w-4 h-4" />Filters</button>
+        </div>
+
         {showFilters && (
             <div className="bg-white rounded-xl shadow-lg p-6 mb-8 animate-in fade-in slide-in-from-top-4 duration-500">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Filter Tours</h3>

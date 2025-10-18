@@ -120,7 +120,7 @@ const BookingDetailModal = ({ booking, onClose, onUpdate }) => {
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[70] p-4">
-            <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
                 <div className="p-6">
                     <div className="flex justify-between items-start mb-6">
                         <div>
@@ -351,6 +351,7 @@ const BookingCalendar = () => {
           eventContent={eventContent}
           eventDisplay="block"
           eventClassNames="border-none rounded-md hover:opacity-80 transition-opacity cursor-pointer bg-gray-100"
+          height="auto"
         />
       </div>
 

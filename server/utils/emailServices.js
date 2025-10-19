@@ -27,15 +27,15 @@ class EmailService {
       // Verify connection to Gmail
       await this.transporter.verify();
       this.isInitialized = true;
-      console.log('✅ Email service initialized successfully');
+      console.log('Email service initialized successfully');
     } catch (error) {
-      console.error('❌ Email service initialization failed:', error.message);
+      console.error('Email service initialization failed:', error.message);
       this.isInitialized = false;
     }
   }
 
   async reinitialize() {
-    console.log('🔄 Reinitializing email service...');
+    console.log('Reinitializing email service...');
     this.isInitialized = false;
     this.transporter = null;
     await this.initializeTransporter();
@@ -73,10 +73,10 @@ class EmailService {
       };
 
       await this.transporter.sendMail(mailOptions);
-      console.log('✅ Password reset email sent successfully to:', email);
+      console.log('Password reset email sent successfully to:', email);
       return { success: true, message: 'Password reset email sent successfully' };
     } catch (error) {
-      console.error('❌ Failed to send password reset email:', error.message);
+      console.error('Failed to send password reset email:', error.message);
       throw error;
     }
   }
@@ -120,10 +120,10 @@ class EmailService {
       };
 
       await this.transporter.sendMail(mailOptions);
-      console.log('✅ Booking approval email sent successfully to:', booking.email);
+      console.log('Booking approval email sent successfully to:', booking.email);
       return { success: true, message: 'Booking approval email sent successfully' };
     } catch (error) {
-      console.error('❌ Failed to send booking approval email:', error.message);
+      console.error('Failed to send booking approval email:', error.message);
       throw error;
     }
   }
@@ -165,10 +165,10 @@ class EmailService {
       };
 
       await this.transporter.sendMail(mailOptions);
-      console.log('✅ Booking rejection email sent successfully to:', booking.email);
+      console.log('Booking rejection email sent successfully to:', booking.email);
       return { success: true, message: 'Booking rejection email sent successfully' };
     } catch (error) {
-      console.error('❌ Failed to send booking rejection email:', error.message);
+      console.error('Failed to send booking rejection email:', error.message);
       throw error;
     }
   }
@@ -209,10 +209,10 @@ class EmailService {
       };
   
       await this.transporter.sendMail(mailOptions);
-      console.log('✅ Booking cancellation email sent to:', booking.email);
+      console.log('Booking cancellation email sent to:', booking.email);
       return { success: true, message: 'Booking cancellation email sent' };
     } catch (error) {
-      console.error('❌ Failed to send booking cancellation email:', error.message);
+      console.error('Failed to send booking cancellation email:', error.message);
       throw error;
     }
   }
@@ -242,10 +242,10 @@ class EmailService {
       };
 
       await this.transporter.sendMail(mailOptions);
-      console.log('✅ Status update email sent successfully to:', booking.email);
+      console.log('Status update email sent successfully to:', booking.email);
       return { success: true, message: 'Status update email sent successfully' };
     } catch (error) {
-      console.error('❌ Failed to send status update email:', error.message);
+      console.error('Failed to send status update email:', error.message);
       throw error;
     }
   }
@@ -273,10 +273,10 @@ class EmailService {
       };
 
       await this.transporter.sendMail(mailOptions);
-      console.log('✅ Contact reply email sent successfully to:', message.email);
+      console.log('Contact reply email sent successfully to:', message.email);
       return { success: true, message: 'Contact reply email sent successfully' };
     } catch (error) {
-      console.error('❌ Failed to send contact reply email:', error.message);
+      console.error('Failed to send contact reply email:', error.message);
       throw error;
     }
   }
@@ -316,10 +316,10 @@ class EmailService {
       };
 
       await this.transporter.sendMail(mailOptions);
-      console.log('✅ Booking confirmation email sent successfully to:', booking.email);
+      console.log('Booking confirmation email sent successfully to:', booking.email);
       return { success: true, message: 'Booking confirmation email sent successfully' };
     } catch (error) {
-      console.error('❌ Failed to send booking confirmation email:', error.message);
+      console.error('Failed to send booking confirmation email:', error.message);
       throw error;
     }
   }

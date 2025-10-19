@@ -50,7 +50,7 @@ const corsOptions = {
       const whitelist = [
         'http://localhost:3000',
         'https://doraydtravelandtours.online',
-        'https://www.doraydtravelandtours.online/', // For local development
+        'https://www.doraydtravelandtours.online', // For local development
         process.env.CLIENT_URL,  // Your main frontend production URL
       ].filter(Boolean);
 

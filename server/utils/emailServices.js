@@ -5,6 +5,66 @@ import fs from 'fs/promises';
 
 dotenv.config();
 
+// --- UPDATE: Add your public image URL here ---
+const EMAIL_BACKGROUND_URL = 'https://res.cloudinary.com/dvzpybjjw/image/upload/v1760891076/dorayd/content/qdrqzwfxr9ukryxdtipp.jpg';
+
+/**
+ * Creates a full HTML email template with a background image.
+ * @param {string} subject - The subject of the email.
+ * @param {string} content - The HTML content for the body of the email.
+ * @returns {string} - The full HTML for the email.
+ */
+const createEmailTemplate = (subject, content) => {
+  return `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>${subject}</title>
+      </head>
+      <body style="margin: 0; padding: 0; background-color: #f4f4f4;">
+        <table border="0" cellpadding="0" cellspacing="0" width="100%">
+          <tr>
+            <td align="center" style="padding: 20px 0;">
+              <table align="center" border="0" cellpadding="0" cellspacing="0" width="600" style="border-collapse: collapse; max-width: 600px;">
+                <tr>
+                  <td align="center" background="${EMAIL_BACKGROUND_URL}" bgcolor="#2196F3" style="padding: 40px 0; background-image: url(${EMAIL_BACKGROUND_URL}); background-size: cover; background-position: center;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                      <tr>
+                        <td align="center">
+                          <div style="background-color: rgba(0, 0, 0, 0.5); padding: 10px 20px; border-radius: 8px; display: inline-block;">
+                            <h1 style="color: #ffffff; font-family: Arial, sans-serif; font-size: 28px; margin: 0;">DoRayd Travel & Tours</h1>
+                          </div>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                <tr>
+                  <td bgcolor="#ffffff" style="padding: 40px 30px;">
+                    <div style="color: #333333; font-family: Arial, sans-serif; font-size: 16px; line-height: 1.6;">
+                      ${content}
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td bgcolor="#333333" style="padding: 30px 30px;">
+                    <p style="color: #cccccc; font-family: Arial, sans-serif; font-size: 12px; text-align: center; margin: 0;">
+                      &copy; ${new Date().getFullYear()} DoRayd Travel & Tours. All rights reserved.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+    </html>
+  `;
+};
+
+
 class EmailService {
   constructor() {
     if (process.env.RESEND_API_KEY) {
@@ -34,40 +94,38 @@ class EmailService {
   }
 
   async sendPasswordReset(email, resetUrl) {
+    const subject = 'Password Reset Request';
+    const content = `
+      <h2>Password Reset</h2>
+      <p>You requested a password reset. Click the button below to create a new password. This link is valid for 10 minutes.</p>
+      <a href="${resetUrl}" style="background-color: #007bff; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; display: inline-block;">Reset Password</a>
+      <p>If you did not request this, please ignore this email.</p>
+    `;
+
     const mailOptions = {
       from: `DoRayd Travel & Tours <${this.fromAddress}>`,
       to: email,
-      subject: 'Password Reset Request',
-      html: `
-        <div style="font-family: Arial, sans-serif; line-height: 1.6;">
-          <h2>Password Reset</h2>
-          <p>You requested a password reset. Click below to create a new password. This link is valid for 10 minutes.</p>
-          <a href="${resetUrl}" style="background-color: #007bff; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px;">Reset Password</a>
-          <p>If you did not request this, please ignore this email.</p>
-        </div>
-      `,
+      subject: subject,
+      html: createEmailTemplate(subject, content),
     };
     await this.sendEmail(mailOptions);
     return { success: true, message: 'Password reset email sent successfully' };
   }
 
   async sendBookingConfirmation(booking) {
+    const subject = `Booking Received: ${booking.bookingReference}`;
+    const content = `
+      <h1>Booking Received</h1>
+      <p>Dear <strong>${booking.firstName} ${booking.lastName}</strong>,</p>
+      <p>We have received your booking request and it is currently under review. You will receive another email once your booking is confirmed.</p>
+      <p>Thank you for choosing DoRayd Travel & Tours!</p>
+    `;
+
     const mailOptions = {
       from: `DoRayd Travel & Tours <${this.fromAddress}>`,
       to: booking.email,
-      subject: `Booking Received: ${booking.bookingReference}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; line-height: 1.6; max-width: 600px; margin: 0 auto;">
-          <div style="background-color: #2196F3; color: white; padding: 20px; text-align: center;">
-            <h1>Booking Received</h1>
-          </div>
-          <div style="padding: 20px; background-color: #f9f9f9;">
-            <p>Dear <strong>${booking.firstName} ${booking.lastName}</strong>,</p>
-            <p>We have received your booking request and it is currently under review. You will receive another email once your booking is confirmed.</p>
-            <p>Thank you for choosing DoRayd Travel & Tours!</p>
-          </div>
-        </div>
-      `,
+      subject: subject,
+      html: createEmailTemplate(subject, content),
     };
     await this.sendEmail(mailOptions);
     return { success: true, message: 'Booking confirmation email sent successfully' };
@@ -83,107 +141,96 @@ class EmailService {
   }
 
   async sendBookingApproval(booking) {
+    const subject = `Booking Approved: ${booking.bookingReference}`;
+    const content = `
+      <h1 style="color: #4CAF50;">Booking Approved</h1>
+      <p>Dear <strong>${booking.firstName} ${booking.lastName}</strong>,</p>
+      <p>Great news! Your booking has been approved and confirmed. We look forward to serving you.</p>
+      <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin-top: 15px;">
+        <h3 style="margin-top: 0;">Booking Summary</h3>
+        <p><strong>Reference:</strong> ${booking.bookingReference}</p>
+        <p><strong>Service:</strong> ${booking.itemName}</p>
+        <p><strong>Date:</strong> ${new Date(booking.startDate).toLocaleDateString()}</p>
+        <p><strong>Total Price:</strong> PHP ${booking.totalPrice.toLocaleString()}</p>
+      </div>
+      ${booking.adminNotes ? `<p style="margin-top: 15px;"><strong>A note from our team:</strong> ${booking.adminNotes}</p>` : ''}
+    `;
+
     const mailOptions = {
       from: `DoRayd Travel & Tours <${this.fromAddress}>`,
       to: booking.email,
-      subject: `Booking Approved: ${booking.bookingReference}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; line-height: 1.6; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px;">
-          <div style="background-color: #4CAF50; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
-            <h1>Booking Approved</h1>
-          </div>
-          <div style="padding: 20px;">
-            <p>Dear <strong>${booking.firstName} ${booking.lastName}</strong>,</p>
-            <p>Great news! Your booking has been approved and confirmed. We look forward to serving you.</p>
-            <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin-top: 15px;">
-              <h3 style="margin-top: 0;">Booking Summary</h3>
-              <p><strong>Reference:</strong> ${booking.bookingReference}</p>
-              <p><strong>Service:</strong> ${booking.itemName}</p>
-              <p><strong>Date:</strong> ${new Date(booking.startDate).toLocaleDateString()}</p>
-              <p><strong>Total Price:</strong> PHP ${booking.totalPrice.toLocaleString()}</p>
-            </div>
-            ${booking.adminNotes ? `<p style="margin-top: 15px;"><strong>A note from our team:</strong> ${booking.adminNotes}</p>` : ''}
-          </div>
-        </div>
-      `,
+      subject: subject,
+      html: createEmailTemplate(subject, content),
     };
     await this.sendEmail(mailOptions);
     return { success: true, message: 'Booking approval email sent successfully' };
   }
 
   async sendBookingRejection(booking) {
+    const subject = `Booking Status Update: ${booking.bookingReference}`;
+    const content = `
+      <h1 style="color: #f44336;">Booking Rejected</h1>
+      <p>Dear <strong>${booking.firstName} ${booking.lastName}</strong>,</p>
+      <p>We regret to inform you that your booking request could not be approved at this time.</p>
+      <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin-top: 15px;">
+        <h3 style="margin-top: 0;">Booking Summary</h3>
+        <p><strong>Reference:</strong> ${booking.bookingReference}</p>
+        <p><strong>Service:</strong> ${booking.itemName}</p>
+        <p><strong>Date:</strong> ${new Date(booking.startDate).toLocaleDateString()}</p>
+      </div>
+      ${booking.adminNotes ? `<p style="margin-top: 15px;"><strong>Reason:</strong> ${booking.adminNotes}</p>` : ''}
+      <p>We appreciate your understanding and hope to serve you in the future.</p>
+    `;
+
     const mailOptions = {
       from: `DoRayd Travel & Tours <${this.fromAddress}>`,
       to: booking.email,
-      subject: `Booking Status Update: ${booking.bookingReference}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; line-height: 1.6; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px;">
-          <div style="background-color: #f44336; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
-            <h1>Booking Rejected</h1>
-          </div>
-          <div style="padding: 20px;">
-            <p>Dear <strong>${booking.firstName} ${booking.lastName}</strong>,</p>
-            <p>We regret to inform you that your booking request could not be approved at this time.</p>
-            <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin-top: 15px;">
-              <h3 style="margin-top: 0;">Booking Summary</h3>
-              <p><strong>Reference:</strong> ${booking.bookingReference}</p>
-              <p><strong>Service:</strong> ${booking.itemName}</p>
-              <p><strong>Date:</strong> ${new Date(booking.startDate).toLocaleDateString()}</p>
-            </div>
-            ${booking.adminNotes ? `<p style="margin-top: 15px;"><strong>Reason:</strong> ${booking.adminNotes}</p>` : ''}
-            <p>We appreciate your understanding and hope to serve you in the future.</p>
-          </div>
-        </div>
-      `,
+      subject: subject,
+      html: createEmailTemplate(subject, content),
     };
     await this.sendEmail(mailOptions);
     return { success: true, message: 'Booking rejection email sent successfully' };
   }
 
   async sendBookingCancellation(booking) {
+    const subject = `Booking Cancellation: ${booking.bookingReference}`;
+    const content = `
+      <h1 style="color: #9E9E9E;">Booking Cancelled</h1>
+      <p>Dear <strong>${booking.firstName} ${booking.lastName}</strong>,</p>
+      <p>This email is to confirm that your booking (Ref: ${booking.bookingReference}) has been cancelled.</p>
+      <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin-top: 15px;">
+        <h3 style="margin-top: 0;">Booking Summary</h3>
+        <p><strong>Reference:</strong> ${booking.bookingReference}</p>
+        <p><strong>Service:</strong> ${booking.itemName}</p>
+        <p><strong>Date:</strong> ${new Date(booking.startDate).toLocaleDateString()}</p>
+      </div>
+      ${booking.adminNotes ? `<p style="margin-top: 15px;"><strong>Notes:</strong> ${booking.adminNotes}</p>` : ''}
+    `;
     const mailOptions = {
       from: `DoRayd Travel & Tours <${this.fromAddress}>`,
       to: booking.email,
-      subject: `Booking Cancellation: ${booking.bookingReference}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; line-height: 1.6; max-width: 600px; margin: 0 auto;">
-          <div style="background-color: #9E9E9E; color: white; padding: 20px; text-align: center;">
-            <h1>Booking Cancelled</h1>
-          </div>
-          <div style="padding: 20px;">
-            <p>Dear <strong>${booking.firstName} ${booking.lastName}</strong>,</p>
-            <p>This email is to confirm that your booking (Ref: ${booking.bookingReference}) has been cancelled.</p>
-            <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin-top: 15px;">
-              <h3 style="margin-top: 0;">Booking Summary</h3>
-              <p><strong>Reference:</strong> ${booking.bookingReference}</p>
-              <p><strong>Service:</strong> ${booking.itemName}</p>
-              <p><strong>Date:</strong> ${new Date(booking.startDate).toLocaleDateString()}</p>
-            </div>
-            ${booking.adminNotes ? `<p style="margin-top: 15px;"><strong>Notes:</strong> ${booking.adminNotes}</p>` : ''}
-          </div>
-        </div>
-      `,
+      subject: subject,
+      html: createEmailTemplate(subject, content),
     };
     await this.sendEmail(mailOptions);
     return { success: true, message: 'Booking cancellation email sent' };
   }
 
   async sendContactReply(message, replyMessage, attachments = []) {
+    const subject = `Re: ${message.subject}`;
+    const content = `
+      <p>Dear ${message.name},</p>
+      <p>Thank you for contacting us. Here is our response to your inquiry:</p>
+      <blockquote style="background-color: #f0f0f0; padding: 15px; border-left: 4px solid #007bff; margin: 15px 0;">
+        ${replyMessage}
+      </blockquote>
+      <p>Best regards,<br>DoRayd Travel & Tours Team</p>
+    `;
     const mailOptions = {
       from: `DoRayd Travel & Tours <${this.fromAddress}>`,
       to: message.email,
-      subject: `Re: ${message.subject}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; line-height: 1.6;">
-          <p>Dear ${message.name},</p>
-          <p>Thank you for contacting us. Here is our response to your inquiry:</p>
-          <blockquote style="background-color: #f0f0f0; padding: 15px; border-left: 4px solid #007bff; margin: 15px 0;">
-            ${replyMessage}
-          </blockquote>
-          <p>Best regards,<br>DoRayd Travel & Tours Team</p>
-        </div>
-      `,
-      // Resend handles attachments by reading the file content into a buffer
+      subject: subject,
+      html: createEmailTemplate(subject, content),
       attachments: await Promise.all(
         attachments.map(async (file) => ({
           filename: file.filename,

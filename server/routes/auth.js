@@ -12,6 +12,7 @@ import {
 } from '../controllers/authController.js';
 import { auth } from '../middleware/auth.js';
 import { body } from 'express-validator';
+import { strictLimiter } from '../server.js'; // Import the limiter
 
 const router = express.Router();
 
@@ -23,7 +24,8 @@ router.post('/register',
     register
 );
 
-router.post('/login',
+// Apply strict limiter to login
+router.post('/login', strictLimiter,
     body('email').isEmail().normalizeEmail(),
     body('password').not().isEmpty(),
     login
@@ -37,9 +39,9 @@ router.get('/me', auth, getMe);
 router.post('/google-login', googleLogin);
 router.post('/facebook-login', facebookLogin);
 
-// Routes for password reset
-router.post('/forgot-password', forgotPassword);
-router.post('/reset-password/:token', resetPassword);
+// Apply strict limiter to password reset routes
+router.post('/forgot-password', strictLimiter, forgotPassword);
+router.post('/reset-password/:token', strictLimiter, resetPassword);
 
 // Route for changing password
 router.put('/change-password', auth, changePassword);

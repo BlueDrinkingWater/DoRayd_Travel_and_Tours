@@ -28,7 +28,7 @@ import messageRoutes from './routes/messages.js';
 import feedbackRoutes from './routes/feedback.js';
 import notificationRoutes from './routes/notification.js';
 import analyticsRoutes from './routes/analytics.js';
-import activityLogRoutes from './routes/activityLog.js'; // Make sure this is imported
+import activityLogRoutes from './routes/activityLog.js';
 
 // Error Handler
 import { errorHandler } from './middleware/errorHandler.js';
@@ -43,18 +43,16 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-
 // CORS configuration
 const corsOptions = {
     origin: function (origin, callback) {
       const whitelist = [
         'http://localhost:3000',
         'https://doraydtravelandtours.online',
-        'https://www.doraydtravelandtours.online', // For local development
-        process.env.CLIENT_URL,  // Your main frontend production URL
+        'https://www.doraydtravelandtours.online',
+        process.env.CLIENT_URL,
       ].filter(Boolean);
 
-      // Allow Vercel preview URLs (e.g., project-git-branch-user.vercel.app)
       if (origin && (/\.vercel\.app$/).test(origin)) {
         return callback(null, true);
       }
@@ -79,15 +77,29 @@ app.use(cookieParser());
 app.use(helmet());
 app.use(mongoSanitize());
 
-// --- CORRECTED RATE LIMITER ---
-// Only apply rate limiting in production to avoid issues with React's StrictMode double-invoking effects in development
-if (process.env.NODE_ENV === 'production') {
-    app.use(rateLimit({
-        windowMs: 15 * 60 * 1000, // 15 minutes
-        max: 200, // Increased limit for production
-    }));
-}
-// --- END OF CORRECTION ---
+// --- ROBUST RATE LIMITING ---
+// Apply to all requests to prevent abuse, but with a high limit.
+// Specific routes can have stricter limits.
+app.use(rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 2000, // High limit for general traffic
+    message: 'Too many requests from this IP, please try again after 15 minutes.'
+}));
+
+// Stricter limiter for authentication routes
+export const strictLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 10, // Limit each IP to 10 requests per windowMs
+    message: 'Too many login attempts from this IP, please try again after 15 minutes.'
+});
+
+// More lenient limiter for authenticated admin/employee actions
+export const lenientLimiter = rateLimit({
+    windowMs: 5 * 60 * 1000, // 5 minutes
+    max: 1500, // Generous limit for high-traffic admin pages
+    message: 'Too many requests, please try again shortly.'
+});
+// --- END OF UPDATE ---
 
 // Socket.IO setup
 const server = http.createServer(app);
@@ -115,7 +127,7 @@ io.on('connection', (socket) => {
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   const dbStatus = mongoose.connection.readyState;
-  const isDbConnected = dbStatus === 1; // 1 means connected
+  const isDbConnected = dbStatus === 1;
   
   res.status(200).json({
     success: true,
@@ -124,11 +136,11 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// API Routes
-app.use('/api/auth', authRoutes);
+// API Routes - Pass the appropriate limiters to the route handlers
+app.use('/api/auth', authRoutes); // We'll apply the strict limiter inside auth.js
 app.use('/api/cars', carRoutes);
 app.use('/api/tours', tourRoutes);
-app.use('/api/bookings', bookingRoutes);
+app.use('/api/bookings', bookingRoutes); // We'll apply the lenient limiter inside bookings.js
 app.use('/api/users', userRoutes);
 app.use('/api/content', contentRoutes);
 app.use('/api/upload', uploadRoutes);
@@ -139,7 +151,7 @@ app.use('/api/messages', messageRoutes);
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/analytics', analyticsRoutes);
-app.use('/api/activity-log', activityLogRoutes); // <-- THIS LINE IS ADDED
+app.use('/api/activity-log', activityLogRoutes);
 
 // Error Handling Middleware
 app.use(errorHandler);
@@ -156,16 +168,8 @@ mongoose
       setInterval(async () => {
         try {
           const result = await Booking.updateMany(
-            { 
-              status: 'pending', 
-              expiresAt: { $lt: new Date() } 
-            },
-            { 
-              $set: { 
-                status: 'cancelled', 
-                adminNotes: 'Booking automatically cancelled due to expiration.' 
-              } 
-            }
+            { status: 'pending', expiresAt: { $lt: new Date() } },
+            { $set: { status: 'cancelled', adminNotes: 'Booking automatically cancelled due to expiration.' } }
           );
           if (result.modifiedCount > 0) {
             console.log(`🧹 Cancelled ${result.modifiedCount} expired bookings.`);

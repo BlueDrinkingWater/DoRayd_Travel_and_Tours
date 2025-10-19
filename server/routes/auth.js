@@ -12,7 +12,7 @@ import {
 } from '../controllers/authController.js';
 import { auth } from '../middleware/auth.js';
 import { body } from 'express-validator';
-import { strictLimiter } from '../server.js'; // Import the limiter
+import { strictLimiter } from '../middleware/rateLimiter.js'; // Import from the new file
 
 const router = express.Router();
 

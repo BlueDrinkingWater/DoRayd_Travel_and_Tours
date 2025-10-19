@@ -11,7 +11,7 @@ import { fileURLToPath } from 'url';
 // Security Middleware
 import helmet from 'helmet';
 import mongoSanitize from 'express-mongo-sanitize';
-import rateLimit from 'express-rate-limit';
+import { defaultLimiter } from './middleware/rateLimiter.js'; // Import the default limiter
 
 // Routes
 import authRoutes from './routes/auth.js';
@@ -77,29 +77,8 @@ app.use(cookieParser());
 app.use(helmet());
 app.use(mongoSanitize());
 
-// --- ROBUST RATE LIMITING ---
-// Apply to all requests to prevent abuse, but with a high limit.
-// Specific routes can have stricter limits.
-app.use(rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 2000, // High limit for general traffic
-    message: 'Too many requests from this IP, please try again after 15 minutes.'
-}));
-
-// Stricter limiter for authentication routes
-export const strictLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 10, // Limit each IP to 10 requests per windowMs
-    message: 'Too many login attempts from this IP, please try again after 15 minutes.'
-});
-
-// More lenient limiter for authenticated admin/employee actions
-export const lenientLimiter = rateLimit({
-    windowMs: 5 * 60 * 1000, // 5 minutes
-    max: 1500, // Generous limit for high-traffic admin pages
-    message: 'Too many requests, please try again shortly.'
-});
-// --- END OF UPDATE ---
+// Apply the default rate limiter to all requests
+app.use(defaultLimiter);
 
 // Socket.IO setup
 const server = http.createServer(app);
@@ -136,11 +115,11 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// API Routes - Pass the appropriate limiters to the route handlers
-app.use('/api/auth', authRoutes); // We'll apply the strict limiter inside auth.js
+// API Routes
+app.use('/api/auth', authRoutes);
 app.use('/api/cars', carRoutes);
 app.use('/api/tours', tourRoutes);
-app.use('/api/bookings', bookingRoutes); // We'll apply the lenient limiter inside bookings.js
+app.use('/api/bookings', bookingRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/content', contentRoutes);
 app.use('/api/upload', uploadRoutes);

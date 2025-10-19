@@ -48,7 +48,9 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 const corsOptions = {
     origin: function (origin, callback) {
       const whitelist = [
-        'http://localhost:3000', // For local development
+        'http://localhost:3000',
+        'https://doraydtravelandtours.online',
+        'https://www.doraydtravelandtours.online/', // For local development
         process.env.CLIENT_URL,  // Your main frontend production URL
       ].filter(Boolean);
 

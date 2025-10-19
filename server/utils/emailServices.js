@@ -29,8 +29,8 @@ class EmailService {
       this.isInitialized = true;
       console.log('Email service initialized successfully');
     } catch (error) {
-      console.error('Email service initialization failed:', error.message);
-      this.isInitialized = false;
+    console.error('❌ Email service initialization failed:', error); 
+    this.isInitialized = false;
     }
   }
 

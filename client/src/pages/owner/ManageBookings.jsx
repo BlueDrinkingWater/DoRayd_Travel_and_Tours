@@ -1,4 +1,4 @@
-// src/pages/owner/ManageBookings.jsx
+// client/src/pages/owner/ManageBookings.jsx
 
 import React, { useState, useEffect } from 'react';
 import { Search, Filter, Eye, Check, X, Clock, Calendar, Users, MapPin, Phone, Mail, FileText, Image as ImageIcon, Link as LinkIcon, Hash, Car, Package, DollarSign, Tag } from 'lucide-react';
@@ -196,7 +196,7 @@ const ManageBookings = () => {
 
       {showModal && selectedBooking && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
                 <div>

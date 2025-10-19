@@ -17,13 +17,10 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
   const [paymentQR, setPaymentQR] = useState('');
   const [qrLoading, setQrLoading] = useState(true);
 
-  // --- MODIFIED: Enhanced unique payment reference generation with a timestamp ---
   const paymentReferenceCode = useMemo(() => {
     if (!isOpen) return '';
     const prefix = 'DRYD';
-    // Convert current timestamp to a compact base-36 string
     const timestamp = Date.now().toString(36).toUpperCase();
-    // Add a short random component for extra uniqueness
     const random = Math.random().toString(36).substr(2, 4).toUpperCase();
     return `${prefix}-${timestamp}-${random}`;
   }, [isOpen]);
@@ -271,7 +268,6 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
   if (!isOpen) return null;
   
   return (
-    // DESIGN UPDATE: Added glassmorphism effect to the background and entrance animation
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-scale-in">
       <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6">
@@ -298,12 +294,11 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
                   <div className="bg-gray-50 p-4 rounded-lg">
                     <h3 className="font-semibold mb-3">Your Information</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                       {/* DESIGN UPDATE: Added icons to input fields */}
-                       <div className="relative"><UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16}/><input type="text" name="firstName" required value={formData.firstName} onChange={(e) => setFormData({ ...formData, firstName: e.target.value })} className="w-full pl-10 p-2 border rounded-md"/></div>
-                       <div className="relative"><UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16}/><input type="text" name="lastName" required value={formData.lastName} onChange={(e) => setFormData({ ...formData, lastName: e.target.value })} className="w-full pl-10 p-2 border rounded-md"/></div>
-                       <div className="md:col-span-2 relative"><Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16}/><input type="email" name="email" required value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="w-full pl-10 p-2 border rounded-md"/></div>
+                       <div className="relative"><UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16}/><input type="text" name="firstName" placeholder="First Name" required value={formData.firstName} onChange={(e) => setFormData({ ...formData, firstName: e.target.value })} className="w-full pl-10 p-2 border rounded-md"/></div>
+                       <div className="relative"><UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16}/><input type="text" name="lastName" placeholder="Last Name" required value={formData.lastName} onChange={(e) => setFormData({ ...formData, lastName: e.target.value })} className="w-full pl-10 p-2 border rounded-md"/></div>
+                       <div className="md:col-span-2 relative"><Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16}/><input type="email" name="email" placeholder="Email Address" required value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="w-full pl-10 p-2 border rounded-md"/></div>
                        <div className="md:col-span-2 relative"><Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16}/><input type="tel" name="phone" required value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} className="w-full pl-10 p-2 border rounded-md" placeholder="09171234567"/></div>
-                       <div className="md:col-span-2 relative"><Home className="absolute left-3 top-4 -translate-y-1/2 text-gray-400" size={16}/><textarea name="address" required value={formData.address} onChange={(e) => setFormData({ ...formData, address: e.target.value })} className="w-full pl-10 p-2 border rounded-md" rows="2"></textarea></div>
+                       <div className="md:col-span-2 relative"><Home className="absolute left-3 top-4 -translate-y-1/2 text-gray-400" size={16}/><textarea name="address" required value={formData.address} onChange={(e) => setFormData({ ...formData, address: e.target.value })} className="w-full pl-10 p-2 border rounded-md" placeholder="Your Address" rows="2"></textarea></div>
                     </div>
                   </div>
                   

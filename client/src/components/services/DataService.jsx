@@ -1,8 +1,5 @@
 import axios from 'axios';
 
-// For local development, VITE_API_URL should be empty so the Vite proxy is used.
-// For production, VITE_API_URL should be set to your deployed backend URL if it's on a different domain.
-// If frontend and backend are on the same domain in production, this can also be empty.
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 export const SERVER_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 

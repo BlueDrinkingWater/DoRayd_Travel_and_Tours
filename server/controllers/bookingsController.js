@@ -1,3 +1,5 @@
+// server/controllers/bookingsController.js
+
 import Booking from '../models/Booking.js';
 import Car from '../models/Car.js';
 import Tour from '../models/Tour.js';
@@ -193,7 +195,7 @@ export const updateBookingStatus = async (req, res) => {
         req.params.id, 
         { status, adminNotes, processedBy: req.user.id },
         { new: true }
-    ).populate('user');
+    ).populate('user').populate('itemId');
 
     if (!booking) {
       return res.status(404).json({ success: false, message: 'Booking not found' });
@@ -239,7 +241,7 @@ export const cancelBooking = async (req, res) => {
       req.params.id,
       { status: 'cancelled', adminNotes, processedBy: req.user.id },
       { new: true }
-    ).populate('user');
+    ).populate('user').populate('itemId');
 
     if (!booking) {
       return res.status(404).json({ success: false, message: 'Booking not found' });

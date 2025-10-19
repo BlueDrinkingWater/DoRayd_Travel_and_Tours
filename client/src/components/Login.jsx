@@ -119,7 +119,7 @@ export const ProtectedRoute = ({ children, requiredRole }) => {
 
 // --- Unified Login Portal ---
 export const UnifiedLoginPortal = ({ isOpen, onClose, showRegistration = false }) => {
-  const { login, register, socialLogin } = useAuth();
+  const { login, register, socialLogin, logout } = useAuth();
   const navigate = useNavigate();
   const [isLoginView, setIsLoginView] = useState(!showRegistration);
   const [activeTab, setActiveTab] = useState('customer');
@@ -234,6 +234,19 @@ export const UnifiedLoginPortal = ({ isOpen, onClose, showRegistration = false }
     if (isLoginView) {
       result = await login({ email: formData.email, password: formData.password });
       if (result.success) {
+        if (activeTab === 'customer' && result.user.role !== 'customer') {
+          logout(); 
+          setError('This login is for customers only. Please use the Staff login.');
+          setLoading(false);
+          return;
+        }
+        if (activeTab === 'staff' && (result.user.role !== 'admin' && result.user.role !== 'employee')) {
+          logout();
+          setError('This login is for staff only. Please use the Customer login.');
+          setLoading(false);
+          return;
+        }
+
         onClose();
         switch (result.user.role) {
           case 'admin': navigate('/owner/dashboard', { replace: true }); break;

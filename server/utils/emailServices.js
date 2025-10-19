@@ -15,7 +15,6 @@ class EmailService {
       this.isInitialized = false;
       console.error('❌ RESEND_API_KEY not found in environment variables. Email service is disabled.');
     }
-    // This MUST be an email you have verified with Resend (e.g., noreply@yourdomain.com)
     this.fromAddress = process.env.EMAIL_FROM || 'onboarding@resend.dev';
   }
 
@@ -60,7 +59,7 @@ class EmailService {
       html: `
         <div style="font-family: Arial, sans-serif; line-height: 1.6; max-width: 600px; margin: 0 auto;">
           <div style="background-color: #2196F3; color: white; padding: 20px; text-align: center;">
-            <h1>📋 Booking Received</h1>
+            <h1>Booking Received</h1>
           </div>
           <div style="padding: 20px; background-color: #f9f9f9;">
             <p>Dear <strong>${booking.firstName} ${booking.lastName}</strong>,</p>
@@ -81,7 +80,6 @@ class EmailService {
     if (booking.status === 'rejected') {
       return this.sendBookingRejection(booking);
     }
-    // Add any other status updates you need here
   }
 
   async sendBookingApproval(booking) {
@@ -92,12 +90,19 @@ class EmailService {
       html: `
         <div style="font-family: Arial, sans-serif; line-height: 1.6; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px;">
           <div style="background-color: #4CAF50; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
-            <h1>🎉 Booking Approved!</h1>
+            <h1>Booking Approved</h1>
           </div>
           <div style="padding: 20px;">
             <p>Dear <strong>${booking.firstName} ${booking.lastName}</strong>,</p>
             <p>Great news! Your booking has been approved and confirmed. We look forward to serving you.</p>
-            ${booking.adminNotes ? `<p><strong>A note from our team:</strong> ${booking.adminNotes}</p>` : ''}
+            <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin-top: 15px;">
+              <h3 style="margin-top: 0;">Booking Summary</h3>
+              <p><strong>Reference:</strong> ${booking.bookingReference}</p>
+              <p><strong>Service:</strong> ${booking.itemName}</p>
+              <p><strong>Date:</strong> ${new Date(booking.startDate).toLocaleDateString()}</p>
+              <p><strong>Total Price:</strong> PHP ${booking.totalPrice.toLocaleString()}</p>
+            </div>
+            ${booking.adminNotes ? `<p style="margin-top: 15px;"><strong>A note from our team:</strong> ${booking.adminNotes}</p>` : ''}
           </div>
         </div>
       `,
@@ -119,7 +124,13 @@ class EmailService {
           <div style="padding: 20px;">
             <p>Dear <strong>${booking.firstName} ${booking.lastName}</strong>,</p>
             <p>We regret to inform you that your booking request could not be approved at this time.</p>
-            ${booking.adminNotes ? `<p><strong>Reason:</strong> ${booking.adminNotes}</p>` : ''}
+            <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin-top: 15px;">
+              <h3 style="margin-top: 0;">Booking Summary</h3>
+              <p><strong>Reference:</strong> ${booking.bookingReference}</p>
+              <p><strong>Service:</strong> ${booking.itemName}</p>
+              <p><strong>Date:</strong> ${new Date(booking.startDate).toLocaleDateString()}</p>
+            </div>
+            ${booking.adminNotes ? `<p style="margin-top: 15px;"><strong>Reason:</strong> ${booking.adminNotes}</p>` : ''}
             <p>We appreciate your understanding and hope to serve you in the future.</p>
           </div>
         </div>
@@ -142,7 +153,13 @@ class EmailService {
           <div style="padding: 20px;">
             <p>Dear <strong>${booking.firstName} ${booking.lastName}</strong>,</p>
             <p>This email is to confirm that your booking (Ref: ${booking.bookingReference}) has been cancelled.</p>
-            ${booking.adminNotes ? `<p><strong>Notes:</strong> ${booking.adminNotes}</p>` : ''}
+            <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin-top: 15px;">
+              <h3 style="margin-top: 0;">Booking Summary</h3>
+              <p><strong>Reference:</strong> ${booking.bookingReference}</p>
+              <p><strong>Service:</strong> ${booking.itemName}</p>
+              <p><strong>Date:</strong> ${new Date(booking.startDate).toLocaleDateString()}</p>
+            </div>
+            ${booking.adminNotes ? `<p style="margin-top: 15px;"><strong>Notes:</strong> ${booking.adminNotes}</p>` : ''}
           </div>
         </div>
       `,

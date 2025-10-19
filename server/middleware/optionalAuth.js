@@ -3,7 +3,9 @@ import User from '../models/User.js';
 
 export const optionalAuth = async (req, res, next) => {
   try {
-    const token = req.header('Authorization')?.replace('Bearer ', '');
+    // FIX: Check for the token in cookies, not headers
+    const token = req.cookies.token;
+
     if (token) {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       const user = await User.findById(decoded.id).select('-password');
@@ -15,5 +17,5 @@ export const optionalAuth = async (req, res, next) => {
     // If token is invalid or expired, just proceed without a user
     console.log("Optional auth: Invalid token provided. Proceeding as guest.");
   }
-  next(); // Always continue to the next middleware
+  next(); // Always continue to the next middleware, whether a user was found or not
 };

@@ -24,6 +24,14 @@ const noteSchema = new mongoose.Schema({
   },
 });
 
+const paymentSchema = new mongoose.Schema({
+  amount: { type: Number, required: true },
+  paymentReference: { type: String },
+  manualPaymentReference: { type: String },
+  paymentProof: { type: String, required: true },
+  paymentDate: { type: Date, default: Date.now },
+});
+
 const bookingSchema = new mongoose.Schema(
   {
     bookingReference: {
@@ -66,12 +74,10 @@ const bookingSchema = new mongoose.Schema(
 
     // Payment Details
     totalPrice: { type: Number, required: true },
-    amountPaid: { type: Number, required: true },
+    amountPaid: { type: Number, default: 0 },
     paymentOption: { type: String, enum: ['full', 'downpayment'], required: true },
-    paymentReference: { type: String },
-    manualPaymentReference: { type: String }, // ADD THIS LINE
-    paymentProof: { type: String, required: true }, // Path to the uploaded proof
-
+    payments: [paymentSchema],
+    
     status: {
       type: String,
       enum: ["pending", "confirmed", "cancelled", "completed", "rejected"],

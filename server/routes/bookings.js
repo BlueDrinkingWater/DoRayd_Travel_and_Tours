@@ -4,7 +4,7 @@ import {
     createBooking,
     updateBookingStatus,
     getMyBookings,
-    uploadPaymentProof,
+    addPayment,
     getBookingAvailability,
     cancelBooking
 } from '../controllers/bookingsController.js';
@@ -35,7 +35,7 @@ router.route('/:id/status')
 router.route('/:id/cancel')
     .patch(auth, checkPermission('bookings', 'write'), upload.single('attachment'), cancelBooking);
 
-router.route('/:id/payment-proof')
-    .post(auth, authorize('customer'), upload.single('paymentProof'), uploadPaymentProof);
+router.route('/:id/add-payment')
+    .post(auth, authorize('customer'), upload.single('paymentProof'), addPayment);
 
 export default router;

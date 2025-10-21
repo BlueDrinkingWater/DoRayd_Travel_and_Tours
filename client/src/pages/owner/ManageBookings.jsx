@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Filter, Eye, Check, X, Clock, Calendar, Users, MapPin, Phone, Mail, FileText, Image as ImageIcon, Link as LinkIcon, Hash, Car, Package, DollarSign, Tag, Paperclip, Info } from 'lucide-react';
 import { useApi } from '../../hooks/useApi';
-import DataService from '../../components/services/DataService';
+import DataService, { getImageUrl } from '../../components/services/DataService.jsx';
 import { useSecureImage } from '../../hooks/useSecureImage.jsx';
 
 const ManageBookings = () => {
@@ -16,8 +16,6 @@ const ManageBookings = () => {
   const [updating, setUpdating] = useState(false);
   
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(searchTerm);
-  
-  const { secureUrl: paymentProofUrl, loading: paymentProofLoading } = useSecureImage(selectedBooking?.paymentProof);
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -260,53 +258,53 @@ const ManageBookings = () => {
                 <div className="space-y-6">
                     <InfoBlock title="Payment Summary" icon={DollarSign}>
                         <div className="space-y-2 text-sm">
-                            <InfoRow label="System Pay Code" value={selectedBooking.paymentReference} />
-                            <InfoRow label="Bank Reference" value={selectedBooking.manualPaymentReference || 'N/A'} />
-                            <InfoRow label="Payment Option" value={selectedBooking.paymentOption} />
+                            {selectedBooking.payments.map((payment, index) => (
+                                <div key={index} className="pb-2">
+                                    <p className="font-semibold">Payment {index + 1}</p>
+                                    <InfoRow label="System Pay Code" value={payment.paymentReference} />
+                                    <InfoRow label="Bank Reference" value={payment.manualPaymentReference || 'N/A'} />
+                                    <InfoRow label="Amount Paid" value={formatPrice(payment.amount)} />
+                                </div>
+                            ))}
 
                             <div className="flex justify-between items-center mt-4 pt-2 border-t">
                                 <span className="font-semibold text-gray-900">Total Amount:</span>
                                 <span className="font-bold text-lg text-blue-600">{formatPrice(selectedBooking.totalPrice)}</span>
                             </div>
 
-                            {selectedBooking.paymentOption === 'downpayment' && (
-                                <div className="flex justify-between">
-                                <span className="font-semibold text-gray-900">Downpayment Due:</span>
-                                <span className="font-bold text-lg">{formatPrice(selectedBooking.amountPaid)}</span>
-                                </div>
-                            )}
-
                             <div className="flex justify-between items-center text-red-600">
-                                <span className="text-lg font-semibold">Amount Paid:</span>
+                                <span className="text-lg font-semibold">
+                                  Total Paid:
+                                </span>
                                 <span className="text-2xl font-bold">{formatPrice(selectedBooking.amountPaid)}</span>
                             </div>
                             
                             {selectedBooking.paymentOption === 'downpayment' && (
                                 <p className="text-xs text-gray-500 text-center pt-2">
-                                The remaining balance of {formatPrice(selectedBooking.totalPrice - selectedBooking.amountPaid)} will be due at the time of service.
+                                The remaining balance of {formatPrice(selectedBooking.totalPrice - selectedBooking.amountPaid)} is due.
                                 </p>
                             )}
                         </div>
 
-                        <h4 className="font-semibold text-sm pt-4 mt-4 border-t">Payment Proof</h4>
-                        {selectedBooking.paymentProof ? (
-                        paymentProofLoading ? (
-                            <div className="w-full h-40 bg-gray-200 animate-pulse flex items-center justify-center text-xs text-gray-500 rounded-lg">Loading Proof...</div>
-                        ) : (
-                            <a href={paymentProofUrl} target="_blank" rel="noopener noreferrer" className="mt-2 block">
-                                <img 
-                                    src={paymentProofUrl} 
-                                    alt="Payment Proof" 
-                                    className="w-full h-auto max-h-64 rounded-lg object-contain border" 
-                                    onError={(e) => { 
-                                        e.target.onerror = null; e.target.src = 'https://placehold.co/300x200/fecaca/991b1b?text=Error/Expired'; 
-                                    }}
-                                />
-                            </a>
-                        )
-                        ) : (
-                        <p className="text-sm text-gray-500 text-center py-8">No payment proof uploaded.</p>
-                        )}
+                        <h4 className="font-semibold text-sm pt-4 mt-4 border-t">Payment Proofs</h4>
+                        {selectedBooking.payments.map((payment, index) => (
+                            <div key={index} className="mt-2">
+                                {payment.paymentProof ? (
+                                    <a href={getImageUrl(payment.paymentProof)} target="_blank" rel="noopener noreferrer" className="mt-2 block">
+                                        <img 
+                                            src={getImageUrl(payment.paymentProof)} 
+                                            alt={`Payment Proof ${index + 1}`} 
+                                            className="w-full h-auto max-h-40 rounded-lg object-contain border" 
+                                            onError={(e) => { 
+                                                e.target.onerror = null; e.target.src = 'https://placehold.co/300x200/fecaca/991b1b?text=Error/Expired'; 
+                                            }}
+                                        />
+                                    </a>
+                                ) : (
+                                    <p className="text-sm text-gray-500 text-center py-4">No payment proof for this entry.</p>
+                                )}
+                            </div>
+                        ))}
                   </InfoBlock>
 
                   {selectedBooking.status === 'pending' && (

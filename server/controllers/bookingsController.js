@@ -47,7 +47,8 @@ export const getAllBookings = async (req, res) => {
       const searchRegex = new RegExp(search, 'i');
       query.$or = [
         { bookingReference: searchRegex },
-        { paymentReference: searchRegex },
+        { 'payments.paymentReference': searchRegex },
+        { 'payments.manualPaymentReference': searchRegex },
         { firstName: searchRegex },
         { lastName: searchRegex },
         { email: searchRegex },
@@ -100,6 +101,10 @@ export const createBooking = async (req, res) => {
             originalPrice, discountApplied, promotionTitle // Promotion fields
         } = req.body;
 
+        if (paymentOption === 'downpayment' && !isUserLoggedIn) {
+            return res.status(400).json({ success: false, message: 'You must be logged in to choose the downpayment option.' });
+        }
+
         const finalFirstName = isUserLoggedIn ? req.user.firstName : firstName;
         const finalLastName = isUserLoggedIn ? req.user.lastName : lastName;
         const finalEmail = isUserLoggedIn ? req.user.email : email;
@@ -132,11 +137,7 @@ export const createBooking = async (req, res) => {
             endDate: endDate ? new Date(endDate) : new Date(startDate),
             time,
             itemModel: itemType.charAt(0).toUpperCase() + itemType.slice(1),
-            paymentProof: req.file ? req.file.path : null,
             dropoffCoordinates: coords,
-            paymentReference,
-            manualPaymentReference, // ADD THIS LINE
-            amountPaid: Number(amountPaid) || 0,
             paymentOption,
             firstName: finalFirstName,
             lastName: finalLastName,
@@ -154,6 +155,16 @@ export const createBooking = async (req, res) => {
             discountApplied: Number(discountApplied) || null,
             promotionTitle: promotionTitle || null
         });
+        
+        const paymentData = {
+            amount: Number(amountPaid) || 0,
+            paymentReference,
+            manualPaymentReference,
+            paymentProof: req.file ? req.file.path : null,
+        };
+
+        newBooking.payments.push(paymentData);
+        newBooking.amountPaid = newBooking.payments.reduce((acc, payment) => acc + payment.amount, 0);
 
         await newBooking.save();
 
@@ -189,6 +200,57 @@ export const createBooking = async (req, res) => {
         res.status(500).json({ success: false, message: 'An internal server error occurred.' });
     }
 };
+
+// Add another payment to a booking
+export const addPayment = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { amount, manualPaymentReference } = req.body;
+        const booking = await Booking.findById(id);
+
+        if (!booking) {
+            return res.status(404).json({ success: false, message: 'Booking not found.' });
+        }
+
+        if (booking.user.toString() !== req.user.id) {
+            return res.status(403).json({ success: false, message: 'You are not authorized to update this booking.' });
+        }
+        
+        const newPayment = {
+            amount: Number(amount),
+            manualPaymentReference,
+            paymentProof: req.file ? req.file.path : null,
+        };
+
+        booking.payments.push(newPayment);
+        booking.amountPaid = booking.payments.reduce((acc, payment) => acc + payment.amount, 0);
+
+        // Optionally, if the full amount is paid, update status
+        if (booking.amountPaid >= booking.totalPrice) {
+            // You might want to automatically move it to a different status,
+            // or just notify admins to review it.
+        }
+
+        await booking.save();
+
+        const io = req.app.get('io');
+        if (io) {
+            const notificationMessage = `An additional payment was made for booking ${booking.bookingReference}.`;
+            await createNotification(
+                io,
+                { roles: ['admin', 'employee'], module: 'bookings' },
+                notificationMessage,
+                { admin: '/owner/manage-bookings', employee: '/employee/manage-bookings' }
+            );
+        }
+
+        res.json({ success: true, data: booking });
+    } catch (error) {
+        console.error('Error adding payment:', error);
+        res.status(500).json({ success: false, message: 'Failed to add payment.' });
+    }
+};
+
 
 // Update booking status
 export const updateBookingStatus = async (req, res) => {
@@ -305,40 +367,4 @@ export const cancelBooking = async (req, res) => {
     console.error('Error cancelling booking:', error);
     res.status(500).json({ success: false, message: 'Failed to cancel booking.' });
   }
-};
-
-
-// UPLOAD payment proof for a booking
-export const uploadPaymentProof = async (req, res) => {
-    try {
-        if (!req.file) {
-            return res.status(400).json({ success: false, message: 'No file uploaded.' });
-        }
-        
-        const booking = await Booking.findByIdAndUpdate(
-            req.params.id,
-            { paymentProof: req.file.path },
-            { new: true }
-        );
-
-        if (!booking) {
-            return res.status(404).json({ success: false, message: 'Booking not found' });
-        }
-        
-        const io = req.app.get('io');
-        if (io) {
-            await createNotification(
-              io,
-              { roles: ['admin', 'employee'], module: 'bookings' },
-              `Payment proof uploaded for booking ${booking.bookingReference}`,
-              { admin: '/owner/manage-bookings', employee: '/employee/manage-bookings' }
-            );
-        }
-        
-        res.json({ success: true, message: 'Payment proof uploaded successfully.', data: booking });
-
-    } catch (error) {
-        console.error('Error uploading payment proof:', error);
-        res.status(500).json({ success: false, message: 'Failed to upload payment proof.' });
-    }
 };

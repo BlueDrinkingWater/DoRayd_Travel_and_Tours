@@ -319,6 +319,17 @@ const DataService = {
     }
   },
 
+  addPaymentProof: async (bookingId, paymentData) => {
+    try {
+        const response = await api.post(`/api/bookings/${bookingId}/add-payment`, paymentData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        return response.data;
+    } catch (error) {
+        return handleError(error, 'Failed to add payment.');
+    }
+  },
+
   // --- Availability Check ---
   getAvailability: async (serviceId) => {
     try {

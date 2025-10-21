@@ -91,19 +91,24 @@ const BookingDetailModal = ({ booking, onClose }) => {
                                     <span className="font-semibold text-gray-800">Total Amount Due:</span>
                                     <span className="text-2xl font-bold text-blue-600">{formatPrice(booking.totalPrice)}</span>
                                 </div>
-                                {booking.paymentProofUrl ? (
-                                    <a href={getImageUrl(booking.paymentProofUrl)} target="_blank" rel="noopener noreferrer" className="mt-4 block">
-                                        <img src={getImageUrl(booking.paymentProofUrl)} alt="Payment Proof" className="w-full h-auto rounded-lg object-contain border" />
-                                    </a>
-                                ) : <p className="text-sm text-gray-500 text-center py-8">No payment proof uploaded.</p>}
+                                {booking.payments.map((payment, index) => (
+                                    <div key={index} className="mt-4">
+                                        <h4 className="text-sm font-semibold">Payment {index + 1}</h4>
+                                        <a href={getImageUrl(payment.paymentProof)} target="_blank" rel="noopener noreferrer" className="mt-2 block">
+                                            <img src={getImageUrl(payment.paymentProof)} alt={`Payment Proof ${index + 1}`} className="w-full h-auto rounded-lg object-contain border" />
+                                        </a>
+                                    </div>
+                                ))}
                             </InfoBlock>
                              <InfoBlock title="Admin Notes" icon={FileText}>
                                 <div className="flex items-center justify-between mb-4">
                                     <span className="font-semibold">Current Status:</span>
                                     {getStatusBadge(booking.status)}
                                 </div>
-                                {booking.adminNotes ? (
-                                    <p className="text-sm text-gray-600 bg-gray-100 p-3 rounded-md">{booking.adminNotes}</p>
+                                {booking.notes && booking.notes.length > 0 ? (
+                                    booking.notes.map((note, index) => (
+                                        <p key={index} className="text-sm text-gray-600 bg-gray-100 p-3 rounded-md mt-2">{note.note}</p>
+                                    ))
                                 ) : (
                                     <p className="text-sm text-gray-500">No notes from admin.</p>
                                 )}
@@ -123,6 +128,7 @@ const CustomerDashboard = () => {
     const [activeTab, setActiveTab] = useState(location.pathname.includes('my-bookings') ? 'bookings' : 'overview');
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [selectedBooking, setSelectedBooking] = useState(null);
+    const [showAddPaymentModal, setShowAddPaymentModal] = useState(false);
 
     const { data: bookingsData, loading: bookingsLoading, refetch: refetchBookings } = useApi(() => DataService.fetchUserBookings(), [user, location]);
     const { data: reviewsData, loading: reviewsLoading, refetch: refetchReviews } = useApi(() => DataService.getMyReviews(), [user]);
@@ -155,6 +161,11 @@ const CustomerDashboard = () => {
         { title: 'My Reviews', value: myReviews.length, icon: Star },
         { title: 'My Feedback', value: myFeedback.length, icon: MessageSquare }
     ];
+    
+    const handleAddPayment = (booking) => {
+        setSelectedBooking(booking);
+        setShowAddPaymentModal(true);
+    };
 
     if (bookingsLoading) {
         return <div className="flex justify-center items-center min-h-screen bg-gray-50">Loading...</div>;
@@ -255,7 +266,7 @@ const CustomerDashboard = () => {
                                 <OverviewTab bookings={bookings} onBookingSelect={setSelectedBooking} />
                             </>
                         )}
-                        {activeTab === 'bookings' && <BookingsTab bookings={bookings} onBookingSelect={setSelectedBooking} />}
+                        {activeTab === 'bookings' && <BookingsTab bookings={bookings} onBookingSelect={setSelectedBooking} onAddPayment={handleAddPayment}/>}
                         {activeTab === 'reviews' && <MyReviewsTab reviews={myReviews} />}
                         {activeTab === 'feedback' && <MyFeedbackTab feedback={myFeedback} />}
                         {activeTab === 'leave-review' && (
@@ -282,6 +293,17 @@ const CustomerDashboard = () => {
                 <BookingDetailModal
                     booking={selectedBooking}
                     onClose={() => setSelectedBooking(null)}
+                />
+            )}
+
+            {showAddPaymentModal && selectedBooking && (
+                <AddPaymentModal
+                    booking={selectedBooking}
+                    onClose={() => setShowAddPaymentModal(false)}
+                    onPaymentSuccess={() => {
+                        setShowAddPaymentModal(false);
+                        refetchBookings();
+                    }}
                 />
             )}
         </div>
@@ -361,7 +383,7 @@ const OverviewTab = ({ bookings, onBookingSelect }) => {
     );
 }
 
-const BookingsTab = ({ bookings, onBookingSelect }) => (
+const BookingsTab = ({ bookings, onBookingSelect, onAddPayment }) => (
     <div className="space-y-4">
         {bookings.length > 0 ? bookings.map(booking => (
             <div key={booking._id} className="bg-white/80 backdrop-blur-md p-6 border border-white/20 rounded-xl hover:shadow-lg transition-all">
@@ -393,6 +415,14 @@ const BookingsTab = ({ bookings, onBookingSelect }) => (
                         >
                             <Eye size={14} /> View Details
                         </button>
+                        {booking.status === 'pending' && booking.paymentOption === 'downpayment' && (
+                            <button
+                                onClick={() => onAddPayment(booking)}
+                                className="bg-green-100 text-green-700 hover:bg-green-200 px-3 py-1 rounded-full text-sm font-semibold flex items-center gap-1 mt-2"
+                            >
+                                <Upload size={14} /> Add Payment
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>
@@ -847,5 +877,92 @@ const getStatusColorForCalendar = (status) => {
         default: return '#A1A1AA';
     }
 }
+
+const AddPaymentModal = ({ booking, onClose, onPaymentSuccess }) => {
+    const [amount, setAmount] = useState('');
+    const [paymentProof, setPaymentProof] = useState(null);
+    const [manualPaymentReference, setManualPaymentReference] = useState('');
+    const [submitting, setSubmitting] = useState(false);
+    const [error, setError] = useState('');
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setError('');
+        if (!amount || !paymentProof) {
+            setError('Please enter an amount and upload a payment proof.');
+            return;
+        }
+
+        setSubmitting(true);
+        const formData = new FormData();
+        formData.append('amount', amount);
+        formData.append('paymentProof', paymentProof);
+        formData.append('manualPaymentReference', manualPaymentReference);
+
+        try {
+            const response = await DataService.addPaymentProof(booking._id, formData);
+            if (response.success) {
+                alert('Payment added successfully!');
+                onPaymentSuccess();
+            } else {
+                throw new Error(response.message);
+            }
+        } catch (err) {
+            setError(err.message || 'Failed to add payment.');
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[80] p-4">
+            <div className="bg-white rounded-lg max-w-md w-full">
+                <div className="p-6">
+                    <div className="flex justify-between items-center mb-4">
+                        <h3 className="text-xl font-bold">Add Payment</h3>
+                        <button onClick={onClose}><X /></button>
+                    </div>
+                    {error && <div className="bg-red-100 text-red-700 p-3 rounded-lg text-sm mb-4">{error}</div>}
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium">Amount</label>
+                            <input
+                                type="number"
+                                value={amount}
+                                onChange={(e) => setAmount(e.target.value)}
+                                className="w-full p-2 border rounded mt-1"
+                                required
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium">Bank Reference (Optional)</label>
+                            <input
+                                type="text"
+                                value={manualPaymentReference}
+                                onChange={(e) => setManualPaymentReference(e.target.value)}
+                                className="w-full p-2 border rounded mt-1"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium">Payment Proof</label>
+                            <input
+                                type="file"
+                                onChange={(e) => setPaymentProof(e.target.files[0])}
+                                className="w-full p-2 border rounded mt-1"
+                                required
+                            />
+                        </div>
+                        <div className="flex justify-end space-x-4 mt-6">
+                            <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 rounded">Cancel</button>
+                            <button type="submit" disabled={submitting} className="px-4 py-2 bg-blue-600 text-white rounded">
+                                {submitting ? 'Submitting...' : 'Add Payment'}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 export default CustomerDashboard;

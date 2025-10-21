@@ -211,6 +211,11 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
     if (parseFloat(formData.amountPaid) !== requiredPayment) {
       return setSubmitError(`The amount paid must be exactly ${formatPrice(requiredPayment)}.`);
     }
+    
+    if (selectedPaymentOption === 'downpayment' && !user) {
+        setSubmitError("You must be logged in to choose the downpayment option. Please log in or create an account.");
+        return;
+    }
 
     setSubmitting(true);
     try {
@@ -396,6 +401,11 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
                                     Full Payment
                                 </label>
                             </div>
+                            {!user && selectedPaymentOption === 'downpayment' && (
+                                <div className="mt-2 text-sm text-yellow-800 bg-yellow-100 p-3 rounded-md">
+                                    You must be logged in to make a downpayment. Please log in or create an account to proceed.
+                                </div>
+                            )}
                         </div>
                     )}
                     <div className="flex flex-col items-center">
@@ -503,7 +513,7 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
               </div>
               <div className="flex justify-end gap-3 pt-6 border-t mt-6">
                 <button type="button" onClick={onClose} className="px-6 py-2 bg-gray-200 rounded-lg text-gray-700 hover:bg-gray-300">Cancel</button>
-                <button type="submit" disabled={submitting || !formData.agreedToTerms} className="px-6 py-2 bg-blue-600 text-white rounded-lg disabled:opacity-50 flex items-center gap-2">{submitting ? 'Submitting...' : 'Submit Booking'}</button>
+                <button type="submit" disabled={submitting || !formData.agreedToTerms || (selectedPaymentOption === 'downpayment' && !user)} className="px-6 py-2 bg-blue-600 text-white rounded-lg disabled:opacity-50 flex items-center gap-2">{submitting ? 'Submitting...' : 'Submit Booking'}</button>
               </div>
             </form>
           )}

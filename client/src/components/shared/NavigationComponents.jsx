@@ -71,7 +71,7 @@ export const Navbar = ({ onCustomerLogin, onStaffLogin, onRegister }) => {
           <div className="flex items-center">
             <Link to="/" className="flex-shrink-0 flex items-center group">
               <img src={logo} alt="Do Rayd Travel and Tours Logo" className="h-12 w-auto transition-transform group-hover:scale-105" />
-              <span className="ml-3 text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent hidden sm:block">
+              <span className="ml-3 text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                 Do Rayd Travel and Tours
               </span>
             </Link>

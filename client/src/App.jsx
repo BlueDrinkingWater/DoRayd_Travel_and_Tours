@@ -21,6 +21,7 @@ import NotFound from './pages/NotFound.jsx';
 import ForgotPassword from './pages/auth/ForgotPassword.jsx';
 import ResetPassword from './pages/auth/ResetPassword.jsx';
 import PublicFeedback from '@/pages/PublicFeedback.jsx'; // Corrected path using alias
+import PolicyPage from './pages/PolicyPage.jsx'; // Import the new PolicyPage component
 
 // Shared Authed Pages
 import AccountSettings from './pages/shared/AccountSettings.jsx';
@@ -117,6 +118,7 @@ return (
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password/:token" element={<ResetPassword />} />
           <Route path="/account-settings" element={<ProtectedRoute><AccountSettings /></ProtectedRoute>} />
+          <Route path="/policies" element={<PolicyPage />} />
 
           <Route
             path="/my-bookings"

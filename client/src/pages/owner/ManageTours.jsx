@@ -19,6 +19,9 @@ const ManageTours = () => {
     startDate: '', endDate: '', // Add date fields
     maxGroupSize: 10, difficulty: 'easy', category: '', inclusions: [],
     exclusions: [], itinerary: [], images: [], isAvailable: true,
+    paymentType: 'full',
+    downpaymentType: 'percentage',
+    downpaymentValue: 20,
   };
 
   const [formData, setFormData] = useState(initialFormState);
@@ -213,6 +216,32 @@ const handleEdit = (tour) => {
                   <div><label className="block text-sm font-medium text-gray-700 mb-1">Max Group Size *</label><input type="number" name="maxGroupSize" required min="1" value={formData.maxGroupSize} onChange={handleInputChange} className="w-full p-2 border rounded-lg" /></div>
                   <div><label className="block text-sm font-medium text-gray-700 mb-1">Difficulty *</label><select name="difficulty" required value={formData.difficulty} onChange={handleInputChange} className="w-full p-2 border rounded-lg"><option value="easy">Easy</option><option value="moderate">Moderate</option><option value="challenging">Challenging</option></select></div>
                   <div><label className="block text-sm font-medium text-gray-700 mb-1">Category *</label><select name="category" required value={formData.category} onChange={handleInputChange} className="w-full p-2 border rounded-lg"><option value="">Select a category</option>{categoryOptions.map(cat => <option key={cat} value={cat.toLowerCase()}>{cat}</option>)}</select></div>
+                </div>
+                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 border-t pt-6">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Payment Requirement</label>
+                        <select name="paymentType" value={formData.paymentType} onChange={handleInputChange} className="w-full p-2 border rounded-lg">
+                            <option value="full">Full Payment Required</option>
+                            <option value="downpayment">Downpayment Required</option>
+                        </select>
+                    </div>
+                    {formData.paymentType === 'downpayment' && (
+                        <>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Downpayment Type</label>
+                            <select name="downpaymentType" value={formData.downpaymentType} onChange={handleInputChange} className="w-full p-2 border rounded-lg">
+                                <option value="percentage">Percentage</option>
+                                <option value="fixed">Fixed Amount per Person</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                {formData.downpaymentType === 'percentage' ? 'Percentage (%)' : 'Amount per Person (₱)'}
+                            </label>
+                            <input type="number" name="downpaymentValue" min="0" value={formData.downpaymentValue} onChange={handleInputChange} className="w-full p-2 border rounded-lg" />
+                        </div>
+                        </>
+                    )}
                 </div>
                 <div><label className="block text-sm font-medium text-gray-700 mb-1">Description *</label><textarea name="description" required rows="4" value={formData.description} onChange={handleInputChange} className="w-full p-2 border rounded-lg" /></div>
                 <div>

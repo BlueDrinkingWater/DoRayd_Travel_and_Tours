@@ -212,8 +212,8 @@ const Cars = () => {
               <div className="flex items-center gap-2"><MapPin className="w-4 h-4" /><span>{car.location}</span></div>
             </div>
             
-            <div className="flex items-center justify-between">
-              <div>
+            <div className="flex flex-col items-center gap-4">
+              <div className="text-center">
                 {originalPrice && originalPrice > price && (
                   <span className="text-gray-500 line-through">{formatPrice(originalPrice)}</span>
                 )}
@@ -223,7 +223,7 @@ const Cars = () => {
               <button
                   onClick={() => handleBookCar(car)}
                   disabled={!car.isAvailable}
-                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-6 py-2 rounded-lg font-semibold transform hover:scale-105 transition-transform"
+                  className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-6 py-2 rounded-lg font-semibold transform hover:scale-105 transition-transform"
               >
                   {car.isAvailable ? 'Book Now' : 'Unavailable'}
               </button>

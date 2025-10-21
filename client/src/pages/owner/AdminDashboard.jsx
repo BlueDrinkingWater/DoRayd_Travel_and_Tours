@@ -259,48 +259,49 @@ const AdminDashboard = () => {
     );
 
     return (
-        <div className="flex h-screen bg-gray-50 overflow-hidden" style={{ backgroundImage: `url(${adBG})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
-             <div className="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
-            <aside className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-black/30 backdrop-blur-lg text-white transition-all duration-300 flex flex-col shadow-2xl z-20`}>
-                <div className="p-6 border-b border-white/10">
-                    <div className="flex items-center justify-between">
-                        {sidebarOpen && (
-                            <div>
-                                <h2 className="text-xl font-bold">DoRayd</h2>
-                                <p className="text-white/70 text-xs">Admin Portal</p>
-                            </div>
-                        )}
-                        <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2 hover:bg-white/10 rounded-lg transition-colors">
-                            {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
-                        </button>
-                    </div>
-                </div>
-                <nav className="flex-1 overflow-y-auto py-4">
-                    {navigation.map((item) => {
-                        const Icon = item.icon;
-                        const isActive = location.pathname.startsWith(item.href);
-                        return (
-                            <Link key={item.name} to={item.href} className={`flex items-center gap-3 px-6 py-3 transition-all ${isActive ? 'bg-white/90 text-blue-600' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
-                                <Icon size={20} className={!sidebarOpen ? 'mx-auto' : ''} />
-                                {sidebarOpen && <span className="font-medium">{item.name}</span>}
-                            </Link>
-                        );
-                    })}
-                </nav>
-            </aside>
-            <main className="flex-1 overflow-y-auto z-10">
-                <div className="bg-black/10 backdrop-blur-lg text-white px-8 py-4 sticky top-0 z-10">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <h1 className="text-2xl font-bold text-white">{navigation.find(t => location.pathname.startsWith(t.href))?.name || 'Dashboard'}</h1>
-                            <p className="text-white/80 text-sm">Welcome back, {user?.firstName}!</p>
+        <div className="relative min-h-screen bg-gray-100" style={{ backgroundImage: `url(${adBG})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed' }}>
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm z-0"></div>
+            <div className="relative flex h-full min-h-screen">
+                <aside className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-black/30 backdrop-blur-lg text-white transition-all duration-300 flex flex-col shadow-2xl z-20`}>
+                    <div className="p-6 border-b border-white/10">
+                        <div className="flex items-center justify-between">
+                            {sidebarOpen && (
+                                <div>
+                                    <h2 className="text-xl font-bold">DoRayd</h2>
+                                    <p className="text-white/70 text-xs">Admin Portal</p>
+                                </div>
+                            )}
+                            <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2 hover:bg-white/10 rounded-lg transition-colors">
+                                {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
+                            </button>
                         </div>
                     </div>
+                    <nav className="flex-1 overflow-y-auto py-4">
+                        {navigation.map((item) => {
+                            const Icon = item.icon;
+                            const isActive = location.pathname.startsWith(item.href);
+                            return (
+                                <Link key={item.name} to={item.href} className={`flex items-center gap-3 px-6 py-3 transition-all ${isActive ? 'bg-white/90 text-blue-600' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
+                                    <Icon size={20} className={!sidebarOpen ? 'mx-auto' : ''} />
+                                    {sidebarOpen && <span className="font-medium">{item.name}</span>}
+                                </Link>
+                            );
+                        })}
+                    </nav>
+                </aside>
+                <div className="flex-1 flex flex-col overflow-hidden">
+                    <header className="flex justify-between items-center p-4 bg-white/10 backdrop-blur-lg border-b border-white/20 text-white z-10">
+                        <div className="flex items-center">
+                            <button onClick={() => setSidebarOpen(!sidebarOpen)} className="lg:hidden mr-4"><Menu size={24} /></button>
+                            <h1 className="text-xl font-semibold">{navigation.find(t => location.pathname.startsWith(t.href))?.name || 'Dashboard'}</h1>
+                        </div>
+                    </header>
+                    
+                    <main className="flex-1 overflow-y-auto p-6">
+                       {isDashboardPage ? renderDashboardView() : <Outlet />}
+                    </main>
                 </div>
-                <div className="p-8">
-                    {isDashboardPage ? renderDashboardView() : <Outlet />}
-                </div>
-            </main>
+            </div>
             {selectedBooking && (
                 <BookingDetailModal
                     booking={selectedBooking}

@@ -221,8 +221,8 @@ const Tours = () => {
               <div className="flex items-center gap-2"><Award className="w-4 h-4" /><span className="capitalize">{tour.difficulty || 'Easy'}</span></div>
             </div>
             
-            <div className="flex items-center justify-between">
-              <div>
+            <div className="flex flex-col items-center gap-4">
+              <div className="text-center">
                 {originalPrice && originalPrice > price && (
                     <span className="text-gray-500 line-through">{formatPrice(originalPrice)}</span>
                 )}
@@ -232,7 +232,7 @@ const Tours = () => {
               <button
                   onClick={() => handleBookTour(tour)}
                   disabled={!tour.isAvailable}
-                  className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-6 py-2 rounded-lg font-semibold transform hover:scale-105 transition-transform"
+                  className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-6 py-2 rounded-lg font-semibold transform hover:scale-105 transition-transform"
               >
                   {tour.isAvailable ? 'Book Now' : 'Unavailable'}
               </button>

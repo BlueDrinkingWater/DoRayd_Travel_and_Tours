@@ -130,7 +130,10 @@ export const UnifiedLoginPortal = ({ isOpen, onClose, showRegistration = false }
   const [isFbSdkReady, setIsFbSdkReady] = useState(false);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+        resetForm();
+        return;
+    };
 
     if (!GOOGLE_CLIENT_ID) {
         console.warn('VITE_GOOGLE_CLIENT_ID is not configured in your .env file. Google Login will fail.');

@@ -92,14 +92,15 @@ const FAQChatbot = () => {
     return bestMatch.answer; // Return the default message
   };
 
-  const handleSendMessage = () => {
-    if (!inputValue.trim()) return;
+  const handleSendMessage = (message) => {
+    const text = message || inputValue;
+    if (!text.trim()) return;
 
-    const userMessage = { type: 'user', text: inputValue };
+    const userMessage = { type: 'user', text };
     
     setMessages(prev => [...prev, userMessage]);
 
-    const response = findResponse(inputValue);
+    const response = findResponse(text);
     const botMessage = { type: 'bot', text: response };
     
     setTimeout(() => {
@@ -108,6 +109,13 @@ const FAQChatbot = () => {
 
     setInputValue('');
   };
+
+  const predefinedQuestions = [
+    "How to book a car?",
+    "How to cancel a booking?",
+    "What are the payment methods?",
+    "What are the requirements for renting a car?",
+  ];
 
   return (
     <>
@@ -121,7 +129,7 @@ const FAQChatbot = () => {
 
       {/* Chat Modal */}
       {isOpen && (
-        <div className="fixed bottom-20 right-4 w-80 h-[28rem] bg-white rounded-xl shadow-2xl z-50 flex flex-col animate-in fade-in slide-in-from-bottom-4">
+        <div className="fixed bottom-20 right-4 w-80 h-[32rem] bg-white rounded-xl shadow-2xl z-50 flex flex-col animate-in fade-in slide-in-from-bottom-4">
           <div className="bg-blue-600 text-white p-4 rounded-t-xl flex justify-between items-center">
             <h3 className="font-semibold">FAQ Assistant</h3>
             <button onClick={() => setIsOpen(false)} className="p-1 hover:bg-white/20 rounded-full">&times;</button>
@@ -137,6 +145,19 @@ const FAQChatbot = () => {
                 </div>
               </div>
             ))}
+            {messages.length === 1 && (
+              <div className="space-y-2">
+                {predefinedQuestions.map((q, i) => (
+                  <button
+                    key={i}
+                    onClick={() => handleSendMessage(q)}
+                    className="w-full text-left p-2 bg-gray-100 hover:bg-gray-200 rounded-md text-sm"
+                  >
+                    {q}
+                  </button>
+                ))}
+              </div>
+            )}
             <div ref={messagesEndRef} />
           </div>
           
@@ -151,7 +172,7 @@ const FAQChatbot = () => {
                 className="flex-1 border border-gray-300 rounded-l-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <button
-                onClick={handleSendMessage}
+                onClick={() => handleSendMessage()}
                 className="bg-blue-600 text-white px-4 py-2 rounded-r-md hover:bg-blue-700"
               >
                 Send

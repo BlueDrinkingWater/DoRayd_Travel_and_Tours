@@ -257,8 +257,8 @@ const Home = () => {
                       </div>
                     </div>
                     
-                    <div className="flex items-center justify-between">
-                      <div>
+                    <div className="flex flex-col items-center gap-4">
+                      <div className="text-center">
                         <span className="text-2xl font-bold text-blue-600">
                           {formatPrice(car.pricePerDay)}
                         </span>
@@ -267,7 +267,7 @@ const Home = () => {
                       <button
                         onClick={() => handleBookNow(car, 'car')}
                         disabled={!car.isAvailable}
-                        className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg font-semibold transition-colors transform hover:scale-105"
+                        className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg font-semibold transition-colors transform hover:scale-105"
                       >
                         {car.isAvailable ? 'Book Now' : 'Unavailable'}
                       </button>
@@ -360,8 +360,8 @@ const Home = () => {
                       </div>
                     </div>
                     
-                    <div className="flex items-center justify-between">
-                      <div>
+                    <div className="flex flex-col items-center gap-4">
+                      <div className="text-center">
                         <span className="text-2xl font-bold text-green-600">
                           {formatPrice(tour.price)}
                         </span>
@@ -370,7 +370,7 @@ const Home = () => {
                       <button
                         onClick={() => handleBookNow(tour, 'tour')}
                         disabled={!tour.isAvailable}
-                        className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg font-semibold transition-colors transform hover:scale-105"
+                        className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg font-semibold transition-colors transform hover:scale-105"
                       >
                         {tour.isAvailable ? 'Book Now' : 'Unavailable'}
                       </button>

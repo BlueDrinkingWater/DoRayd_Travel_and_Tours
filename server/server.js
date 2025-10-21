@@ -29,6 +29,7 @@ import feedbackRoutes from './routes/feedback.js';
 import notificationRoutes from './routes/notification.js';
 import analyticsRoutes from './routes/analytics.js';
 import activityLogRoutes from './routes/activityLog.js';
+import imageRoutes from './routes/images.js'; // --- NEW IMPORT ---
 
 // Error Handler
 import { errorHandler } from './middleware/errorHandler.js';
@@ -131,6 +132,7 @@ app.use('/api/feedback', feedbackRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/activity-log', activityLogRoutes);
+app.use('/api/images', imageRoutes); // --- NEW ROUTE REGISTRATION ---
 
 // Error Handling Middleware
 app.use(errorHandler);

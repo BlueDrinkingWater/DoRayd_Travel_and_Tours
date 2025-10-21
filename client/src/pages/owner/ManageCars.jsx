@@ -19,7 +19,10 @@ const ManageCars = () => {
     transmission: 'automatic', fuelType: 'gasoline', pricePerDay: '',
     location: '', description: '', features: [], images: [],
     isAvailable: true,
-    pickupLocations: []
+    pickupLocations: [],
+    paymentType: 'full',
+    downpaymentType: 'percentage',
+    downpaymentValue: 20,
   };
 
   const [formData, setFormData] = useState(initialFormState);
@@ -256,6 +259,32 @@ const ManageCars = () => {
                     <div><label className="block text-sm font-medium text-gray-700 mb-1">Fuel Type *</label><select name="fuelType" required value={formData.fuelType} onChange={handleInputChange} className="w-full p-2 border rounded-lg"><option value="gasoline">Gasoline</option><option value="diesel">Diesel</option><option value="hybrid">Hybrid</option><option value="electric">Electric</option></select></div>
                     <div><label className="block text-sm font-medium text-gray-700 mb-1">Price Per Day (₱) *</label><input type="number" name="pricePerDay" required min="0" step="0.01" value={formData.pricePerDay} onChange={handleInputChange} className="w-full p-2 border rounded-lg" placeholder="2500.00" /></div>
                     <div><label className="block text-sm font-medium text-gray-700 mb-1">Location *</label><input type="text" name="location" required value={formData.location} onChange={handleInputChange} className="w-full p-2 border rounded-lg" placeholder="Manila, Cebu, etc." /></div>
+                </div>
+                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 border-t pt-6">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Payment Requirement</label>
+                        <select name="paymentType" value={formData.paymentType} onChange={handleInputChange} className="w-full p-2 border rounded-lg">
+                            <option value="full">Full Payment Required</option>
+                            <option value="downpayment">Downpayment Required</option>
+                        </select>
+                    </div>
+                    {formData.paymentType === 'downpayment' && (
+                        <>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Downpayment Type</label>
+                            <select name="downpaymentType" value={formData.downpaymentType} onChange={handleInputChange} className="w-full p-2 border rounded-lg">
+                                <option value="percentage">Percentage</option>
+                                <option value="fixed">Fixed Amount per Day</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                {formData.downpaymentType === 'percentage' ? 'Percentage (%)' : 'Amount per Day (₱)'}
+                            </label>
+                            <input type="number" name="downpaymentValue" min="0" value={formData.downpaymentValue} onChange={handleInputChange} className="w-full p-2 border rounded-lg" />
+                        </div>
+                        </>
+                    )}
                 </div>
                 <div><label className="block text-sm font-medium text-gray-700 mb-1">Description</label><textarea name="description" rows="4" value={formData.description} onChange={handleInputChange} className="w-full p-2 border rounded-lg" placeholder="Describe the car features, condition, etc." /></div>
                 <div>

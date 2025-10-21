@@ -15,6 +15,8 @@ export const getImageUrl = (path) => {
   }
   // If the path is already a full, absolute URL (like from Cloudinary),
   // return it directly without any changes.
+  // CRITICAL: Files secured with 'authenticated' access will return a full URL 
+  // but will require the 'secure' endpoint if the user isn't logged in.
   if (path.startsWith('http://') || path.startsWith('https://')) {
     return path;
   }
@@ -143,6 +145,25 @@ const DataService = {
       return handleError(error, 'Failed to reset password.');
     }
   },
+  
+  // --- NEW: Secure Image Retrieval ---
+  /**
+   * Requests a secure, authenticated URL from the backend for a private image path.
+   * @param {string} publicId - The public ID (or serverId) of the image.
+   * @returns {Promise<{success: boolean, data: {url: string}}>} The signed URL object.
+   */
+  getSecureImageUrl: async (publicId) => {
+    try {
+      // The public_id contains slashes, so it must be URI encoded
+      const encodedId = encodeURIComponent(publicId);
+      const response = await api.get(`/api/images/secure/${encodedId}`);
+      return response.data;
+    } catch (error) {
+      // This will fail if the user is not authenticated or authorized
+      return handleError(error, 'Failed to fetch secure image URL. Authentication required.');
+    }
+  },
+  // --- END NEW SECURE IMAGE RETRIEVAL ---
 
   // --- Notifications ---
   fetchMyNotifications: async () => {

@@ -3,6 +3,7 @@ import { useAuth } from '../../components/Login.jsx';
 import DataService, { getImageUrl } from '../../components/services/DataService.jsx';
 import { User, Edit, Save, X, Key, Shield, AlertTriangle, Upload } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useSecureImage } from '../../hooks/useSecureImage.jsx'; // --- NEW IMPORT ---
 
 const AccountSettings = () => {
     const { user, refreshUser, logout } = useAuth();
@@ -24,6 +25,10 @@ const AccountSettings = () => {
     const [passwordMessage, setPasswordMessage] = useState({ type: '', text: '' });
     const [deleteMessage, setDeleteMessage] = useState({ type: '', text: '' });
     const [isEditing, setIsEditing] = useState(false);
+
+    // --- USE SECURE HOOK FOR PROFILE PICTURE ---
+    const { secureUrl: profilePicUrl, loading: profilePicLoading } = useSecureImage(user?.profilePicture);
+    // --- END USE SECURE HOOK ---
 
     const fileInputRef = useRef(null);
 
@@ -125,11 +130,17 @@ const AccountSettings = () => {
                 <Message type={profileMessage.type} text={profileMessage.text} />
                 <div className="flex items-center gap-6 mt-4">
                     <div className="relative">
-                        <img
-                            src={getImageUrl(user?.profilePicture) || `https://ui-avatars.com/api/?name=${user?.firstName}+${user?.lastName}&background=random&color=fff`}
-                            alt="Profile"
-                            className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-md"
-                        />
+                        {/* --- USE secureUrl here for profile picture --- */}
+                        {profilePicLoading ? (
+                            <div className="w-24 h-24 rounded-full bg-gray-200 animate-pulse border-4 border-white shadow-md flex items-center justify-center text-sm">Loading...</div>
+                        ) : (
+                            <img
+                                src={profilePicUrl || `https://ui-avatars.com/api/?name=${user?.firstName}+${user?.lastName}&background=random&color=fff`}
+                                alt="Profile"
+                                className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-md"
+                            />
+                        )}
+                        {/* --- END USE secureUrl --- */}
                         <button
                             onClick={() => fileInputRef.current.click()}
                             className="absolute -bottom-1 -right-1 bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-full border-2 border-white"

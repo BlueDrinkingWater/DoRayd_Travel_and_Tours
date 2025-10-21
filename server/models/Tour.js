@@ -82,6 +82,20 @@ const tourSchema = new mongoose.Schema({
   featured: {
     type: Boolean,
     default: false
+  },
+  paymentType: {
+    type: String,
+    enum: ['full', 'downpayment'],
+    default: 'full'
+  },
+  downpaymentType: {
+    type: String,
+    enum: ['fixed', 'percentage'],
+    default: 'percentage'
+  },
+  downpaymentValue: {
+    type: Number,
+    default: 20 // Default to 20%
   }
 }, {
   timestamps: true,

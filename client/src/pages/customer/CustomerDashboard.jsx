@@ -6,12 +6,10 @@ import { useAuth } from '@/components/Login.jsx';
 import { useApi } from '@/hooks/useApi.jsx';
 import DataService, { getImageUrl } from '@/components/services/DataService.jsx';
 import AccountSettings from '@/pages/shared/AccountSettings.jsx';
-import bgTour from '@/assets/bgTour.jpg'; // Import the background image
+import bgTour from '@/assets/bgTour.jpg';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
-import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
-
 
 // --- Helper Functions ---
 const formatDateTime = (dateString) => {
@@ -160,120 +158,122 @@ const CustomerDashboard = () => {
     }
 
     return (
-        <div className="flex h-screen bg-gray-50 overflow-hidden" style={{ backgroundImage: `url(${bgTour})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
-             <div className="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
-            {/* Sidebar */}
-            <aside className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-black/30 backdrop-blur-lg text-white transition-all duration-300 flex flex-col shadow-2xl z-20`}>
-                {/* Sidebar Header */}
-                <div className="p-6 border-b border-white/10">
-                    <div className="flex items-center justify-between">
-                        {sidebarOpen && (
-                            <div>
-                                <h2 className="text-xl font-bold">DoRayd</h2>
-                                <p className="text-white/70 text-xs">Travel & Tours</p>
-                            </div>
-                        )}
-                        <button 
-                            onClick={() => setSidebarOpen(!sidebarOpen)}
-                            className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-                        >
-                            {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
-                        </button>
-                    </div>
-                </div>
-
-                {/* User Info */}
-                {sidebarOpen && (
+        <div className="relative min-h-screen bg-gray-100" style={{ backgroundImage: `url(${bgTour})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed' }}>
+             <div className="absolute inset-0 bg-black/50 backdrop-blur-sm z-0"></div>
+             <div className="relative flex w-full min-h-screen">
+                {/* Sidebar */}
+                <aside className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-black/30 backdrop-blur-lg text-white transition-all duration-300 flex flex-col shadow-2xl z-20 flex-shrink-0`}>
+                    {/* Sidebar Header */}
                     <div className="p-6 border-b border-white/10">
-                        <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center font-bold text-lg">
-                                {user?.firstName?.[0]}{user?.lastName?.[0]}
-                            </div>
-                            <div>
-                                <p className="font-semibold">{user?.firstName} {user?.lastName}</p>
-                                <p className="text-white/70 text-sm">Customer</p>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {/* Navigation */}
-                <nav className="flex-1 overflow-y-auto py-4">
-                    {tabs.map((tab) => {
-                        const Icon = tab.icon;
-                        return (
-                            <button
-                                key={tab.id}
-                                onClick={() => setActiveTab(tab.id)}
-                                className={`w-full flex items-center gap-3 px-6 py-3 transition-all ${
-                                    activeTab === tab.id
-                                        ? 'bg-white/90 text-blue-600'
-                                        : 'text-white/80 hover:bg-white/10 hover:text-white'
-                                }`}
+                        <div className="flex items-center justify-between">
+                            {sidebarOpen && (
+                                <div>
+                                    <h2 className="text-xl font-bold">DoRayd</h2>
+                                    <p className="text-white/70 text-xs">Travel & Tours</p>
+                                </div>
+                            )}
+                            <button 
+                                onClick={() => setSidebarOpen(!sidebarOpen)}
+                                className="p-2 hover:bg-white/10 rounded-lg transition-colors"
                             >
-                                <Icon size={20} />
-                                {sidebarOpen && <span className="font-medium">{tab.label}</span>}
+                                {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
                             </button>
-                        );
-                    })}
-                </nav>
-
-                {/* Footer */}
-                {sidebarOpen && (
-                    <div className="p-4 border-t border-white/10">
-                        <p className="text-white/70 text-xs text-center">© 2024 DoRayd Tours</p>
-                    </div>
-                )}
-            </aside>
-
-            {/* Main Content */}
-            <main className="flex-1 overflow-y-auto z-10">
-                {/* Top Bar */}
-                <div className="bg-black/10 backdrop-blur-lg text-white px-8 py-4 sticky top-0 z-10">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <h1 className="text-2xl font-bold text-white">
-                                {tabs.find(t => t.id === activeTab)?.label}
-                            </h1>
-                            <p className="text-white/80 text-sm">Welcome back, {user?.firstName}!</p>
                         </div>
                     </div>
-                </div>
 
-                {/* Content Area */}
-                <div className="p-8">
-                    {activeTab === 'overview' && (
-                        <>
-                            {/* Stats Grid */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                                {stats.map((stat, index) => (
-                                    <StatCard key={index} {...stat} />
-                                ))}
+                    {/* User Info */}
+                    {sidebarOpen && (
+                        <div className="p-6 border-b border-white/10">
+                            <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center font-bold text-lg">
+                                    {user?.firstName?.[0]}{user?.lastName?.[0]}
+                                </div>
+                                <div>
+                                    <p className="font-semibold">{user?.firstName} {user?.lastName}</p>
+                                    <p className="text-white/70 text-sm">Customer</p>
+                                </div>
                             </div>
-                            <OverviewTab bookings={bookings} onBookingSelect={setSelectedBooking} />
-                        </>
+                        </div>
                     )}
-                    {activeTab === 'bookings' && <BookingsTab bookings={bookings} onBookingSelect={setSelectedBooking} />}
-                    {activeTab === 'reviews' && <MyReviewsTab reviews={myReviews} />}
-                    {activeTab === 'feedback' && <MyFeedbackTab feedback={myFeedback} />}
-                    {activeTab === 'leave-review' && (
-                        <LeaveReviewTab 
-                            bookings={completedBookings} 
-                            reviewedBookingIds={reviewedBookingIds}
-                            onReviewSubmit={refetchReviews}
-                        />
+
+                    {/* Navigation */}
+                    <nav className="flex-1 overflow-y-auto py-4">
+                        {tabs.map((tab) => {
+                            const Icon = tab.icon;
+                            return (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => setActiveTab(tab.id)}
+                                    className={`w-full flex items-center gap-3 px-6 py-3 transition-all ${
+                                        activeTab === tab.id
+                                            ? 'bg-white/90 text-blue-600'
+                                            : 'text-white/80 hover:bg-white/10 hover:text-white'
+                                    }`}
+                                >
+                                    <Icon size={20} />
+                                    {sidebarOpen && <span className="font-medium">{tab.label}</span>}
+                                </button>
+                            );
+                        })}
+                    </nav>
+
+                    {/* Footer */}
+                    {sidebarOpen && (
+                        <div className="p-4 border-t border-white/10">
+                            <p className="text-white/70 text-xs text-center">© 2024 DoRayd Tours</p>
+                        </div>
                     )}
-                    {activeTab === 'leave-feedback' && (
-                        <LeaveFeedbackTab 
-                            bookings={completedBookings} 
-                            feedbackBookingIds={feedbackBookingIds}
-                            onFeedbackSubmit={refetchFeedback}
-                        />
-                    )}
-                    {activeTab === 'public-feedback' && <PublicFeedbackTab feedback={publicFeedback} />}
-                    {activeTab === 'settings' && <AccountSettings />}
-                </div>
-            </main>
+                </aside>
+
+                {/* Main Content */}
+                <main className="flex-1 overflow-y-auto z-10">
+                    {/* Top Bar */}
+                    <div className="bg-black/10 backdrop-blur-lg text-white px-8 py-4 sticky top-0 z-10">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h1 className="text-2xl font-bold text-white">
+                                    {tabs.find(t => t.id === activeTab)?.label}
+                                </h1>
+                                <p className="text-white/80 text-sm">Welcome back, {user?.firstName}!</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Content Area */}
+                    <div className="p-8">
+                        {activeTab === 'overview' && (
+                            <>
+                                {/* Stats Grid */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                                    {stats.map((stat, index) => (
+                                        <StatCard key={index} {...stat} />
+                                    ))}
+                                </div>
+                                <OverviewTab bookings={bookings} onBookingSelect={setSelectedBooking} />
+                            </>
+                        )}
+                        {activeTab === 'bookings' && <BookingsTab bookings={bookings} onBookingSelect={setSelectedBooking} />}
+                        {activeTab === 'reviews' && <MyReviewsTab reviews={myReviews} />}
+                        {activeTab === 'feedback' && <MyFeedbackTab feedback={myFeedback} />}
+                        {activeTab === 'leave-review' && (
+                            <LeaveReviewTab 
+                                bookings={completedBookings} 
+                                reviewedBookingIds={reviewedBookingIds}
+                                onReviewSubmit={refetchReviews}
+                            />
+                        )}
+                        {activeTab === 'leave-feedback' && (
+                            <LeaveFeedbackTab 
+                                bookings={completedBookings} 
+                                feedbackBookingIds={feedbackBookingIds}
+                                onFeedbackSubmit={refetchFeedback}
+                            />
+                        )}
+                        {activeTab === 'public-feedback' && <PublicFeedbackTab feedback={publicFeedback} />}
+                        {activeTab === 'settings' && <AccountSettings />}
+                    </div>
+                </main>
+            </div>
             
             {selectedBooking && (
                 <BookingDetailModal
@@ -846,4 +846,3 @@ const getStatusColorForCalendar = (status) => {
 }
 
 export default CustomerDashboard;
-

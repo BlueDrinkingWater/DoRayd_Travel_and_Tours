@@ -107,9 +107,9 @@ const EmployeeDashboard = () => {
   );
 
   return (
-    <div className="relative h-screen bg-gray-100" style={{ backgroundImage: `url(${adBG})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
+    <div className="relative min-h-screen bg-gray-100" style={{ backgroundImage: `url(${adBG})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed' }}>
         <div className="absolute inset-0 bg-black/50 backdrop-blur-sm z-0"></div>
-        <div className="relative flex h-full">
+        <div className="relative flex h-full min-h-screen">
             <aside className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-black/30 backdrop-blur-lg text-white transition-all duration-300 flex flex-col shadow-2xl z-20`}>
                 <div className="p-6 border-b border-white/10">
                     <div className="flex items-center justify-between">

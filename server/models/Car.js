@@ -86,7 +86,21 @@ const carSchema = new mongoose.Schema({
   pickupLocations: [{
     type: String,
     trim: true
-  }]
+  }],
+  paymentType: {
+    type: String,
+    enum: ['full', 'downpayment'],
+    default: 'full'
+  },
+  downpaymentType: {
+    type: String,
+    enum: ['fixed', 'percentage'],
+    default: 'percentage'
+  },
+  downpaymentValue: {
+    type: Number,
+    default: 20 // Default to 20%
+  }
 }, {
   timestamps: true,
   toJSON: { virtuals: true },

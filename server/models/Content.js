@@ -22,7 +22,7 @@ const contentSchema = new mongoose.Schema(
         "contactHours",
         "officeLocation"
       ],
-      trim: true,
+      trim: true,a
     },
     title: {
       type: String,

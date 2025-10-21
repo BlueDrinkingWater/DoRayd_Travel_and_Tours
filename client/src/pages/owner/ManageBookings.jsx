@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, Filter, Eye, Check, X, Clock, Calendar, Users, MapPin, Phone, Mail, FileText, Image as ImageIcon, Link as LinkIcon, Hash, Car, Package, DollarSign, Tag } from 'lucide-react';
 import { useApi } from '../../hooks/useApi';
 import DataService, { getImageUrl } from '../../components/services/DataService';
+import { useSecureImage } from '../../hooks/useSecureImage.jsx'; // --- NEW IMPORT ---
 
 const ManageBookings = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -14,6 +15,10 @@ const ManageBookings = () => {
   const [updating, setUpdating] = useState(false);
   
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(searchTerm);
+  
+  // --- NEW HOOK CALL FOR MODAL IMAGE RETRIEVAL ---
+  const { secureUrl: paymentProofUrl, loading: paymentProofLoading } = useSecureImage(selectedBooking?.paymentProofUrl);
+  // --- END NEW HOOK CALL ---
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -268,13 +273,26 @@ const ManageBookings = () => {
                     </div>
                     <InfoRow label="Amount Paid" value={formatPrice(selectedBooking.amountPaid)} icon={DollarSign} />
                     <InfoRow label="Payment Reference" value={selectedBooking.paymentReference} icon={Hash} />
+                    {/* --- SECURE IMAGE RETRIEVAL FOR PAYMENT PROOF --- */}
                     {selectedBooking.paymentProofUrl ? (
-                      <a href={getImageUrl(selectedBooking.paymentProofUrl)} target="_blank" rel="noopener noreferrer" className="mt-4 block">
-                        <img src={getImageUrl(selectedBooking.paymentProofUrl)} alt="Payment Proof" className="w-full h-auto rounded-lg object-contain border" />
-                      </a>
+                      paymentProofLoading ? (
+                          <div className="w-full h-40 bg-gray-200 animate-pulse flex items-center justify-center text-xs text-gray-500 rounded-lg">Loading Proof...</div>
+                      ) : (
+                          <a href={paymentProofUrl} target="_blank" rel="noopener noreferrer" className="mt-4 block">
+                              <img 
+                                  src={paymentProofUrl} 
+                                  alt="Payment Proof" 
+                                  className="w-full h-auto max-h-64 rounded-lg object-contain border" 
+                                  onError={(e) => { 
+                                      e.target.onerror = null; e.target.src = 'https://placehold.co/300x200/fecaca/991b1b?text=Error/Expired'; 
+                                  }}
+                              />
+                          </a>
+                      )
                     ) : (
                       <p className="text-sm text-gray-500 text-center py-8">No payment proof uploaded.</p>
                     )}
+                    {/* --- END SECURE IMAGE RETRIEVAL --- */}
                   </InfoBlock>
 
                   <InfoBlock title="Admin Actions" icon={FileText}>

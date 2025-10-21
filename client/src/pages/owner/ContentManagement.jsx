@@ -18,6 +18,7 @@ const ContentManagement = () => {
     { key: 'terms', label: 'Terms & Conditions', icon: Shield, description: 'Terms of service and conditions.', type: 'textarea' },
     { key: 'privacy', label: 'Privacy Policy', icon: Shield, description: 'Privacy policy and data protection.', type: 'textarea' },
     { key: 'bookingTerms', label: 'Booking Terms', icon: FileText, description: 'Text for the booking modal agreement.', type: 'textarea' },
+    { key: 'bookingDisclaimer', label: 'Booking Disclaimer', icon: FileText, description: 'A short disclaimer in the booking modal.', type: 'textarea' },
     { key: 'contactPhone', label: 'Contact Phone', icon: Phone, description: 'Publicly displayed phone number.', type: 'input' },
     { key: 'contactEmail', label: 'Contact Email', icon: Phone, description: 'Publicly displayed email address.', type: 'input' },
     { key: 'contactAddress', label: 'Contact Address', icon: MapPin, description: 'Main office or contact address.', type: 'textarea' },

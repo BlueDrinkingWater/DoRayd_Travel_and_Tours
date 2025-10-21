@@ -14,6 +14,7 @@ const contentSchema = new mongoose.Schema(
         "privacy",
         "contact",
         "bookingTerms",
+        "bookingDisclaimer",
         "paymentQR",
         "aboutImage",
         "contactPhone",
@@ -22,7 +23,7 @@ const contentSchema = new mongoose.Schema(
         "contactHours",
         "officeLocation"
       ],
-      trim: true,a
+      trim: true,
     },
     title: {
       type: String,

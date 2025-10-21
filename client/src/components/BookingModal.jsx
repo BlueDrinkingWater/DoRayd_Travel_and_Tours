@@ -24,6 +24,14 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
     return `${prefix}-${timestamp}-${random}`;
   }, [isOpen]);
 
+  // Helper to get today's date in YYYY-MM-DD format
+  const getTodayString = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Normalize to the start of the day
+    return today.toISOString().split('T')[0];
+  };
+
+
   useEffect(() => {
     if (isOpen) {
         if (item?.paymentType === 'downpayment' && item?.downpaymentValue > 0) {
@@ -77,10 +85,12 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
 
   useEffect(() => {
     if (isOpen) {
+      const todayStr = getTodayString();
       const initialState = {
           firstName: user?.firstName || '', lastName: user?.lastName || '',
           email: user?.email || '', phone: user?.phone || '', address: user?.address || '',
-          startDate: '', time: '', numberOfDays: 1, numberOfGuests: 1,
+          startDate: itemType === 'car' ? todayStr : '', // Default to today for cars
+          time: '', numberOfDays: 1, numberOfGuests: 1,
           specialRequests: '', agreedToTerms: false, paymentProof: null,
           pickupLocation: itemType === 'car' ? (item?.pickupLocations?.[0] || '') : '',
           dropoffLocation: '', dropoffCoordinates: null, deliveryMethod: 'pickup',
@@ -93,6 +103,7 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
       }
       
       setFormData(initialState);
+      // Reset dependent states; they will be recalculated in the next effect
       setTotalPrice(0);
       setCalculatedEndDate(null);
       setSubmitError('');
@@ -101,6 +112,7 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
   }, [isOpen, item, itemType, user]);
 
   useEffect(() => {
+    // This effect now runs immediately after the state is initialized
     if (itemType === 'car' && formData.startDate && formData.numberOfDays > 0) {
       const startDate = new Date(formData.startDate);
       const endDate = new Date(startDate);
@@ -144,20 +156,43 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
     e.preventDefault();
     setSubmitError('');
 
-    // --- MANUALLY VALIDATE FIELDS IN ORDER ---
-    if (!formData.paymentProof) {
-        return setSubmitError('Uploading proof of payment is required.');
+    // --- FORM VALIDATION ---
+    const requiredFields = {
+      firstName: "First Name",
+      lastName: "Last Name",
+      email: "Email Address",
+      phone: "Phone Number",
+      address: "Address",
+      startDate: "Start Date",
+      time: "Time",
+      paymentProof: "Payment Proof",
+      amountPaid: "Amount Paid",
+      manualPaymentReference: "Bank Reference Number",
+    };
+
+    for (const field in requiredFields) {
+      if (!formData[field]) {
+        return setSubmitError(`${requiredFields[field]} is required.`);
+      }
     }
-    if (!formData.amountPaid || parseFloat(formData.amountPaid) <= 0) {
-        return setSubmitError('Please enter a valid amount paid.');
+    
+    if (itemType === 'car') {
+      if (formData.deliveryMethod === 'pickup' && !formData.pickupLocation) {
+        return setSubmitError("Pickup location is required.");
+      }
+      if (formData.deliveryMethod === 'dropoff' && !formData.dropoffLocation) {
+        return setSubmitError("Dropoff location is required.");
+      }
     }
-    if (parseFloat(formData.amountPaid) !== requiredPayment) {
-      return setSubmitError(`The amount paid must be exactly ${formatPrice(requiredPayment)}.`);
-    }
+
     if (!formData.agreedToTerms) {
       return setSubmitError('You must agree to the terms to proceed.');
     }
     
+    if (parseFloat(formData.amountPaid) !== requiredPayment) {
+      return setSubmitError(`The amount paid must be exactly ${formatPrice(requiredPayment)}.`);
+    }
+
     setSubmitting(true);
     try {
       const bookingData = new FormData();
@@ -196,6 +231,14 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
   };
 
   const formatPrice = (price) => new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(price);
+  const formatDate = (date) => date ? new Date(date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'N/A';
+  const formatTime = (time) => {
+    if (!time) return 'N/A';
+    const [hours, minutes] = time.split(':');
+    const date = new Date();
+    date.setHours(hours, minutes);
+    return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+  }
 
   if (!isOpen) return null;
   
@@ -255,6 +298,7 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
                       <CalendarBooking
                         serviceId={item._id}
                         onDateSelect={handleDateSelect}
+                        initialDate={formData.startDate}
                       />
                       <div className="bg-gray-50 p-4 rounded-lg">
                           <h3 className="font-semibold mb-3">Rental Details</h3>
@@ -309,7 +353,7 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
                         </div>
                     )}
 
-                    {item.paymentType === 'downpayment' && calculatedDownpayment > 0 && calculatedDownpayment < totalPrice && (
+                    {item.paymentType === 'downpayment' && item.downpaymentValue > 0 && (
                         <div className="mb-4">
                             <label className="block text-sm font-medium text-gray-700 mb-2">Payment Option</label>
                             <div className="flex gap-4">
@@ -354,24 +398,60 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
                   {/* Summary */}
                   <div className="bg-gray-50 p-4 rounded-lg">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">Booking Summary</h3>
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-center">
-                        <span className="text-lg font-semibold text-gray-900">Total Amount:</span>
-                        <span className="text-2xl font-bold text-blue-600">{formatPrice(totalPrice)}</span>
+                    <div className="space-y-2 text-sm">
+                      {/* Personal Info */}
+                      <div className="flex justify-between"><span className="text-gray-600">Name:</span><span className="font-medium text-right">{formData.firstName} {formData.lastName}</span></div>
+                      <div className="flex justify-between"><span className="text-gray-600">Address:</span><span className="font-medium text-right">{formData.address}</span></div>
+                      <div className="flex justify-between"><span className="text-gray-600">Email:</span><span className="font-medium text-right">{formData.email}</span></div>
+                      <div className="flex justify-between"><span className="text-gray-600">Phone:</span><span className="font-medium text-right">{formData.phone}</span></div>
+                      
+                      <hr className="my-2"/>
+
+                      {/* Booking Details */}
+                      <div className="flex justify-between"><span className="text-gray-600">From:</span><span className="font-medium text-right">{formatDate(formData.startDate)}</span></div>
+                      <div className="flex justify-between"><span className="text-gray-600">To:</span><span className="font-medium text-right">{formatDate(calculatedEndDate)}</span></div>
+                      <div className="flex justify-between"><span className="text-gray-600">Time:</span><span className="font-medium text-right">{formatTime(formData.time)}</span></div>
+                      {itemType === 'car' && (
+                        <div className="flex justify-between"><span className="text-gray-600">Delivery:</span><span className="font-medium capitalize text-right">{formData.deliveryMethod === 'pickup' ? formData.pickupLocation : formData.dropoffLocation}</span></div>
+                      )}
+                      {itemType === 'tour' && (
+                        <div className="flex justify-between"><span className="text-gray-600">Guests:</span><span className="font-medium text-right">{formData.numberOfGuests}</span></div>
+                      )}
+                      
+                      <hr className="my-2"/>
+                      
+                      {/* Payment Info */}
+                      <div className="flex justify-between"><span className="text-gray-600">Payment Ref:</span><span className="font-medium text-right">{paymentReferenceCode}</span></div>
+                      <div className="flex justify-between"><span className="text-gray-600">Bank Ref:</span><span className="font-medium text-right">{formData.manualPaymentReference}</span></div>
+                      <div className="flex justify-between"><span className="text-gray-600">Payment Option:</span><span className="font-medium capitalize text-right">{selectedPaymentOption}</span></div>
+                      
+                      <div className="flex justify-between items-center mt-4 pt-2 border-t">
+                        <span className="font-semibold text-gray-900">Total Amount:</span>
+                        <span className="font-bold text-lg text-blue-600">{formatPrice(totalPrice)}</span>
                       </div>
+
+                      {selectedPaymentOption === 'downpayment' && (
+                        <div className="flex justify-between">
+                          <span className="font-semibold text-gray-900">Downpayment Due:</span>
+                          <span className="font-bold text-lg">{formatPrice(calculatedDownpayment)}</span>
+                        </div>
+                      )}
+
                       <div className="flex justify-between items-center text-red-600">
                         <span className="text-lg font-semibold">
-                          Amount Due Now:
+                          Amount to Pay Now:
                         </span>
                         <span className="text-2xl font-bold">{formatPrice(requiredPayment)}</span>
                       </div>
+                      
                       {selectedPaymentOption === 'downpayment' && (
-                        <p className="text-xs text-gray-500 text-center">
+                        <p className="text-xs text-gray-500 text-center pt-2">
                           The remaining balance of {formatPrice(totalPrice - requiredPayment)} will be due at the time of service.
                         </p>
                       )}
                     </div>
                   </div>
+
 
                   {/* Terms & Policies */}
                   <div className="space-y-4">

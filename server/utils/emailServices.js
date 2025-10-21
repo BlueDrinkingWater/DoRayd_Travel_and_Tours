@@ -2,6 +2,7 @@
 import { Resend } from 'resend';
 import dotenv from 'dotenv';
 import fs from 'fs/promises';
+import axios from 'axios';
 
 dotenv.config();
 
@@ -153,14 +154,31 @@ class EmailService {
         <p><strong>Date:</strong> ${new Date(booking.startDate).toLocaleDateString()}</p>
         <p><strong>Total Price:</strong> PHP ${booking.totalPrice.toLocaleString()}</p>
       </div>
-      ${booking.adminNotes ? `<p style="margin-top: 15px;"><strong>A note from our team:</strong> ${booking.adminNotes}</p>` : ''}
+      ${booking.notes && booking.notes.length > 0 ? `<p style="margin-top: 15px;"><strong>A note from our team:</strong> ${booking.notes[booking.notes.length - 1].note}</p>` : ''}
     `;
+
+    let attachments = [];
+    if (booking.notes && booking.notes.length > 0) {
+      const lastNote = booking.notes[booking.notes.length - 1];
+      if (lastNote.attachment) {
+        try {
+          const response = await axios.get(lastNote.attachment, { responseType: 'arraybuffer' });
+          attachments.push({
+            filename: lastNote.attachmentOriginalName,
+            content: Buffer.from(response.data),
+          });
+        } catch (error) {
+          console.error("Failed to fetch attachment for email:", error);
+        }
+      }
+    }
 
     const mailOptions = {
       from: `DoRayd Travel & Tours <${this.fromAddress}>`,
       to: booking.email,
       subject: subject,
       html: createEmailTemplate(subject, content),
+      attachments,
     };
     await this.sendEmail(mailOptions);
     return { success: true, message: 'Booking approval email sent successfully' };
@@ -178,15 +196,32 @@ class EmailService {
         <p><strong>Service:</strong> ${booking.itemName}</p>
         <p><strong>Date:</strong> ${new Date(booking.startDate).toLocaleDateString()}</p>
       </div>
-      ${booking.adminNotes ? `<p style="margin-top: 15px;"><strong>Reason:</strong> ${booking.adminNotes}</p>` : ''}
+      ${booking.notes && booking.notes.length > 0 ? `<p style="margin-top: 15px;"><strong>Reason:</strong> ${booking.notes[booking.notes.length - 1].note}</p>` : ''}
       <p>We appreciate your understanding and hope to serve you in the future.</p>
     `;
+
+    let attachments = [];
+    if (booking.notes && booking.notes.length > 0) {
+      const lastNote = booking.notes[booking.notes.length - 1];
+      if (lastNote.attachment) {
+        try {
+          const response = await axios.get(lastNote.attachment, { responseType: 'arraybuffer' });
+          attachments.push({
+            filename: lastNote.attachmentOriginalName,
+            content: Buffer.from(response.data),
+          });
+        } catch (error) {
+          console.error("Failed to fetch attachment for email:", error);
+        }
+      }
+    }
 
     const mailOptions = {
       from: `DoRayd Travel & Tours <${this.fromAddress}>`,
       to: booking.email,
       subject: subject,
       html: createEmailTemplate(subject, content),
+      attachments,
     };
     await this.sendEmail(mailOptions);
     return { success: true, message: 'Booking rejection email sent successfully' };
@@ -204,13 +239,31 @@ class EmailService {
         <p><strong>Service:</strong> ${booking.itemName}</p>
         <p><strong>Date:</strong> ${new Date(booking.startDate).toLocaleDateString()}</p>
       </div>
-      ${booking.adminNotes ? `<p style="margin-top: 15px;"><strong>Notes:</strong> ${booking.adminNotes}</p>` : ''}
+      ${booking.notes && booking.notes.length > 0 ? `<p style="margin-top: 15px;"><strong>Notes:</strong> ${booking.notes[booking.notes.length - 1].note}</p>` : ''}
     `;
+
+    let attachments = [];
+    if (booking.notes && booking.notes.length > 0) {
+      const lastNote = booking.notes[booking.notes.length - 1];
+      if (lastNote.attachment) {
+        try {
+          const response = await axios.get(lastNote.attachment, { responseType: 'arraybuffer' });
+          attachments.push({
+            filename: lastNote.attachmentOriginalName,
+            content: Buffer.from(response.data),
+          });
+        } catch (error) {
+          console.error("Failed to fetch attachment for email:", error);
+        }
+      }
+    }
+    
     const mailOptions = {
       from: `DoRayd Travel & Tours <${this.fromAddress}>`,
       to: booking.email,
       subject: subject,
       html: createEmailTemplate(subject, content),
+      attachments,
     };
     await this.sendEmail(mailOptions);
     return { success: true, message: 'Booking cancellation email sent' };

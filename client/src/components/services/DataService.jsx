@@ -1,3 +1,5 @@
+// client/src/components/services/DataService.jsx
+
 import axios from 'axios';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
@@ -284,18 +286,33 @@ const DataService = {
     }
   },
 
-  updateBookingStatus: async (id, status, adminNotes) => {
+  updateBookingStatus: async (id, status, adminNotes, attachment) => {
     try {
-      const response = await api.put(`/api/bookings/${id}/status`, { status, adminNotes });
+      const formData = new FormData();
+      formData.append('status', status);
+      formData.append('adminNotes', adminNotes);
+      if (attachment) {
+        formData.append('attachment', attachment);
+      }
+      const response = await api.put(`/api/bookings/${id}/status`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
       return response.data;
     } catch (error) {
       return handleError(error);
     }
   },
  
-  cancelBooking: async (id, adminNotes) => {
+  cancelBooking: async (id, adminNotes, attachment) => {
     try {
-      const response = await api.patch(`/api/bookings/${id}/cancel`, { adminNotes });
+      const formData = new FormData();
+      formData.append('adminNotes', adminNotes);
+      if (attachment) {
+        formData.append('attachment', attachment);
+      }
+      const response = await api.patch(`/api/bookings/${id}/cancel`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
       return response.data;
     } catch (error) {
       return handleError(error, 'Failed to cancel booking.');

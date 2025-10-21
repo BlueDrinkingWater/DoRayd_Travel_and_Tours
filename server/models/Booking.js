@@ -29,7 +29,7 @@ const bookingSchema = new mongoose.Schema(
     user: {
       type: Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      required: false, // Allow guest bookings
     },
     // Personal Information
     firstName: { type: String, required: true },
@@ -42,6 +42,7 @@ const bookingSchema = new mongoose.Schema(
     itemId: { type: Schema.Types.ObjectId, required: true },
     itemName: { type: String, required: true },
     itemType: { type: String, enum: ['car', 'tour'], required: true },
+    itemModel: { type: String, enum: ['Car', 'Tour'] }, // Added this line back
 
     // Booking Dates & Details
     startDate: { type: Date, required: true },

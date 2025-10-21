@@ -92,8 +92,8 @@ export const createBooking = async (req, res) => {
         const userId = isUserLoggedIn ? req.user.id : null;
 
         const {
-            itemType, itemId, itemName, startDate, endDate, dropoffCoordinates,
-            paymentReference, amountPaid, firstName, lastName, email, phone,
+            itemType, itemId, itemName, startDate, endDate, time, dropoffCoordinates,
+            paymentReference, amountPaid, paymentOption, firstName, lastName, email, phone,
             address, 
             numberOfGuests, specialRequests, agreedToTerms, deliveryMethod,
             pickupLocation, dropoffLocation, totalPrice,
@@ -130,11 +130,13 @@ export const createBooking = async (req, res) => {
             itemName,
             startDate: new Date(startDate),
             endDate: endDate ? new Date(endDate) : new Date(startDate),
+            time,
             itemModel: itemType.charAt(0).toUpperCase() + itemType.slice(1),
-            paymentProofUrl: req.file ? req.file.path : null,
+            paymentProof: req.file ? req.file.path : null,
             dropoffCoordinates: coords,
             paymentReference,
             amountPaid: Number(amountPaid) || 0,
+            paymentOption,
             firstName: finalFirstName,
             lastName: finalLastName,
             email: finalEmail,
@@ -191,15 +193,29 @@ export const createBooking = async (req, res) => {
 export const updateBookingStatus = async (req, res) => {
   try {
     const { status, adminNotes } = req.body;
-    const booking = await Booking.findByIdAndUpdate(
-        req.params.id, 
-        { status, adminNotes, processedBy: req.user.id },
-        { new: true }
-    ).populate('user').populate('itemId');
+    const booking = await Booking.findById(req.params.id);
 
     if (!booking) {
       return res.status(404).json({ success: false, message: 'Booking not found' });
     }
+
+    booking.status = status;
+
+    if (adminNotes) {
+      const newNote = {
+        note: adminNotes,
+        author: req.user.id,
+      };
+      if (req.file) {
+        newNote.attachment = req.file.path;
+        newNote.attachmentOriginalName = req.file.originalname;
+      }
+      booking.notes.push(newNote);
+    }
+
+    await booking.save();
+    
+    const populatedBooking = await Booking.findById(booking._id).populate('user').populate('itemId');
 
     const io = req.app.get('io');
     if (io && booking.user) {
@@ -216,17 +232,17 @@ export const updateBookingStatus = async (req, res) => {
     
     try {
         if (status === 'confirmed' || status === 'rejected' || status === 'completed') {
-            await EmailService.sendStatusUpdate(booking);
+            await EmailService.sendStatusUpdate(populatedBooking);
         }
     } catch (emailError) {
         console.error('Failed to send status update email:', emailError);
     }
 
     if (io) {
-        io.to('admin').to('employee').emit('booking-updated', booking);
+        io.to('admin').to('employee').emit('booking-updated', populatedBooking);
     }
 
-    res.json({ success: true, data: booking });
+    res.json({ success: true, data: populatedBooking });
   } catch (error) {
     console.error('Error updating booking status:', error);
     res.status(500).json({ success: false, message: 'Failed to update status' });
@@ -237,15 +253,29 @@ export const updateBookingStatus = async (req, res) => {
 export const cancelBooking = async (req, res) => {
   try {
     const { adminNotes } = req.body;
-    const booking = await Booking.findByIdAndUpdate(
-      req.params.id,
-      { status: 'cancelled', adminNotes, processedBy: req.user.id },
-      { new: true }
-    ).populate('user').populate('itemId');
+    const booking = await Booking.findById(req.params.id);
 
     if (!booking) {
       return res.status(404).json({ success: false, message: 'Booking not found' });
     }
+
+    booking.status = 'cancelled';
+    
+    if (adminNotes) {
+      const newNote = {
+        note: adminNotes,
+        author: req.user.id,
+      };
+      if (req.file) {
+        newNote.attachment = req.file.path;
+        newNote.attachmentOriginalName = req.file.originalname;
+      }
+      booking.notes.push(newNote);
+    }
+    
+    await booking.save();
+
+    const populatedBooking = await Booking.findById(booking._id).populate('user').populate('itemId');
     
     const io = req.app.get('io');
     if (io && booking.user) {
@@ -260,21 +290,22 @@ export const cancelBooking = async (req, res) => {
     }
 
     if (io) {
-      io.to('admin').to('employee').emit('booking-cancelled', booking);
+      io.to('admin').to('employee').emit('booking-cancelled', populatedBooking);
     }
     
     try {
-        await EmailService.sendBookingCancellation(booking);
+        await EmailService.sendBookingCancellation(populatedBooking);
     } catch (emailError) {
         console.error('Failed to send cancellation email:', emailError);
     }
 
-    res.json({ success: true, data: booking });
+    res.json({ success: true, data: populatedBooking });
   } catch (error) {
     console.error('Error cancelling booking:', error);
     res.status(500).json({ success: false, message: 'Failed to cancel booking.' });
   }
 };
+
 
 // UPLOAD payment proof for a booking
 export const uploadPaymentProof = async (req, res) => {
@@ -285,7 +316,7 @@ export const uploadPaymentProof = async (req, res) => {
         
         const booking = await Booking.findByIdAndUpdate(
             req.params.id,
-            { paymentProofUrl: req.file.path },
+            { paymentProof: req.file.path },
             { new: true }
         );
 

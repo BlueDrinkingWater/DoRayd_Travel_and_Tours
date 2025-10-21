@@ -1,10 +1,10 @@
 // client/src/pages/owner/ManageBookings.jsx
 
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, Eye, Check, X, Clock, Calendar, Users, MapPin, Phone, Mail, FileText, Image as ImageIcon, Link as LinkIcon, Hash, Car, Package, DollarSign, Tag } from 'lucide-react';
+import { Search, Filter, Eye, Check, X, Clock, Calendar, Users, MapPin, Phone, Mail, FileText, Image as ImageIcon, Link as LinkIcon, Hash, Car, Package, DollarSign, Tag, Paperclip } from 'lucide-react';
 import { useApi } from '../../hooks/useApi';
 import DataService, { getImageUrl } from '../../components/services/DataService';
-import { useSecureImage } from '../../hooks/useSecureImage.jsx'; // --- NEW IMPORT ---
+import { useSecureImage } from '../../hooks/useSecureImage.jsx'; 
 
 const ManageBookings = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -12,13 +12,12 @@ const ManageBookings = () => {
   const [showModal, setShowModal] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [adminNotes, setAdminNotes] = useState('');
+  const [attachment, setAttachment] = useState(null);
   const [updating, setUpdating] = useState(false);
   
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(searchTerm);
   
-  // --- NEW HOOK CALL FOR MODAL IMAGE RETRIEVAL ---
-  const { secureUrl: paymentProofUrl, loading: paymentProofLoading } = useSecureImage(selectedBooking?.paymentProofUrl);
-  // --- END NEW HOOK CALL ---
+  const { secureUrl: paymentProofUrl, loading: paymentProofLoading } = useSecureImage(selectedBooking?.paymentProof);
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -40,7 +39,7 @@ const ManageBookings = () => {
   const handleStatusUpdate = async (bookingId, newStatus) => {
     setUpdating(true);
     try {
-      await DataService.updateBookingStatus(bookingId, newStatus, adminNotes);
+      await DataService.updateBookingStatus(bookingId, newStatus, adminNotes, attachment);
       alert(`Booking ${newStatus} successfully!`);
       setShowModal(false);
       fetchBookings();
@@ -56,7 +55,7 @@ const ManageBookings = () => {
     if (window.confirm('Are you sure you want to cancel this booking?')) {
       setUpdating(true);
       try {
-        await DataService.cancelBooking(bookingId, adminNotes);
+        await DataService.cancelBooking(bookingId, adminNotes, attachment);
         alert('Booking cancelled successfully!');
         setShowModal(false);
         fetchBookings();
@@ -71,7 +70,8 @@ const ManageBookings = () => {
 
   const viewBooking = (booking) => {
     setSelectedBooking(booking);
-    setAdminNotes(booking.adminNotes || '');
+    setAdminNotes('');
+    setAttachment(null);
     setShowModal(true);
   };
 
@@ -242,7 +242,7 @@ const ManageBookings = () => {
                         {selectedBooking.dropoffCoordinates && (
                           <div className="mt-2">
                             <a 
-                              href={`https://www.google.com/maps/search/?api=1&query=${selectedBooking.dropoffCoordinates.lat},${selectedBooking.dropoffCoordinates.lng}`} 
+                              href={`http://googleusercontent.com/maps/search/?api=1&query=${selectedBooking.dropoffCoordinates.lat},${selectedBooking.dropoffCoordinates.lng}`} 
                               target="_blank" 
                               rel="noopener noreferrer"
                               className="text-sm text-blue-600 hover:underline flex items-center gap-1"
@@ -274,7 +274,7 @@ const ManageBookings = () => {
                     <InfoRow label="Amount Paid" value={formatPrice(selectedBooking.amountPaid)} icon={DollarSign} />
                     <InfoRow label="Payment Reference" value={selectedBooking.paymentReference} icon={Hash} />
                     {/* --- SECURE IMAGE RETRIEVAL FOR PAYMENT PROOF --- */}
-                    {selectedBooking.paymentProofUrl ? (
+                    {selectedBooking.paymentProof ? (
                       paymentProofLoading ? (
                           <div className="w-full h-40 bg-gray-200 animate-pulse flex items-center justify-center text-xs text-gray-500 rounded-lg">Loading Proof...</div>
                       ) : (
@@ -302,6 +302,13 @@ const ManageBookings = () => {
                     </div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Admin Notes</label>
                     <textarea value={adminNotes} onChange={(e) => setAdminNotes(e.target.value)} rows="3" className="w-full p-2 border rounded-lg" placeholder="Add notes for the customer..." />
+                    <div className="mt-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Attach File</label>
+                      <div className="flex items-center gap-2">
+                        <input type="file" onChange={(e) => setAttachment(e.target.files[0])} className="text-sm" />
+                        {attachment && <button onClick={() => setAttachment(null)}><X size={16} className="text-red-500"/></button>}
+                      </div>
+                    </div>
                   </InfoBlock>
 
                   {selectedBooking.status === 'pending' && (

@@ -93,7 +93,7 @@ export const createBooking = async (req, res) => {
 
         const {
             itemType, itemId, itemName, startDate, endDate, time, dropoffCoordinates,
-            paymentReference, amountPaid, paymentOption, firstName, lastName, email, phone,
+            paymentReference, manualPaymentReference, amountPaid, paymentOption, firstName, lastName, email, phone,
             address, 
             numberOfGuests, specialRequests, agreedToTerms, deliveryMethod,
             pickupLocation, dropoffLocation, totalPrice,
@@ -135,6 +135,7 @@ export const createBooking = async (req, res) => {
             paymentProof: req.file ? req.file.path : null,
             dropoffCoordinates: coords,
             paymentReference,
+            manualPaymentReference, // ADD THIS LINE
             amountPaid: Number(amountPaid) || 0,
             paymentOption,
             firstName: finalFirstName,

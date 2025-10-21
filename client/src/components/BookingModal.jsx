@@ -1,4 +1,4 @@
-// src/components/BookingModal.jsx
+// client/src/components/BookingModal.jsx
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { X, Calendar, Users, Upload, CheckCircle, Shield, FileText, AlertTriangle, Tag, User as UserIcon, Mail, Phone, Home, Info } from 'lucide-react';
@@ -6,13 +6,15 @@ import DataService, { SERVER_URL } from './services/DataService.jsx';
 import CalendarBooking from './CalendarBooking.jsx';
 import DropoffMap from './DropoffMap.jsx';
 import { useAuth } from './Login.jsx';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 const BookingModal = ({ isOpen, onClose, item, itemType }) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [paymentQR, setPaymentQR] = useState('');
   const [qrLoading, setQrLoading] = useState(true);
   const [bookingDisclaimer, setBookingDisclaimer] = useState('');
+  const [bookedDates, setBookedDates] = useState([]);
   
   const [selectedPaymentOption, setSelectedPaymentOption] = useState('full');
 
@@ -156,6 +158,20 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
     e.preventDefault();
     setSubmitError('');
 
+    // --- DATE OVERLAP VALIDATION ---
+    if (itemType === 'car' && formData.startDate && formData.numberOfDays > 0) {
+        const start = new Date(formData.startDate);
+        const end = new Date(start);
+        end.setDate(start.getDate() + parseInt(formData.numberOfDays, 10) - 1); // inclusive end date
+
+        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+            const dateString = d.toISOString().split('T')[0];
+            if (bookedDates.includes(dateString)) {
+                return setSubmitError("Date not available, please choose another date.");
+            }
+        }
+    }
+
     // --- FORM VALIDATION ---
     const requiredFields = {
       firstName: "First Name",
@@ -167,13 +183,16 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
       time: "Time",
       paymentProof: "Payment Proof",
       amountPaid: "Amount Paid",
-      manualPaymentReference: "Bank Reference Number",
     };
 
     for (const field in requiredFields) {
       if (!formData[field]) {
         return setSubmitError(`${requiredFields[field]} is required.`);
       }
+    }
+    
+    if (!formData.manualPaymentReference && !paymentReferenceCode) {
+        return setSubmitError("A payment reference is required.");
     }
     
     if (itemType === 'car') {
@@ -199,7 +218,7 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
        Object.keys(formData).forEach(key => {
         if (key === 'dropoffCoordinates' && formData[key]) {
           bookingData.append(key, JSON.stringify(formData[key]));
-        } else if (formData[key]) {
+        } else if (key !== 'manualPaymentReference' && formData[key]) { // Exclude manual ref from this loop
           bookingData.append(key, formData[key]);
         }
       });
@@ -207,8 +226,12 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
       const fullStartDate = combineDateAndTime(formData.startDate, formData.time);
       const fullEndDate = calculatedEndDate ? calculatedEndDate.toISOString() : fullStartDate;
 
-      const finalPaymentReference = formData.manualPaymentReference.trim() || paymentReferenceCode;
-      bookingData.set('paymentReference', finalPaymentReference);
+      // **FIX:** Send BOTH reference numbers correctly and separately
+      bookingData.set('paymentReference', paymentReferenceCode);
+      if (formData.manualPaymentReference.trim()) {
+          bookingData.set('manualPaymentReference', formData.manualPaymentReference.trim());
+      }
+      
       bookingData.set('startDate', fullStartDate);
       bookingData.set('endDate', fullEndDate);
       bookingData.set('totalPrice', totalPrice);
@@ -220,6 +243,12 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
       const result = await DataService.createBooking(bookingData);
       if (result.success) {
         setSubmitSuccess(true);
+        if (user) {
+          setTimeout(() => {
+            onClose();
+            navigate('/my-bookings');
+          }, 2000);
+        }
       } else {
         throw new Error(result.message || 'Booking failed.');
       }
@@ -299,6 +328,7 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
                         serviceId={item._id}
                         onDateSelect={handleDateSelect}
                         initialDate={formData.startDate}
+                        onBookedDatesChange={setBookedDates}
                       />
                       <div className="bg-gray-50 p-4 rounded-lg">
                           <h3 className="font-semibold mb-3">Rental Details</h3>

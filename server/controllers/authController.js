@@ -79,7 +79,7 @@ export const login = async (req, res) => {
             httpOnly: true,
             expires: new Date(Date.now() + 24 * 60 * 60 * 1000), // 1 day
             secure: process.env.NODE_ENV === 'production',
-            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'Lax',
         };
 
         res.cookie('token', token, cookieOptions);
@@ -150,7 +150,7 @@ const cookieOptions = {
     httpOnly: true,
     expires: new Date(Date.now() + 24 * 60 * 60 * 1000), // 1 day
     secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'Lax',
 };
     res.cookie('token', token, cookieOptions);
     res.json({ success: true, user });
@@ -217,7 +217,7 @@ export const facebookLogin = async (req, res) => {
         httpOnly: true,
         expires: new Date(Date.now() + 24 * 60 * 60 * 1000), // 1 day
         secure: process.env.NODE_ENV === 'production',
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'Lax',
     };
 
     res.cookie('token', token, cookieOptions);

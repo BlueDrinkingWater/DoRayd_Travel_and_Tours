@@ -10,6 +10,8 @@ import bgTour from '@/assets/bgTour.jpg';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
+import { useLocation } from 'react-router-dom';
+
 
 // --- Helper Functions ---
 const formatDateTime = (dateString) => {
@@ -117,11 +119,12 @@ const BookingDetailModal = ({ booking, onClose }) => {
 
 const CustomerDashboard = () => {
     const { user } = useAuth();
-    const [activeTab, setActiveTab] = useState('overview');
+    const location = useLocation();
+    const [activeTab, setActiveTab] = useState(location.pathname.includes('my-bookings') ? 'bookings' : 'overview');
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [selectedBooking, setSelectedBooking] = useState(null);
 
-    const { data: bookingsData, loading: bookingsLoading, refetch: refetchBookings } = useApi(() => DataService.fetchUserBookings(), [user]);
+    const { data: bookingsData, loading: bookingsLoading, refetch: refetchBookings } = useApi(() => DataService.fetchUserBookings(), [user, location]);
     const { data: reviewsData, loading: reviewsLoading, refetch: refetchReviews } = useApi(() => DataService.getMyReviews(), [user]);
     const { data: feedbackData, loading: feedbackLoading, refetch: refetchFeedback } = useApi(() => DataService.getMyFeedback(), [user]);
     const { data: publicFeedbackData, loading: publicFeedbackLoading } = useApi(() => DataService.getPublicFeedback(), []);

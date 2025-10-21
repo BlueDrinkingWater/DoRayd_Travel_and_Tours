@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import DataService from './services/DataService.jsx';
 
-const CalendarBooking = ({ serviceId, onDateSelect }) => {
+const CalendarBooking = ({ serviceId, onDateSelect, onBookedDatesChange }) => {
   const [selectedDate, setSelectedDate] = useState(null);
   const [bookedDates, setBookedDates] = useState([]);
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -18,6 +18,9 @@ const CalendarBooking = ({ serviceId, onDateSelect }) => {
         const response = await DataService.getAvailability(serviceId);
         if (response.success) {
             setBookedDates(response.data.bookedDates);
+            if (onBookedDatesChange) {
+                onBookedDatesChange(response.data.bookedDates);
+            }
         }
     } catch (error) {
         console.error('Error fetching availability:', error);

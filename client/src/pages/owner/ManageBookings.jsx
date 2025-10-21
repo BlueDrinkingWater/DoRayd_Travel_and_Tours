@@ -1,10 +1,10 @@
 // client/src/pages/owner/ManageBookings.jsx
 
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, Eye, Check, X, Clock, Calendar, Users, MapPin, Phone, Mail, FileText, Image as ImageIcon, Link as LinkIcon, Hash, Car, Package, DollarSign, Tag, Paperclip } from 'lucide-react';
+import { Search, Filter, Eye, Check, X, Clock, Calendar, Users, MapPin, Phone, Mail, FileText, Image as ImageIcon, Link as LinkIcon, Hash, Car, Package, DollarSign, Tag, Paperclip, Info } from 'lucide-react';
 import { useApi } from '../../hooks/useApi';
-import DataService, { getImageUrl } from '../../components/services/DataService';
-import { useSecureImage } from '../../hooks/useSecureImage.jsx'; 
+import DataService from '../../components/services/DataService';
+import { useSecureImage } from '../../hooks/useSecureImage.jsx';
 
 const ManageBookings = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -90,6 +90,14 @@ const ManageBookings = () => {
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
     return new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  };
+  
+  const formatTime = (time) => {
+    if (!time) return 'N/A';
+    const [hours, minutes] = time.split(':');
+    const date = new Date();
+    date.setHours(hours, minutes);
+    return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
   };
 
   const formatPrice = (price) => {
@@ -201,7 +209,7 @@ const ManageBookings = () => {
 
       {showModal && selectedBooking && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
                 <div>
@@ -212,87 +220,22 @@ const ManageBookings = () => {
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Left Column */}
+                {/* Left Column: Customer and Booking Info */}
                 <div className="space-y-6">
-                  <InfoBlock title="Customer Information" icon={Users}>
+                  <InfoBlock title="Customer & Booking Summary" icon={Users}>
                     <InfoRow label="Name" value={`${selectedBooking.firstName} ${selectedBooking.lastName}`} />
-                    <InfoRow label="Email" value={selectedBooking.email} icon={Mail} />
-                    <InfoRow label="Phone" value={selectedBooking.phone} icon={Phone} />
-                  </InfoBlock>
-
-                  <InfoBlock title="Booking Details" icon={Calendar}>
-                    <InfoRow label="Service Type" value={selectedBooking.itemType} icon={selectedBooking.itemType === 'car' ? Car : Package} />
-                    <InfoRow label="Service Name" value={selectedBooking.itemName} />
-                    <InfoRow label="Pickup/Start" value={formatDateTime(selectedBooking.startDate)} icon={Clock} />
-                    {selectedBooking.itemType === 'car' && (
-                      <>
-                        <InfoRow label="Return Date" value={formatDate(selectedBooking.endDate)} />
-                        <InfoRow label="Rental Duration" value={`${calculateRentalDays(selectedBooking.startDate, selectedBooking.endDate)} days`} />
-                      </>
-                    )}
-                  </InfoBlock>
-
-                  <InfoBlock title="Location Details" icon={MapPin}>
-                    <InfoRow label="Method" value={selectedBooking.deliveryMethod} />
-                    {selectedBooking.deliveryMethod === 'pickup' ? (
-                      <InfoRow label="Pickup Location" value={selectedBooking.pickupLocation} />
-                    ) : (
-                      <>
-                        <InfoRow label="Drop-off Address" value={selectedBooking.dropoffLocation} />
-                        {selectedBooking.dropoffCoordinates && (
-                          <div className="mt-2">
-                            <a 
-                              href={`http://googleusercontent.com/maps/search/?api=1&query=${selectedBooking.dropoffCoordinates.lat},${selectedBooking.dropoffCoordinates.lng}`} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="text-sm text-blue-600 hover:underline flex items-center gap-1"
-                            >
-                              <LinkIcon size={14} /> View on Google Maps
-                            </a>
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </InfoBlock>
-                </div>
-
-                {/* Right Column */}
-                <div className="space-y-6">
-                  <InfoBlock title="Payment Details" icon={ImageIcon}>
-                    {selectedBooking.originalPrice && selectedBooking.originalPrice > selectedBooking.totalPrice ? (
-                        <>
-                            <InfoRow label="Original Price" value={formatPrice(selectedBooking.originalPrice)} />
-                            <InfoRow label="Discount Applied" value={`- ${formatPrice(selectedBooking.discountApplied)}`} />
-                            {selectedBooking.promotionTitle && <InfoRow label="Promotion" value={selectedBooking.promotionTitle} icon={Tag} />}
-                            <hr className="my-2 border-gray-200"/>
-                        </>
-                    ) : null}
-                    <div className="flex justify-between items-center mb-2">
-                        <span className="font-semibold text-gray-800">Total Amount Due:</span>
-                        <span className="text-2xl font-bold text-blue-600">{formatPrice(selectedBooking.totalPrice)}</span>
-                    </div>
-                    <InfoRow label="Amount Paid" value={formatPrice(selectedBooking.amountPaid)} icon={DollarSign} />
-                    <InfoRow label="Payment Reference" value={selectedBooking.paymentReference} icon={Hash} />
-                    {/* --- SECURE IMAGE RETRIEVAL FOR PAYMENT PROOF --- */}
-                    {selectedBooking.paymentProof ? (
-                      paymentProofLoading ? (
-                          <div className="w-full h-40 bg-gray-200 animate-pulse flex items-center justify-center text-xs text-gray-500 rounded-lg">Loading Proof...</div>
-                      ) : (
-                          <a href={paymentProofUrl} target="_blank" rel="noopener noreferrer" className="mt-4 block">
-                              <img 
-                                  src={paymentProofUrl} 
-                                  alt="Payment Proof" 
-                                  className="w-full h-auto max-h-64 rounded-lg object-contain border" 
-                                  onError={(e) => { 
-                                      e.target.onerror = null; e.target.src = 'https://placehold.co/300x200/fecaca/991b1b?text=Error/Expired'; 
-                                  }}
-                              />
-                          </a>
-                      )
-                    ) : (
-                      <p className="text-sm text-gray-500 text-center py-8">No payment proof uploaded.</p>
-                    )}
-                    {/* --- END SECURE IMAGE RETRIEVAL --- */}
+                    <InfoRow label="Address" value={selectedBooking.address} />
+                    <InfoRow label="Email" value={selectedBooking.email} />
+                    <InfoRow label="Phone" value={selectedBooking.phone} />
+                    <hr className="my-2"/>
+                    <InfoRow label="From" value={formatDate(selectedBooking.startDate)} />
+                    <InfoRow label="To" value={formatDate(selectedBooking.endDate)} />
+                    <InfoRow label="Time" value={formatTime(selectedBooking.time)} />
+                     {selectedBooking.itemType === 'car' ? (
+                       <InfoRow label="Delivery" value={selectedBooking.deliveryMethod === 'pickup' ? selectedBooking.pickupLocation : selectedBooking.dropoffLocation} />
+                     ) : (
+                       <InfoRow label="Guests" value={selectedBooking.numberOfGuests} />
+                     )}
                   </InfoBlock>
 
                   <InfoBlock title="Admin Actions" icon={FileText}>
@@ -309,6 +252,61 @@ const ManageBookings = () => {
                         {attachment && <button onClick={() => setAttachment(null)}><X size={16} className="text-red-500"/></button>}
                       </div>
                     </div>
+                  </InfoBlock>
+                  
+                </div>
+
+                {/* Right Column: Payment Summary */}
+                <div className="space-y-6">
+                    <InfoBlock title="Payment Summary" icon={DollarSign}>
+                        <div className="space-y-2 text-sm">
+                            <InfoRow label="System Pay Code" value={selectedBooking.paymentReference} />
+                            <InfoRow label="Bank Reference" value={selectedBooking.manualPaymentReference || 'N/A'} />
+                            <InfoRow label="Payment Option" value={selectedBooking.paymentOption} />
+
+                            <div className="flex justify-between items-center mt-4 pt-2 border-t">
+                                <span className="font-semibold text-gray-900">Total Amount:</span>
+                                <span className="font-bold text-lg text-blue-600">{formatPrice(selectedBooking.totalPrice)}</span>
+                            </div>
+
+                            {selectedBooking.paymentOption === 'downpayment' && (
+                                <div className="flex justify-between">
+                                <span className="font-semibold text-gray-900">Downpayment Due:</span>
+                                <span className="font-bold text-lg">{formatPrice(selectedBooking.amountPaid)}</span>
+                                </div>
+                            )}
+
+                            <div className="flex justify-between items-center text-red-600">
+                                <span className="text-lg font-semibold">Amount Paid:</span>
+                                <span className="text-2xl font-bold">{formatPrice(selectedBooking.amountPaid)}</span>
+                            </div>
+                            
+                            {selectedBooking.paymentOption === 'downpayment' && (
+                                <p className="text-xs text-gray-500 text-center pt-2">
+                                The remaining balance of {formatPrice(selectedBooking.totalPrice - selectedBooking.amountPaid)} will be due at the time of service.
+                                </p>
+                            )}
+                        </div>
+
+                        <h4 className="font-semibold text-sm pt-4 mt-4 border-t">Payment Proof</h4>
+                        {selectedBooking.paymentProof ? (
+                        paymentProofLoading ? (
+                            <div className="w-full h-40 bg-gray-200 animate-pulse flex items-center justify-center text-xs text-gray-500 rounded-lg">Loading Proof...</div>
+                        ) : (
+                            <a href={paymentProofUrl} target="_blank" rel="noopener noreferrer" className="mt-2 block">
+                                <img 
+                                    src={paymentProofUrl} 
+                                    alt="Payment Proof" 
+                                    className="w-full h-auto max-h-64 rounded-lg object-contain border" 
+                                    onError={(e) => { 
+                                        e.target.onerror = null; e.target.src = 'https://placehold.co/300x200/fecaca/991b1b?text=Error/Expired'; 
+                                    }}
+                                />
+                            </a>
+                        )
+                        ) : (
+                        <p className="text-sm text-gray-500 text-center py-8">No payment proof uploaded.</p>
+                        )}
                   </InfoBlock>
 
                   {selectedBooking.status === 'pending' && (

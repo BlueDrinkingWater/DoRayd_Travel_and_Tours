@@ -26,6 +26,10 @@ const noteSchema = new mongoose.Schema({
 
 const bookingSchema = new mongoose.Schema(
   {
+    bookingReference: {
+      type: String,
+      unique: true,
+    },
     user: {
       type: Schema.Types.ObjectId,
       ref: "User",
@@ -42,7 +46,7 @@ const bookingSchema = new mongoose.Schema(
     itemId: { type: Schema.Types.ObjectId, required: true },
     itemName: { type: String, required: true },
     itemType: { type: String, enum: ['car', 'tour'], required: true },
-    itemModel: { type: String, enum: ['Car', 'Tour'] }, // Added this line back
+    itemModel: { type: String, enum: ['Car', 'Tour'] },
 
     // Booking Dates & Details
     startDate: { type: Date, required: true },
@@ -64,7 +68,8 @@ const bookingSchema = new mongoose.Schema(
     totalPrice: { type: Number, required: true },
     amountPaid: { type: Number, required: true },
     paymentOption: { type: String, enum: ['full', 'downpayment'], required: true },
-    paymentReference: { type: String, required: true },
+    paymentReference: { type: String },
+    manualPaymentReference: { type: String }, // ADD THIS LINE
     paymentProof: { type: String, required: true }, // Path to the uploaded proof
 
     status: {
@@ -75,10 +80,29 @@ const bookingSchema = new mongoose.Schema(
     specialRequests: { type: String },
     
     notes: [noteSchema],
+    
+    expiresAt: {
+        type: Date,
+        default: () => new Date(Date.now() + 15 * 60 * 1000), // Set expiration 15 minutes from now
+        index: { expires: '15m' }
+    },
   },
   {
     timestamps: true,
   }
 );
+
+bookingSchema.pre('save', function (next) {
+  if (!this.bookingReference) {
+    const generateBookingReference = () => {
+      const prefix = 'DRYD';
+      const timestamp = Date.now().toString(36).toUpperCase();
+      const random = Math.random().toString(36).substr(2, 4).toUpperCase();
+      return `${prefix}-${timestamp}-${random}`;
+    };
+    this.bookingReference = generateBookingReference();
+  }
+  next();
+});
 
 export default mongoose.model("Booking", bookingSchema);

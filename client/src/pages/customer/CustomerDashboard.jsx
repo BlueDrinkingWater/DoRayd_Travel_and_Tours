@@ -390,19 +390,27 @@ const BookingsTab = ({ bookings, onBookingSelect, onAddPayment }) => (
                 <div className="flex justify-between items-start">
                     <div className="flex items-start gap-4">
                         <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-3 rounded-lg shadow-md">
-                            {booking.itemType === 'car' ? 
-                                <Car className="w-6 h-6 text-white" /> : 
+                            {booking.itemType === 'car' ?
+                                <Car className="w-6 h-6 text-white" /> :
                                 <MapPin className="w-6 h-6 text-white" />
                             }
                         </div>
                         <div>
                             <h3 className="font-semibold text-lg text-gray-900">{booking.itemName}</h3>
-                            <p className="text-gray-600">Ref: {booking.bookingReference}</p>
+                            {booking.payments && booking.payments[0] && booking.payments[0].paymentReference &&
+                                <p className="text-gray-600">Payment Ref: {booking.payments[0].paymentReference}</p>
+                            }
                             <p className="text-gray-600">
                                 {new Date(booking.startDate).toLocaleDateString()}
                                 {booking.endDate && ` - ${new Date(booking.endDate).toLocaleDateString()}`}
                             </p>
-                            <p className="font-semibold text-lg mt-2 text-blue-600">₱{booking.totalPrice.toLocaleString()}</p>
+                            {booking.paymentOption === 'downpayment' && booking.totalPrice > booking.amountPaid ? (
+                                <p className="font-semibold text-lg mt-2 text-red-600">
+                                    Remaining Balance: {formatPrice(booking.totalPrice - booking.amountPaid)}
+                                </p>
+                            ) : (
+                                <p className="font-semibold text-lg mt-2 text-blue-600">{formatPrice(booking.totalPrice)}</p>
+                            )}
                         </div>
                     </div>
                      <div className="flex flex-col items-end gap-2">
@@ -415,7 +423,7 @@ const BookingsTab = ({ bookings, onBookingSelect, onAddPayment }) => (
                         >
                             <Eye size={14} /> View Details
                         </button>
-                        {booking.status === 'pending' && booking.paymentOption === 'downpayment' && (
+                        {booking.paymentOption === 'downpayment' && booking.status !== 'completed' && booking.totalPrice > booking.amountPaid && (
                             <button
                                 onClick={() => onAddPayment(booking)}
                                 className="bg-green-100 text-green-700 hover:bg-green-200 px-3 py-1 rounded-full text-sm font-semibold flex items-center gap-1 mt-2"
@@ -885,6 +893,8 @@ const AddPaymentModal = ({ booking, onClose, onPaymentSuccess }) => {
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState('');
 
+    const remainingBalance = booking.totalPrice - booking.amountPaid;
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
@@ -892,6 +902,11 @@ const AddPaymentModal = ({ booking, onClose, onPaymentSuccess }) => {
             setError('Please enter an amount and upload a payment proof.');
             return;
         }
+        if (parseFloat(amount) > remainingBalance) {
+            setError(`Amount cannot be greater than the remaining balance of ${formatPrice(remainingBalance)}.`);
+            return;
+        }
+
 
         setSubmitting(true);
         const formData = new FormData();
@@ -923,6 +938,9 @@ const AddPaymentModal = ({ booking, onClose, onPaymentSuccess }) => {
                         <button onClick={onClose}><X /></button>
                     </div>
                     {error && <div className="bg-red-100 text-red-700 p-3 rounded-lg text-sm mb-4">{error}</div>}
+                    <div className="mb-4">
+                        <p>Remaining Balance: <span className="font-bold text-red-600">{formatPrice(remainingBalance)}</span></p>
+                    </div>
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div>
                             <label className="block text-sm font-medium">Amount</label>
@@ -932,6 +950,7 @@ const AddPaymentModal = ({ booking, onClose, onPaymentSuccess }) => {
                                 onChange={(e) => setAmount(e.target.value)}
                                 className="w-full p-2 border rounded mt-1"
                                 required
+                                max={remainingBalance}
                             />
                         </div>
                         <div>

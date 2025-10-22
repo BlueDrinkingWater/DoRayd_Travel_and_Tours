@@ -343,8 +343,8 @@ const RecentActivityList = ({ title, items, type, onItemClick }) => (
         </div>
         <div className="p-6 space-y-4">
             {items && items.length > 0 ? items.map(item => (
-                <div 
-                    key={item._id} 
+                <div
+                    key={item._id}
                     className="flex justify-between items-center p-4 bg-white/50 rounded-xl border border-gray-200 hover:shadow-md transition-all cursor-pointer"
                     onClick={() => onItemClick(item)}
                 >
@@ -353,7 +353,17 @@ const RecentActivityList = ({ title, items, type, onItemClick }) => (
                         <p className="text-gray-600 text-sm">{type === 'booking' ? `${item.user?.firstName} ${item.user?.lastName}` : item.name}</p>
                     </div>
                     <div className="text-right">
-                        {type === 'booking' && <p className="font-bold text-blue-600">{formatPrice(item.totalPrice)}</p>}
+                        {type === 'booking' && (
+                            <>
+                                {item.paymentOption === 'downpayment' && item.totalPrice > item.amountPaid ? (
+                                    <p className="font-bold text-red-600">
+                                        Remaining: {formatPrice(item.totalPrice - item.amountPaid)}
+                                    </p>
+                                ) : (
+                                    <p className="font-bold text-blue-600">{formatPrice(item.totalPrice)}</p>
+                                )}
+                            </>
+                        )}
                         <p className="text-gray-500 text-sm">{formatDate(item.createdAt)}</p>
                     </div>
                 </div>

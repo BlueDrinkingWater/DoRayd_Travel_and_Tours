@@ -1,7 +1,7 @@
 // client/src/pages/owner/ManageBookings.jsx
 
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, Eye, Check, X, Clock, Calendar, Users, MapPin, Phone, Mail, FileText, Image as ImageIcon, Link as LinkIcon, Hash, Car, Package, DollarSign, Tag, Paperclip, Info } from 'lucide-react';
+import { Search, Filter, Eye, Check, X, Clock, Calendar, Users, MapPin, Phone, Mail, FileText, Image as ImageIcon, Link as LinkIcon, Hash, Car, Package, DollarSign, Tag, Paperclip, Info, User, CreditCard } from 'lucide-react'; // Added CreditCard here
 import { useApi } from '../../hooks/useApi';
 import DataService, { getImageUrl } from '../../components/services/DataService.jsx';
 import { useSecureImage } from '../../hooks/useSecureImage.jsx';
@@ -14,13 +14,13 @@ const ManageBookings = () => {
   const [adminNotes, setAdminNotes] = useState('');
   const [attachment, setAttachment] = useState(null);
   const [updating, setUpdating] = useState(false);
-  
+
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(searchTerm);
 
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedSearchTerm(searchTerm);
-    }, 500); 
+    }, 500);
 
     return () => {
       clearTimeout(handler);
@@ -29,9 +29,9 @@ const ManageBookings = () => {
 
   const { data: bookingsData, loading, error, refetch: fetchBookings } = useApi(
     () => DataService.fetchAllBookings({ search: debouncedSearchTerm, status: filterStatus }),
-    [debouncedSearchTerm, filterStatus] 
+    [debouncedSearchTerm, filterStatus]
   );
-  
+
   const bookings = bookingsData?.data || [];
 
   const handleStatusUpdate = async (bookingId, newStatus) => {
@@ -48,7 +48,7 @@ const ManageBookings = () => {
       setUpdating(false);
     }
   };
-  
+
   const handleCancelBooking = async (bookingId) => {
     if (window.confirm('Are you sure you want to cancel this booking?')) {
       setUpdating(true);
@@ -89,7 +89,7 @@ const ManageBookings = () => {
     if (!dateString) return 'N/A';
     return new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
   };
-  
+
   const formatTime = (time) => {
     if (!time) return 'N/A';
     const [hours, minutes] = time.split(':');
@@ -101,14 +101,6 @@ const ManageBookings = () => {
   const formatPrice = (price) => {
     if (typeof price !== 'number') return '₱0.00';
     return new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(price);
-  };
-  
-  const calculateRentalDays = (start, end) => {
-    if (!start || !end) return 0;
-    const startDate = new Date(start);
-    const endDate = new Date(end);
-    const timeDiff = endDate.getTime() - startDate.getTime();
-    return Math.max(1, Math.ceil(timeDiff / (1000 * 3600 * 24)));
   };
 
   const getStatusBadge = (status) => {
@@ -220,20 +212,65 @@ const ManageBookings = () => {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Left Column: Customer and Booking Info */}
                 <div className="space-y-6">
-                  <InfoBlock title="Customer & Booking Summary" icon={Users}>
-                    <InfoRow label="Name" value={`${selectedBooking.firstName} ${selectedBooking.lastName}`} />
-                    <InfoRow label="Address" value={selectedBooking.address} />
-                    <InfoRow label="Email" value={selectedBooking.email} />
-                    <InfoRow label="Phone" value={selectedBooking.phone} />
+                  <InfoBlock title="Booking Summary" icon={FileText}>
+                    <InfoRow label="Name" value={`${selectedBooking.firstName} ${selectedBooking.lastName}`} icon={User} />
+                    <InfoRow label="Address" value={selectedBooking.address} icon={MapPin} />
+                    <InfoRow label="Email" value={selectedBooking.email} icon={Mail} />
+                    <InfoRow label="Phone" value={selectedBooking.phone} icon={Phone} />
                     <hr className="my-2"/>
-                    <InfoRow label="From" value={formatDate(selectedBooking.startDate)} />
-                    <InfoRow label="To" value={formatDate(selectedBooking.endDate)} />
-                    <InfoRow label="Time" value={formatTime(selectedBooking.time)} />
+                    <InfoRow label="Start Date" value={formatDate(selectedBooking.startDate)} icon={Calendar} />
+                    <InfoRow label="End Date" value={formatDate(selectedBooking.endDate)} icon={Calendar} />
+                    <InfoRow label="Time" value={formatTime(selectedBooking.time)} icon={Clock} />
                      {selectedBooking.itemType === 'car' ? (
-                       <InfoRow label="Delivery" value={selectedBooking.deliveryMethod === 'pickup' ? selectedBooking.pickupLocation : selectedBooking.dropoffLocation} />
+                        <>
+                          <InfoRow label="Delivery Method" value={selectedBooking.deliveryMethod} icon={Car} />
+                          <InfoRow label="Location" value={selectedBooking.deliveryMethod === 'pickup' ? selectedBooking.pickupLocation : selectedBooking.dropoffLocation} icon={MapPin} />
+                        </>
                      ) : (
-                       <InfoRow label="Guests" value={selectedBooking.numberOfGuests} />
+                       <InfoRow label="Number of Guests" value={selectedBooking.numberOfGuests} icon={Users} />
                      )}
+                    <InfoRow label="Special Requests" value={selectedBooking.specialRequests} />
+                    <hr className="my-2"/>
+                    <InfoRow label="Payment Option" value={selectedBooking.paymentOption} icon={CreditCard} />
+                    {selectedBooking.promotionTitle && <InfoRow label="Discount Applied" value={selectedBooking.promotionTitle} icon={Tag} /> }
+                    {selectedBooking.originalPrice && <InfoRow label="Original Price" value={formatPrice(selectedBooking.originalPrice)} /> }
+                    <div className="flex justify-between items-center mt-4 pt-2 border-t">
+                      <span className="font-semibold text-gray-900">Final Price:</span>
+                      <span className="font-bold text-lg text-blue-600">{formatPrice(selectedBooking.totalPrice)}</span>
+                    </div>
+                  </InfoBlock>
+                </div>
+
+                {/* Right Column: Payment and Admin Actions */}
+                <div className="space-y-6">
+                    <InfoBlock title="Payment Details" icon={DollarSign}>
+                        {selectedBooking.payments.map((payment, index) => (
+                            <div key={index} className="pb-4 border-b last:border-b-0">
+                                <p className="font-semibold mb-2">Payment {index + 1}</p>
+                                <InfoRow label="System Pay Code" value={payment.paymentReference} />
+                                <InfoRow label="Bank Reference" value={payment.manualPaymentReference || 'N/A'} />
+                                <InfoRow label="Amount Paid" value={formatPrice(payment.amount)} />
+                                {payment.paymentProof ? (
+                                    <a href={getImageUrl(payment.paymentProof)} target="_blank" rel="noopener noreferrer" className="mt-2 block">
+                                        <img
+                                            src={getImageUrl(payment.paymentProof)}
+                                            alt={`Payment Proof ${index + 1}`}
+                                            className="w-full h-auto max-h-40 rounded-lg object-contain border mt-2"
+                                            onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/300x200/fecaca/991b1b?text=Error'; }}
+                                        />
+                                    </a>
+                                ) : <p className="text-sm text-gray-500 mt-2">No proof uploaded.</p>}
+                            </div>
+                        ))}
+                         <div className="flex justify-between items-center text-red-600 mt-4 pt-4 border-t">
+                            <span className="text-lg font-semibold">Total Paid:</span>
+                            <span className="text-2xl font-bold">{formatPrice(selectedBooking.amountPaid)}</span>
+                        </div>
+                        {selectedBooking.paymentOption === 'downpayment' && selectedBooking.totalPrice > selectedBooking.amountPaid && (
+                            <div className="text-center text-sm text-gray-600 mt-2">
+                                Remaining Balance: {formatPrice(selectedBooking.totalPrice - selectedBooking.amountPaid)}
+                            </div>
+                        )}
                   </InfoBlock>
 
                   <InfoBlock title="Admin Actions" icon={FileText}>
@@ -250,61 +287,6 @@ const ManageBookings = () => {
                         {attachment && <button onClick={() => setAttachment(null)}><X size={16} className="text-red-500"/></button>}
                       </div>
                     </div>
-                  </InfoBlock>
-                  
-                </div>
-
-                {/* Right Column: Payment Summary */}
-                <div className="space-y-6">
-                    <InfoBlock title="Payment Summary" icon={DollarSign}>
-                        <div className="space-y-2 text-sm">
-                            {selectedBooking.payments.map((payment, index) => (
-                                <div key={index} className="pb-2">
-                                    <p className="font-semibold">Payment {index + 1}</p>
-                                    <InfoRow label="System Pay Code" value={payment.paymentReference} />
-                                    <InfoRow label="Bank Reference" value={payment.manualPaymentReference || 'N/A'} />
-                                    <InfoRow label="Amount Paid" value={formatPrice(payment.amount)} />
-                                </div>
-                            ))}
-
-                            <div className="flex justify-between items-center mt-4 pt-2 border-t">
-                                <span className="font-semibold text-gray-900">Total Amount:</span>
-                                <span className="font-bold text-lg text-blue-600">{formatPrice(selectedBooking.totalPrice)}</span>
-                            </div>
-
-                            <div className="flex justify-between items-center text-red-600">
-                                <span className="text-lg font-semibold">
-                                  Total Paid:
-                                </span>
-                                <span className="text-2xl font-bold">{formatPrice(selectedBooking.amountPaid)}</span>
-                            </div>
-                            
-                            {selectedBooking.paymentOption === 'downpayment' && (
-                                <p className="text-xs text-gray-500 text-center pt-2">
-                                The remaining balance of {formatPrice(selectedBooking.totalPrice - selectedBooking.amountPaid)} is due.
-                                </p>
-                            )}
-                        </div>
-
-                        <h4 className="font-semibold text-sm pt-4 mt-4 border-t">Payment Proofs</h4>
-                        {selectedBooking.payments.map((payment, index) => (
-                            <div key={index} className="mt-2">
-                                {payment.paymentProof ? (
-                                    <a href={getImageUrl(payment.paymentProof)} target="_blank" rel="noopener noreferrer" className="mt-2 block">
-                                        <img 
-                                            src={getImageUrl(payment.paymentProof)} 
-                                            alt={`Payment Proof ${index + 1}`} 
-                                            className="w-full h-auto max-h-40 rounded-lg object-contain border" 
-                                            onError={(e) => { 
-                                                e.target.onerror = null; e.target.src = 'https://placehold.co/300x200/fecaca/991b1b?text=Error/Expired'; 
-                                            }}
-                                        />
-                                    </a>
-                                ) : (
-                                    <p className="text-sm text-gray-500 text-center py-4">No payment proof for this entry.</p>
-                                )}
-                            </div>
-                        ))}
                   </InfoBlock>
 
                   {selectedBooking.status === 'pending' && (

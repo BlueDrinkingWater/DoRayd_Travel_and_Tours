@@ -216,6 +216,20 @@ export const addPayment = async (req, res) => {
             return res.status(403).json({ success: false, message: 'You are not authorized to update this booking.' });
         }
         
+        if (booking.status !== 'confirmed') {
+            return res.status(403).json({ success: false, message: 'You can only add a payment to a confirmed booking.' });
+        }
+
+        const remainingBalance = booking.totalPrice - booking.amountPaid;
+
+        if (!amount || !req.file || !manualPaymentReference) {
+            return res.status(400).json({ success: false, message: 'Please enter the amount, upload a payment proof and provide a reference number.' });
+        }
+
+        if (parseFloat(amount) !== remainingBalance) {
+            return res.status(400).json({ success: false, message: `The amount must be the exact remaining balance of ${remainingBalance.toFixed(2)}.` });
+        }
+        
         const newPayment = {
             amount: Number(amount),
             manualPaymentReference,
@@ -260,6 +274,10 @@ export const updateBookingStatus = async (req, res) => {
 
     if (!booking) {
       return res.status(404).json({ success: false, message: 'Booking not found' });
+    }
+
+    if (booking.paymentOption === 'downpayment' && booking.status !== 'confirmed' && status !== 'confirmed' && status !== 'rejected') {
+        return res.status(403).json({ success: false, message: 'Downpayment bookings can only be confirmed or rejected by an admin.' });
     }
 
     booking.status = status;
@@ -320,6 +338,10 @@ export const cancelBooking = async (req, res) => {
 
     if (!booking) {
       return res.status(404).json({ success: false, message: 'Booking not found' });
+    }
+
+    if (booking.paymentOption === 'downpayment' && booking.status !== 'confirmed') {
+        return res.status(403).json({ success: false, message: 'Downpayment bookings can only be cancelled after they are confirmed.' });
     }
 
     booking.status = 'cancelled';

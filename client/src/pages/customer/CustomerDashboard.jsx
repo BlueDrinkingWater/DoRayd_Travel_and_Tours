@@ -423,10 +423,11 @@ const BookingsTab = ({ bookings, onBookingSelect, onAddPayment }) => (
                         >
                             <Eye size={14} /> View Details
                         </button>
-                        {booking.paymentOption === 'downpayment' && booking.status !== 'completed' && booking.totalPrice > booking.amountPaid && (
+                        {booking.paymentOption === 'downpayment' && booking.totalPrice > booking.amountPaid && (
                             <button
                                 onClick={() => onAddPayment(booking)}
-                                className="bg-green-100 text-green-700 hover:bg-green-200 px-3 py-1 rounded-full text-sm font-semibold flex items-center gap-1 mt-2"
+                                className="bg-green-100 text-green-700 hover:bg-green-200 px-3 py-1 rounded-full text-sm font-semibold flex items-center gap-1 mt-2 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+                                disabled={booking.status !== 'confirmed'}
                             >
                                 <Upload size={14} /> Add Payment
                             </button>
@@ -892,18 +893,38 @@ const AddPaymentModal = ({ booking, onClose, onPaymentSuccess }) => {
     const [manualPaymentReference, setManualPaymentReference] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState('');
+    const [paymentQR, setPaymentQR] = useState('');
+    const [qrLoading, setQrLoading] = useState(true);
 
     const remainingBalance = booking.totalPrice - booking.amountPaid;
+
+    useEffect(() => {
+        const fetchQR = async () => {
+            try {
+                setQrLoading(true);
+                const qrResponse = await DataService.fetchContent('paymentQR');
+                if (qrResponse.success && qrResponse.data.content) {
+                    const qrContent = qrResponse.data.content;
+                    setPaymentQR(qrContent.startsWith('http') ? qrContent : `${SERVER_URL}${qrContent.startsWith('/') ? '' : '/'}${qrContent}`);
+                }
+            } catch (error) {
+                console.warn('QR code not found.');
+            } finally {
+                setQrLoading(false);
+            }
+        };
+        fetchQR();
+    }, []);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
-        if (!amount || !paymentProof) {
-            setError('Please enter an amount and upload a payment proof.');
+        if (!amount || !paymentProof || !manualPaymentReference) {
+            setError('Please enter the amount, upload a payment proof and provide a reference number.');
             return;
         }
-        if (parseFloat(amount) > remainingBalance) {
-            setError(`Amount cannot be greater than the remaining balance of ${formatPrice(remainingBalance)}.`);
+        if (parseFloat(amount) !== remainingBalance) {
+            setError(`The amount must be the exact remaining balance of ${formatPrice(remainingBalance)}.`);
             return;
         }
 
@@ -942,6 +963,9 @@ const AddPaymentModal = ({ booking, onClose, onPaymentSuccess }) => {
                         <p>Remaining Balance: <span className="font-bold text-red-600">{formatPrice(remainingBalance)}</span></p>
                     </div>
                     <form onSubmit={handleSubmit} className="space-y-4">
+                        <div className="flex flex-col items-center">
+                            {qrLoading ? <p>Loading QR...</p> : paymentQR ? <img src={paymentQR} alt="Payment QR Code" className="w-48 h-48 object-contain mb-4 border rounded-md" /> : <p className="text-sm text-gray-500 mb-4">QR code not available.</p>}
+                        </div>
                         <div>
                             <label className="block text-sm font-medium">Amount</label>
                             <input
@@ -954,12 +978,13 @@ const AddPaymentModal = ({ booking, onClose, onPaymentSuccess }) => {
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium">Bank Reference (Optional)</label>
+                            <label className="block text-sm font-medium">Bank Reference</label>
                             <input
                                 type="text"
                                 value={manualPaymentReference}
                                 onChange={(e) => setManualPaymentReference(e.target.value)}
                                 className="w-full p-2 border rounded mt-1"
+                                required
                             />
                         </div>
                         <div>

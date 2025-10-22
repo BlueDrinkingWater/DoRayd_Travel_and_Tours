@@ -15,12 +15,12 @@ const Messages = () => {
   const [attachment, setAttachment] = useState(null);
   const [sendingReply, setSendingReply] = useState(false);
 
-  const handleMarkAsRead = async (messageId) => {
+  const handleUpdateStatus = async (messageId, status) => {
     try {
-      await DataService.updateMessageStatus(messageId, 'read');
+      await DataService.updateMessageStatus(messageId, status);
       fetchMessages();
     } catch (error) {
-      console.error('Error marking message as read:', error);
+      console.error(`Error updating message status to ${status}:`, error);
     }
   };
 
@@ -43,6 +43,8 @@ const Messages = () => {
       setShowReplyModal(false);
       setReplyContent('');
       setAttachment(null);
+      // Mark as read after replying
+      await handleUpdateStatus(selectedMessage._id, 'read');
       fetchMessages();
     } catch (error) {
       console.error('Error sending reply:', error);
@@ -54,8 +56,8 @@ const Messages = () => {
 
   const selectMessage = (message) => {
     setSelectedMessage(message);
-    if (!message.read) {
-      handleMarkAsRead(message._id);
+    if (message.status === 'new') {
+      handleUpdateStatus(message._id, 'read');
     }
   };
 
@@ -77,15 +79,12 @@ const Messages = () => {
       message.message.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesFilter = 
-      filterStatus === 'all' ||
-      (filterStatus === 'read' && message.read) ||
-      (filterStatus === 'unread' && !message.read) ||
-      (filterStatus === 'replied' && message.replied);
+      filterStatus === 'all' || message.status === filterStatus;
     
     return matchesSearch && matchesFilter;
   });
 
-  const unreadCount = messages.filter(m => !m.read).length;
+  const unreadCount = messages.filter(m => m.status === 'new').length;
 
   return (
     <div className="p-6">
@@ -123,9 +122,10 @@ const Messages = () => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="all">All Messages</option>
-                <option value="unread">Unread</option>
+                <option value="new">Unread</option>
                 <option value="read">Read</option>
                 <option value="replied">Replied</option>
+                <option value="closed">Archived</option>
               </select>
             </div>
           </div>
@@ -145,11 +145,11 @@ const Messages = () => {
                     onClick={() => selectMessage(message)}
                     className={`p-4 cursor-pointer hover:bg-gray-50 transition-colors ${
                       selectedMessage?._id === message._id ? 'bg-blue-50 border-r-4 border-blue-500' : ''
-                    } ${!message.read ? 'bg-blue-25' : ''}`}
+                    } ${message.status === 'new' ? 'bg-blue-25' : ''}`}
                   >
                     <div className="flex items-start gap-3">
-                      <div className={`p-2 rounded-full ${!message.read ? 'bg-blue-100' : 'bg-gray-100'}`}>
-                        {!message.read ? (
+                      <div className={`p-2 rounded-full ${message.status === 'new' ? 'bg-blue-100' : 'bg-gray-100'}`}>
+                        {message.status === 'new' ? (
                           <Mail className="w-4 h-4 text-blue-600" />
                         ) : (
                           <MailOpen className="w-4 h-4 text-gray-600" />
@@ -157,7 +157,7 @@ const Messages = () => {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-1">
-                          <h4 className={`text-sm font-medium truncate ${!message.read ? 'text-gray-900' : 'text-gray-700'}`}>
+                          <h4 className={`text-sm font-medium truncate ${message.status === 'new' ? 'text-gray-900' : 'text-gray-700'}`}>
                             {message.name}
                           </h4>
                           <span className="text-xs text-gray-500">
@@ -166,7 +166,7 @@ const Messages = () => {
                         </div>
                         <p className="text-xs text-gray-600 mb-1">{message.email}</p>
                         {message.subject && (
-                          <p className={`text-sm truncate mb-1 ${!message.read ? 'font-medium text-gray-900' : 'text-gray-700'}`}>
+                          <p className={`text-sm truncate mb-1 ${message.status === 'new' ? 'font-medium text-gray-900' : 'text-gray-700'}`}>
                             {message.subject}
                           </p>
                         )}
@@ -180,7 +180,7 @@ const Messages = () => {
                               Replied
                             </span>
                           )}
-                          {!message.read && (
+                          {message.status === 'new' && (
                             <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
                           )}
                         </div>
@@ -245,7 +245,7 @@ const Messages = () => {
                     <Reply className="w-4 h-4" />
                     Reply
                   </button>
-                  <button className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2">
+                  <button onClick={() => handleUpdateStatus(selectedMessage._id, 'closed')} className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2">
                     <Archive className="w-4 h-4" />
                     Archive
                   </button>
@@ -279,10 +279,10 @@ const Messages = () => {
               <div className="p-4 border-t border-gray-200 bg-gray-50">
                 <div className="flex items-center justify-between text-sm text-gray-600">
                   <div className="flex items-center gap-4">
-                    {selectedMessage.readAt && (
+                    {selectedMessage.status !== 'new' && (
                       <span className="flex items-center gap-1">
                         <Clock className="w-4 h-4" />
-                        Read on {formatDate(selectedMessage.readAt)}
+                        Last updated on {formatDate(selectedMessage.updatedAt)}
                       </span>
                     )}
                   </div>

@@ -128,12 +128,28 @@ export const UnifiedLoginPortal = ({ isOpen, onClose, showRegistration = false }
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isFbSdkReady, setIsFbSdkReady] = useState(false);
+  const [loginPrivacyContent, setLoginPrivacyContent] = useState(''); // NEW: State for login privacy content
+  const [agreedToLoginPrivacy, setAgreedToLoginPrivacy] = useState(false); // NEW: State for agreement
 
   useEffect(() => {
     if (!isOpen) {
         resetForm();
         return;
     };
+
+    // NEW: Fetch login privacy content for registration view
+    const fetchLoginPrivacyContent = async () => {
+        try {
+            const response = await DataService.fetchContent('loginPrivacy');
+            if (response.success && response.data.content) {
+                setLoginPrivacyContent(response.data.content);
+            }
+        } catch (error) {
+            // Log this error, but don't set a form error since the link is primary
+            console.warn('Login Privacy content not found. Please create it in admin Content Management.');
+        }
+    };
+    fetchLoginPrivacyContent();
 
     if (!GOOGLE_CLIENT_ID) {
         console.warn('VITE_GOOGLE_CLIENT_ID is not configured in your .env file. Google Login will fail.');
@@ -220,6 +236,7 @@ export const UnifiedLoginPortal = ({ isOpen, onClose, showRegistration = false }
     setFormData({ firstName: '', lastName: '', email: '', password: '' });
     setError('');
     setShowPassword(false);
+    setAgreedToLoginPrivacy(false); // NEW: Reset agreement state
   };
 
   const handleTabChange = (tab) => {
@@ -269,6 +286,14 @@ export const UnifiedLoginPortal = ({ isOpen, onClose, showRegistration = false }
         setLoading(false);
         return;
       }
+      
+      // NEW: Registration Policy Check
+      if (!agreedToLoginPrivacy && activeTab === 'customer') {
+          setError("You must agree to the Privacy Policy to create an account.");
+          setLoading(false);
+          return;
+      }
+      
       result = await register(formData);
       if (result.success) {
         alert('Registration successful! Please log in.');
@@ -357,6 +382,27 @@ export const UnifiedLoginPortal = ({ isOpen, onClose, showRegistration = false }
                 <input type={showPassword ? 'text' : 'password'} name="password" placeholder="Password" value={formData.password} onChange={handleInputChange} className="w-full p-3 border rounded-lg" required />
                 <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 px-4 flex items-center text-gray-500"><EyeOff size={18} className={showPassword ? '' : 'hidden'}/><Eye size={18} className={showPassword ? 'hidden' : ''}/></button>
               </div>
+              
+              {/* NEW: Policy Checkbox for Registration */}
+              {!isLoginView && activeTab === 'customer' && (
+                  <div className="flex items-start mt-4">
+                      <input 
+                        type="checkbox" 
+                        id="agreedToLoginPrivacy" 
+                        checked={agreedToLoginPrivacy} 
+                        onChange={(e) => setAgreedToLoginPrivacy(e.target.checked)} 
+                        className="h-4 w-4 text-blue-600 border-gray-300 rounded mt-1 flex-shrink-0"
+                        required 
+                      />
+                      <label htmlFor="agreedToLoginPrivacy" className="ml-2 block text-sm text-gray-900">
+                          I agree to the {' '}
+                          <Link to="/login-privacy" target="_blank" onClick={onClose} className="text-blue-600 hover:underline font-semibold">
+                            Login Privacy Policy
+                          </Link>
+                          .
+                      </label>
+                  </div>
+              )}
               
               {isLoginView && <div className="text-right"><Link to="/forgot-password" onClick={onClose} className="text-sm text-blue-600 hover:underline">Forgot password?</Link></div>}
               

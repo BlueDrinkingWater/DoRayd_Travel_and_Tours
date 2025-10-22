@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose from 'mongoose';
 
 const contentSchema = new mongoose.Schema(
   {
@@ -7,21 +7,22 @@ const contentSchema = new mongoose.Schema(
       required: true,
       unique: true, // only one document per type (e.g. mission, about, etc.)
       enum: [
-        "mission",
-        "vision",
-        "about",
-        "terms",
-        "privacy",
-        "contact",
-        "bookingTerms",
-        "bookingDisclaimer",
-        "paymentQR",
-        "aboutImage",
-        "contactPhone",
-        "contactEmail",
-        "contactAddress",
-        "contactHours",
-        "officeLocation"
+        'mission',
+        'vision',
+        'about',
+        'terms',
+        'privacy',
+        'contact',
+        'bookingTerms',
+        'bookingDisclaimer',
+        'paymentQR',
+        'aboutImage',
+        'contactPhone',
+        'contactEmail',
+        'contactAddress',
+        'contactHours',
+        'officeLocation',
+        'loginPrivacy', // ADDED: New content type for login privacy
       ],
       trim: true,
     },
@@ -32,7 +33,7 @@ const contentSchema = new mongoose.Schema(
     },
     content: {
       type: String,
-      default: "",
+      default: '',
     },
   },
   {
@@ -43,4 +44,4 @@ const contentSchema = new mongoose.Schema(
 //  Ensure indexes are synced (prevents leftover 'page' index errors)
 contentSchema.index({ type: 1 }, { unique: true });
 
-export default mongoose.model("Content", contentSchema);
+export default mongoose.model('Content', contentSchema);

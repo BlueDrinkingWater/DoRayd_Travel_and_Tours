@@ -24,6 +24,7 @@ const ContentManagement = () => {
     { key: 'contactAddress', label: 'Contact Address', icon: MapPin, description: 'Main office or contact address.', type: 'textarea' },
     { key: 'contactHours', label: 'Business Hours', icon: Clock, description: 'Company operating hours.', type: 'input' },
     { key: 'officeLocation', label: 'Office Location Map', icon: MapPin, description: 'Click on the map to set the office location.', type: 'map' },
+    { key: 'loginPrivacy', label: 'Login Privacy Policy', icon: Shield, description: 'The privacy policy customers must agree to during registration.', type: 'textarea' }, // ADDED
   ];
 
   const { data: initialContentData, loading, refetch: fetchAllContent } = useApi(

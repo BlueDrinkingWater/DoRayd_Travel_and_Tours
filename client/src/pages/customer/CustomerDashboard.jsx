@@ -1,17 +1,17 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
-    Calendar, Clock, Car, MapPin, Star, MessageSquare, Settings, User, Heart, Award, Upload, Menu, X, ChevronRight, Eye, Check, FileText, Link as LinkIcon, Hash, Package, DollarSign, ImageIcon
-} from 'lucide-react';
+    Calendar, Clock, Car, MapPin, Star, MessageSquare, Settings, User, Heart, Award, Upload, Menu, X, ChevronRight, Eye, Check, FileText, Link as LinkIcon, Hash, Package, DollarSign, ImageIcon, Paperclip
+} from 'lucide-react'; // <-- ADDED Paperclip
 import { useAuth } from '@/components/Login.jsx';
 import { useApi } from '@/hooks/useApi.jsx';
-import DataService, { getImageUrl } from '@/components/services/DataService.jsx';
+import DataService, { getImageUrl, SERVER_URL } from '@/components/services/DataService.jsx';
 import AccountSettings from '@/pages/shared/AccountSettings.jsx';
 import bgTour from '@/assets/bgTour.jpg';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import { useLocation } from 'react-router-dom';
-
+import { useSecureImage } from '@/hooks/useSecureImage.jsx'; // Import the secure image hook
 
 // --- Helper Functions ---
 const formatDateTime = (dateString) => {
@@ -51,6 +51,56 @@ const InfoRow = ({ label, value, icon: Icon }) => (
     <span className="font-medium text-gray-800 text-right">{value || 'N/A'}</span>
   </div>
 );
+
+// --- COMPONENT TO HANDLE SECURE IMAGES (Payment Proofs) ---
+const PaymentProofImage = ({ paymentProofUrl }) => {
+  const { secureUrl, loading } = useSecureImage(paymentProofUrl);
+  
+  if (!paymentProofUrl) {
+    return <p className="text-sm text-gray-500 mt-2">No proof uploaded.</p>;
+  }
+  if (loading) {
+    return <div className="text-center py-4 text-sm text-gray-500">Loading payment proof...</div>;
+  }
+  if (!secureUrl) {
+    return <p className="text-sm text-red-500 text-center py-4">Secure Image Access Failed. (Login Required/Auth Error)</p>;
+  }
+  
+  return (
+    <div className="mt-2">
+      <h4 className="text-sm font-semibold">Proof Image:</h4>
+      <a href={secureUrl} target="_blank" rel="noopener noreferrer" className="mt-2 block">
+          <img
+              src={secureUrl}
+              alt="Payment Proof"
+              className="w-full h-auto rounded-lg object-contain border"
+              onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/300x200/fecaca/991b1b?text=Error'; }}
+          />
+      </a>
+    </div>
+  );
+};
+
+// --- NEW Secure Attachment Link Component (For Booking Notes) ---
+const SecureAttachmentLink = ({ attachmentPath, originalName }) => {
+    const { secureUrl, loading } = useSecureImage(attachmentPath);
+
+    if (loading) return <span className="text-xs text-gray-500 italic">Loading attachment...</span>;
+    if (!secureUrl) return <span className="text-xs text-red-500 italic">Error loading attachment</span>;
+
+    return (
+        <a
+            href={secureUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-2 inline-flex items-center gap-1 text-sm text-blue-600 hover:underline bg-blue-50 px-2 py-1 rounded"
+            download={originalName} // Suggests the original filename for download
+        >
+            <Paperclip size={14} /> {originalName || 'View Attachment'}
+        </a>
+    );
+};
+// --- END Secure Attachment Link Component ---
 
 // Full Booking Detail Modal
 const BookingDetailModal = ({ booking, onClose }) => {
@@ -92,11 +142,12 @@ const BookingDetailModal = ({ booking, onClose }) => {
                                     <span className="text-2xl font-bold text-blue-600">{formatPrice(booking.totalPrice)}</span>
                                 </div>
                                 {booking.payments.map((payment, index) => (
-                                    <div key={index} className="mt-4">
+                                    <div key={index} className="mt-4 border-t pt-4">
                                         <h4 className="text-sm font-semibold">Payment {index + 1}</h4>
-                                        <a href={getImageUrl(payment.paymentProof)} target="_blank" rel="noopener noreferrer" className="mt-2 block">
-                                            <img src={getImageUrl(payment.paymentProof)} alt={`Payment Proof ${index + 1}`} className="w-full h-auto rounded-lg object-contain border" />
-                                        </a>
+                                        <InfoRow label="System Pay Code" value={payment.paymentReference} />
+                                        <InfoRow label="Bank Reference" value={payment.manualPaymentReference || 'N/A'} />
+                                        <InfoRow label="Amount Paid" value={formatPrice(payment.amount)} />
+                                        <PaymentProofImage paymentProofUrl={payment.paymentProof} />
                                     </div>
                                 ))}
                             </InfoBlock>
@@ -107,7 +158,24 @@ const BookingDetailModal = ({ booking, onClose }) => {
                                 </div>
                                 {booking.notes && booking.notes.length > 0 ? (
                                     booking.notes.map((note, index) => (
-                                        <p key={index} className="text-sm text-gray-600 bg-gray-100 p-3 rounded-md mt-2">{note.note}</p>
+                                        <div key={index} className="text-sm text-gray-600 bg-gray-100 p-3 rounded-md mt-2">
+                                            <p className="whitespace-pre-wrap">{note.note}</p>
+                                            
+                                            {/* --- ADDED ATTACHMENT LINK --- */}
+                                            {note.attachment && (
+                                              <div className="mt-2">
+                                                <SecureAttachmentLink
+                                                  attachmentPath={note.attachment}
+                                                  originalName={note.attachmentOriginalName}
+                                                />
+                                              </div>
+                                            )}
+                                            {/* --- END ADDED BLOCK --- */}
+                                            
+                                            <p className="text-xs text-gray-500 mt-1 italic">
+                                                Note from Admin on {formatDateTime(note.date)}
+                                            </p>
+                                        </div>
                                     ))
                                 ) : (
                                     <p className="text-sm text-gray-500">No notes from admin.</p>
@@ -289,7 +357,7 @@ const CustomerDashboard = () => {
                 </main>
             </div>
             
-            {selectedBooking && (
+            {selectedBooking && !showAddPaymentModal && (
                 <BookingDetailModal
                     booking={selectedBooking}
                     onClose={() => setSelectedBooking(null)}
@@ -310,6 +378,8 @@ const CustomerDashboard = () => {
     );
 };
 
+// --- Other components remain unchanged ---
+// StatCard
 const StatCard = ({ title, value }) => (
     <div className="bg-white/80 backdrop-blur-md p-6 rounded-xl shadow-lg border border-white/20 hover:shadow-xl transition-all hover:-translate-y-1">
         <p className="text-sm font-medium text-gray-500">{title}</p>
@@ -317,7 +387,7 @@ const StatCard = ({ title, value }) => (
     </div>
 );
 
-
+// OverviewTab
 const OverviewTab = ({ bookings, onBookingSelect }) => {
     
     const events = useMemo(() => bookings.map(booking => ({
@@ -383,6 +453,7 @@ const OverviewTab = ({ bookings, onBookingSelect }) => {
     );
 }
 
+// BookingsTab
 const BookingsTab = ({ bookings, onBookingSelect, onAddPayment }) => (
     <div className="space-y-4">
         {bookings.length > 0 ? bookings.map(booking => (
@@ -444,6 +515,7 @@ const BookingsTab = ({ bookings, onBookingSelect, onAddPayment }) => (
     </div>
 );
 
+// MyReviewsTab
 const MyReviewsTab = ({ reviews }) => (
     <div className="space-y-4">
         {reviews.length > 0 ? reviews.map(review => (
@@ -487,6 +559,7 @@ const MyReviewsTab = ({ reviews }) => (
     </div>
 );
 
+// MyFeedbackTab
 const MyFeedbackTab = ({ feedback }) => (
     <div className="space-y-6">
         {feedback.length > 0 ? feedback.map(item => (
@@ -532,6 +605,7 @@ const MyFeedbackTab = ({ feedback }) => (
     </div>
 );
 
+// LeaveReviewTab
 const LeaveReviewTab = ({ bookings, reviewedBookingIds, onReviewSubmit }) => {
     const [selectedBookingId, setSelectedBookingId] = useState('');
     const [rating, setRating] = useState(0);
@@ -668,6 +742,7 @@ const LeaveReviewTab = ({ bookings, reviewedBookingIds, onReviewSubmit }) => {
     );
 };
 
+// LeaveFeedbackTab
 const LeaveFeedbackTab = ({ bookings, feedbackBookingIds, onFeedbackSubmit }) => {
     const [selectedBookingId, setSelectedBookingId] = useState('');
     const [rating, setRating] = useState(0);
@@ -805,6 +880,7 @@ const LeaveFeedbackTab = ({ bookings, feedbackBookingIds, onFeedbackSubmit }) =>
     );
 };
 
+// PublicFeedbackTab
 const PublicFeedbackTab = ({ feedback }) => (
     <div>
         <p className="text-white/80 mb-8">See what our customers are saying about DoRayd Travel & Tours</p>
@@ -865,6 +941,7 @@ const PublicFeedbackTab = ({ feedback }) => (
     </div>
 );
 
+// Helper function to get status color (ensure this is defined or imported)
 const getStatusColor = (status) => {
     switch (status) {
         case 'pending': return 'bg-yellow-100 text-yellow-800';
@@ -876,6 +953,7 @@ const getStatusColor = (status) => {
     }
 };
 
+// Helper function to get status color for calendar (ensure this is defined or imported)
 const getStatusColorForCalendar = (status) => {
     switch (status) {
         case 'pending': return '#FBBF24';
@@ -887,6 +965,7 @@ const getStatusColorForCalendar = (status) => {
     }
 }
 
+// AddPaymentModal component (unchanged)
 const AddPaymentModal = ({ booking, onClose, onPaymentSuccess }) => {
     const [amount, setAmount] = useState('');
     const [paymentProof, setPaymentProof] = useState(null);
@@ -1008,5 +1087,6 @@ const AddPaymentModal = ({ booking, onClose, onPaymentSuccess }) => {
         </div>
     );
 };
+
 
 export default CustomerDashboard;

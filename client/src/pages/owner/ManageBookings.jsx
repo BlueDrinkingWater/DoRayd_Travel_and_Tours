@@ -1,10 +1,70 @@
-// client/src/pages/owner/ManageBookings.jsx
-
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, Eye, Check, X, Clock, Calendar, Users, MapPin, Phone, Mail, FileText, Image as ImageIcon, Link as LinkIcon, Hash, Car, Package, DollarSign, Tag, Paperclip, Info, User, CreditCard } from 'lucide-react'; // Added CreditCard here
+import { Search, Filter, Eye, Check, X, Clock, Calendar, Users, MapPin, Phone, Mail, FileText, Image as ImageIcon, Link as LinkIcon, Hash, Car, Package, DollarSign, Tag, Paperclip, Info, User, CreditCard } from 'lucide-react'; // <-- ADDED Paperclip
 import { useApi } from '../../hooks/useApi';
 import DataService, { getImageUrl } from '../../components/services/DataService.jsx';
-import { useSecureImage } from '../../hooks/useSecureImage.jsx';
+import { useSecureImage } from '../../hooks/useSecureImage.jsx'; // Import the secure image hook
+
+// --- NEW COMPONENT TO HANDLE SECURE IMAGES (Payment Proofs) ---
+const PaymentProofImage = ({ paymentProofUrl }) => {
+  const { secureUrl, loading } = useSecureImage(paymentProofUrl);
+  
+  if (!paymentProofUrl) {
+    return <p className="text-sm text-gray-500 mt-2">No proof uploaded.</p>;
+  }
+
+  if (loading) {
+    return <div className="text-center py-4 text-sm text-gray-500">Loading payment proof...</div>;
+  }
+
+  if (!secureUrl) {
+    return <p className="text-sm text-red-500 text-center py-4">Secure Image Access Failed. (Login Required/Auth Error)</p>;
+  }
+  
+  return (
+    <a href={secureUrl} target="_blank" rel="noopener noreferrer" className="mt-2 block">
+      <img
+          src={secureUrl}
+          alt="Payment Proof"
+          className="w-full h-auto max-h-40 rounded-lg object-contain border mt-2"
+          onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/300x200/fecaca/991b1b?text=Error'; }}
+      />
+    </a>
+  );
+};
+// --- END NEW COMPONENT ---
+
+// --- NEW Secure Attachment Link Component (For Booking Notes) ---
+const SecureAttachmentLink = ({ attachmentPath, originalName }) => {
+    const { secureUrl, loading } = useSecureImage(attachmentPath);
+
+    if (loading) return <span className="text-xs text-gray-500 italic">Loading attachment...</span>;
+    if (!secureUrl) return <span className="text-xs text-red-500 italic">Error loading attachment</span>;
+
+    return (
+        <a
+            href={secureUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-2 inline-flex items-center gap-1 text-sm text-blue-600 hover:underline bg-blue-50 px-2 py-1 rounded"
+            download={originalName} // Suggests the original filename for download
+        >
+            <Paperclip size={14} /> {originalName || 'View Attachment'}
+        </a>
+    );
+};
+// --- END Secure Attachment Link Component ---
+
+const formatDateTime = (dateString) => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    });
+};
 
 const ManageBookings = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -71,18 +131,6 @@ const ManageBookings = () => {
     setAdminNotes('');
     setAttachment(null);
     setShowModal(true);
-  };
-
-  const formatDateTime = (dateString) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true,
-    });
   };
 
   const formatDate = (dateString) => {
@@ -239,6 +287,38 @@ const ManageBookings = () => {
                       <span className="font-bold text-lg text-blue-600">{formatPrice(selectedBooking.totalPrice)}</span>
                     </div>
                   </InfoBlock>
+                  
+                  {/* Admin Notes Block (Moved to Left Column) */}
+                  <InfoBlock title="Communication Log" icon={Info}>
+                    <div className="flex items-center justify-between mb-4">
+                        <span className="font-semibold">Current Status:</span>
+                        {getStatusBadge(selectedBooking.status)}
+                    </div>
+                    {selectedBooking.notes && selectedBooking.notes.length > 0 ? (
+                        selectedBooking.notes.map((note, index) => (
+                            <div key={index} className="text-sm text-gray-600 bg-gray-100 p-3 rounded-md mt-2">
+                                <p className="whitespace-pre-wrap">{note.note}</p>
+                                
+                                {/* --- ADDED ATTACHMENT LINK --- */}
+                                {note.attachment && (
+                                  <div className="mt-2">
+                                    <SecureAttachmentLink
+                                      attachmentPath={note.attachment}
+                                      originalName={note.attachmentOriginalName}
+                                    />
+                                  </div>
+                                )}
+                                {/* --- END ADDED BLOCK --- */}
+                                
+                                <p className="text-xs text-gray-500 mt-1 italic">
+                                    By {note.author?.firstName || 'Admin'} on {formatDateTime(note.date)}
+                                </p>
+                            </div>
+                        ))
+                    ) : (
+                        <p className="text-sm text-gray-500">No notes from admin.</p>
+                    )}
+                  </InfoBlock>
                 </div>
 
                 {/* Right Column: Payment and Admin Actions */}
@@ -250,16 +330,7 @@ const ManageBookings = () => {
                                 <InfoRow label="System Pay Code" value={payment.paymentReference} />
                                 <InfoRow label="Bank Reference" value={payment.manualPaymentReference || 'N/A'} />
                                 <InfoRow label="Amount Paid" value={formatPrice(payment.amount)} />
-                                {payment.paymentProof ? (
-                                    <a href={getImageUrl(payment.paymentProof)} target="_blank" rel="noopener noreferrer" className="mt-2 block">
-                                        <img
-                                            src={getImageUrl(payment.paymentProof)}
-                                            alt={`Payment Proof ${index + 1}`}
-                                            className="w-full h-auto max-h-40 rounded-lg object-contain border mt-2"
-                                            onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/300x200/fecaca/991b1b?text=Error'; }}
-                                        />
-                                    </a>
-                                ) : <p className="text-sm text-gray-500 mt-2">No proof uploaded.</p>}
+                                <PaymentProofImage paymentProofUrl={payment.paymentProof} />
                             </div>
                         ))}
                          <div className="flex justify-between items-center text-red-600 mt-4 pt-4 border-t">
@@ -274,16 +345,12 @@ const ManageBookings = () => {
                   </InfoBlock>
 
                   <InfoBlock title="Admin Actions" icon={FileText}>
-                    <div className="flex items-center justify-between mb-4">
-                        <span className="font-semibold">Current Status:</span>
-                        {getStatusBadge(selectedBooking.status)}
-                    </div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Admin Notes</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Add Note / Status Change Reason</label>
                     <textarea value={adminNotes} onChange={(e) => setAdminNotes(e.target.value)} rows="3" className="w-full p-2 border rounded-lg" placeholder="Add notes for the customer..." />
                     <div className="mt-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Attach File</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Attach File (Optional)</label>
                       <div className="flex items-center gap-2">
-                        <input type="file" onChange={(e) => setAttachment(e.target.files[0])} className="text-sm" />
+                        <input type="file" onChange={(e) => setAttachment(e.target.files[0])} className="text-sm w-full file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
                         {attachment && <button onClick={() => setAttachment(null)}><X size={16} className="text-red-500"/></button>}
                       </div>
                     </div>
@@ -291,16 +358,19 @@ const ManageBookings = () => {
 
                   {selectedBooking.status === 'pending' && (
                     <div className="flex gap-3">
-                      <button onClick={() => handleStatusUpdate(selectedBooking._id, 'confirmed')} disabled={updating} className="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg font-semibold flex items-center justify-center gap-2"><Check size={16} /> Confirm</button>
-                      <button onClick={() => handleStatusUpdate(selectedBooking._id, 'rejected')} disabled={updating} className="flex-1 bg-red-600 text-white px-4 py-2 rounded-lg font-semibold flex items-center justify-center gap-2"><X size={16} /> Reject</button>
+                      <button onClick={() => handleStatusUpdate(selectedBooking._id, 'confirmed')} disabled={updating || !adminNotes.trim()} className="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg font-semibold flex items-center justify-center gap-2 hover:bg-green-700 disabled:bg-gray-400"><Check size={16} /> Confirm</button>
+                      <button onClick={() => handleStatusUpdate(selectedBooking._id, 'rejected')} disabled={updating || !adminNotes.trim()} className="flex-1 bg-red-600 text-white px-4 py-2 rounded-lg font-semibold flex items-center justify-center gap-2 hover:bg-red-700 disabled:bg-gray-400"><X size={16} /> Reject</button>
                     </div>
                   )}
                   {selectedBooking.status === 'confirmed' && (
                     <div className="flex gap-3">
-                      <button onClick={() => handleStatusUpdate(selectedBooking._id, 'completed')} disabled={updating} className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold flex items-center justify-center gap-2"><Check size={16} /> Mark as Completed</button>
-                      <button onClick={() => handleCancelBooking(selectedBooking._id)} disabled={updating} className="flex-1 bg-gray-600 text-white px-4 py-2 rounded-lg font-semibold flex items-center justify-center gap-2"><X size={16} /> Cancel Booking</button>
+                      <button onClick={() => handleStatusUpdate(selectedBooking._id, 'completed')} disabled={updating} className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold flex items-center justify-center gap-2 hover:bg-blue-700 disabled:bg-gray-400"><Check size={16} /> Mark as Completed</button>
+                      <button onClick={() => handleCancelBooking(selectedBooking._id)} disabled={updating || !adminNotes.trim()} className="flex-1 bg-gray-600 text-white px-4 py-2 rounded-lg font-semibold flex items-center justify-center gap-2 hover:bg-gray-700 disabled:bg-gray-400"><X size={16} /> Cancel Booking</button>
                     </div>
                   )}
+                   {(selectedBooking.status === 'rejected' || selectedBooking.status === 'completed' || selectedBooking.status === 'cancelled') && (
+                     <p className="text-sm text-center text-gray-500 italic">No further actions available for this booking status.</p>
+                   )}
                 </div>
               </div>
             </div>

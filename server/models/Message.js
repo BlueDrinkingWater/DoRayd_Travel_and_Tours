@@ -4,49 +4,38 @@ const messageSchema = new mongoose.Schema({
   name: {
     type: String,
     required: [true, 'Name is required'],
-    trim: true,
-    maxlength: [100, 'Name cannot exceed 100 characters']
+    trim: true
   },
   email: {
     type: String,
     required: [true, 'Email is required'],
-    lowercase: true,
     trim: true,
-    match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Please enter a valid email']
+    lowercase: true,
+    match: [/^\S+@\S+\.\S+$/, 'Please use a valid email address.']
   },
   phone: {
     type: String,
+    required: [true, 'Phone number is required'],
     trim: true
   },
   subject: {
     type: String,
     required: [true, 'Subject is required'],
-    trim: true,
-    maxlength: [200, 'Subject cannot exceed 200 characters']
+    trim: true
   },
   message: {
     type: String,
     required: [true, 'Message is required'],
-    maxlength: [2000, 'Message cannot exceed 2000 characters']
-  },
-  category: {
-    type: String,
-    enum: ['general', 'booking', 'complaint', 'suggestion', 'support'],
-    default: 'general'
+    trim: true
   },
   status: {
     type: String,
-    enum: ['new', 'read', 'replied', 'resolved', 'closed'],
+    enum: ['new', 'read', 'replied'],
     default: 'new'
   },
-  priority: {
-    type: String,
-    enum: ['low', 'medium', 'high', 'urgent'],
-    default: 'medium'
-  },
-  assignedTo: {
+  user: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
+    ref: 'User' // Link to the user who sent it, if they were logged in
   },
   replies: [{
     message: {
@@ -61,14 +50,24 @@ const messageSchema = new mongoose.Schema({
     repliedAt: {
       type: Date,
       default: Date.now
+    },
+    // --- ADDED FIELDS ---
+    attachment: {
+      type: String // Cloudinary path (req.file.path)
+    },
+    attachmentOriginalName: {
+      type: String // Original filename (req.file.originalname)
     }
+    // --- END ADDED FIELDS ---
   }]
 }, {
-  timestamps: true
+  timestamps: true // Adds createdAt and updatedAt timestamps
 });
 
-// Indexes
+// Create index for faster searching by status or email
 messageSchema.index({ status: 1 });
-messageSchema.index({ createdAt: -1 });
+messageSchema.index({ email: 1 });
 
-export default mongoose.model('Message', messageSchema);
+const Message = mongoose.model('Message', messageSchema);
+
+export default Message;

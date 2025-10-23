@@ -1,100 +1,199 @@
 import Message from '../models/Message.js';
-import EmailService from '../utils/emailServices.js';
+import { sendEmail } from '../utils/emailServices.js';
 import { createNotification } from './notificationController.js';
-import { createActivityLog } from './activityLogController.js';
+import User from '../models/User.js';
 
-export const getAllMessages = async (req, res) => {
+// Get all messages
+export const getAllMessages = async (req, res, next) => {
   try {
-    const messages = await Message.find().sort({ createdAt: -1 });
-    res.json({ success: true, data: messages });
-  } catch (error) {
-    res.status(500).json({ success: false, message: 'Server Error' });
-  }
-};
+    const { status, search } = req.query;
+    let query = {};
 
-export const createMessage = async (req, res) => {
-  try {
-    const message = new Message(req.body);
-    await message.save();
-    
-    const io = req.app.get('io');
-    if (io) {
-        const notificationMessage = `New message from ${message.name}`;
-        await createNotification(
-          io,
-          { roles: ['admin', 'employee'], module: 'messages' },
-          notificationMessage,
-          { admin: '/owner/messages', employee: '/employee/messages' }
-        );
+    if (status && status !== 'all') {
+      query.status = status;
     }
     
-    res.status(201).json({ success: true, data: message });
+    if (search) {
+      query.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } },
+        { subject: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    const messages = await Message.find(query)
+      .populate('user', 'firstName lastName')
+      .populate('replies.repliedBy', 'firstName lastName')
+      .sort({ createdAt: -1 });
+      
+    res.status(200).json({ success: true, data: messages });
   } catch (error) {
-    res.status(400).json({ success: false, message: error.message });
+    next(error);
   }
 };
 
-export const replyToMessage = async (req, res) => {
+// Get a single message by ID
+export const getMessageById = async (req, res, next) => {
+  try {
+    const message = await Message.findById(req.params.id)
+      .populate('user', 'firstName lastName')
+      .populate('replies.repliedBy', 'firstName lastName');
+      
+    if (!message) {
+      return res.status(404).json({ success: false, message: 'Message not found' });
+    }
+    
+    // Mark as read if it's new
+    if (message.status === 'new') {
+      message.status = 'read';
+      await message.save();
+    }
+    
+    res.status(200).json({ success: true, data: message });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Create a new message (from contact form)
+export const createMessage = async (req, res, next) => {
+  try {
+    const { name, email, phone, subject, message, userId } = req.body;
+    
+    const newMessageData = { name, email, phone, subject, message };
+    
+    if (userId) {
+      newMessageData.user = userId;
+    }
+    
+    const newMessage = await Message.create(newMessageData);
+
+    // Notify all admins
+    const admins = await User.find({ role: 'admin' });
+    const notificationData = {
+      message: `New contact message from ${name} regarding "${subject}".`,
+      type: 'message',
+      link: `/admin/messages` // Link to the messages page
+    };
+    for (const admin of admins) {
+      await createNotification(admin._id, notificationData);
+    }
+    
+    res.status(201).json({ success: true, data: newMessage });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Reply to a message
+export const replyToMessage = async (req, res, next) => {
   try {
     const { replyMessage } = req.body;
     const message = await Message.findById(req.params.id);
-    if (!message) return res.status(404).json({ success: false, message: 'Message not found' });
+    
+    if (!message) {
+      return res.status(404).json({ success: false, message: 'Message not found' });
+    }
 
-    message.replies.push({ message: replyMessage, repliedBy: req.user.id });
+    const replyData = {
+      message: replyMessage,
+      repliedBy: req.user.id
+    };
+
+    // --- ADD THIS BLOCK to save attachment info ---
+    if (req.file) {
+      replyData.attachment = req.file.path; // Save Cloudinary path
+      replyData.attachmentOriginalName = req.file.originalname; // Save original name
+    }
+    // --- END ADDED BLOCK ---
+
+    message.replies.push(replyData);
     message.status = 'replied';
     await message.save();
-    
-    const io = req.app.get('io');
-    if (io && req.user.role === 'employee') {
-        const link = '/owner/messages';
-        
-        const newLog = await createActivityLog(req.user.id, 'REPLY_MESSAGE', `Message from: ${message.name}`, link);
-        io.to('admin').emit('activity-log-update', newLog);
-    }
-    
-    // Notify the original sender
-    if (io && message.user) {
-      const userSocketId = message.user.toString();
-      const notification = {
-        message: `You have a new reply to your message: "${message.subject}"`,
-        link: '/my-feedback' 
-      };
 
-      io.to(userSocketId).emit('notification', notification);
-      
-      await createNotification(
-        io,
-        { user: message.user },
-        notification.message,
-        notification.link
-      );
-    }
+    // Prepare email
+    const emailData = {
+      to: message.email,
+      subject: `RE: ${message.subject}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+          <p>Hello ${message.name},</p>
+          <p>Thank you for contacting DoRayd Travel & Tours. Here is our reply regarding your message:</p>
+          <div style="background-color: #f4f4f4; border-left: 4px solid #007bff; padding: 15px; margin: 20px 0;">
+            <p style="white-space: pre-wrap;">${replyMessage}</p>
+            <p style="font-size: 0.9em; color: #555; margin-top: 15px;">
+              Replied by: ${req.user.firstName} ${req.user.lastName}
+            </p>
+          </div>
+          <p><strong>Original Message:</strong></p>
+          <blockquote style="border-left: 4px solid #ccc; padding-left: 15px; margin-left: 0; color: #777;">
+            ${message.message}
+          </blockquote>
+          <p>If you have any further questions, please feel free to reply to this email.</p>
+          <p>Best regards,<br/>The DoRayd Team</p>
+        </div>
+      `,
+    };
 
-    // Prepare attachment if it exists
-    const attachments = [];
+    // Add attachment to email if it exists
     if (req.file) {
-        attachments.push({
-            filename: req.file.originalname,
-            path: req.file.path
-        });
+      emailData.attachments = [{
+        filename: req.file.originalname,
+        path: req.file.path // Use path for Cloudinary attachments (if nodemailer-storage-cloudinary is used) or local path
+      }];
+    }
+    
+    // Send the email
+    await sendEmail(emailData);
+
+    // Notify the user if they are registered
+    if (message.user) {
+      await createNotification(message.user, {
+        message: `You have a new reply for your message: "${message.subject}".`,
+        type: 'message',
+        link: `/customer-dashboard` // Link to their dashboard
+      });
     }
 
-    await EmailService.sendContactReply(message, replyMessage, attachments);
-    
-    res.json({ success: true, data: message });
+    const populatedMessage = await Message.findById(message._id)
+      .populate('user', 'firstName lastName')
+      .populate('replies.repliedBy', 'firstName lastName');
+
+    res.status(200).json({ success: true, data: populatedMessage });
   } catch (error) {
-    console.error('Error replying to message:', error);
-    res.status(500).json({ success: false, message: 'Server Error' });
+    next(error);
   }
 };
 
-export const updateMessageStatus = async (req, res) => {
+// Mark a message as read (if needed separately)
+export const markAsRead = async (req, res, next) => {
   try {
-    const { status } = req.body;
-    const message = await Message.findByIdAndUpdate(req.params.id, { status }, { new: true });
-    if (!message) return res.status(404).json({ success: false, message: 'Message not found' });
-    res.json({ success: true, data: message });
+    const message = await Message.findByIdAndUpdate(
+      req.params.id,
+      { status: 'read' },
+      { new: true }
+    );
+    if (!message) {
+      return res.status(404).json({ success: false, message: 'Message not found' });
+    }
+    res.status(200).json({ success: true, data: message });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Server Error' });
+    next(error);
+  }
+};
+
+// Delete a message
+export const deleteMessage = async (req, res, next) => {
+  try {
+    const message = await Message.findById(req.params.id);
+    if (!message) {
+      return res.status(404).json({ success: false, message: 'Message not found' });
+    }
+    
+    await message.deleteOne(); // Use deleteOne()
+    
+    res.status(200).json({ success: true, message: 'Message deleted' });
+  } catch (error) {
+    next(error);
   }
 };

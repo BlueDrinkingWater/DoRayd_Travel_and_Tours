@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit3, Archive, Eye, EyeOff, Search, Car, Users, Fuel, Settings2, X, MapPin, RotateCcw } from 'lucide-react';
+import { Plus, Edit3, Archive, Eye, EyeOff, Search, Car, Users, Fuel, Settings2, X, MapPin, RotateCcw, DollarSign, Percent, Info } from 'lucide-react';
 import DataService, { getImageUrl } from '../../components/services/DataService';
 import ImageUpload from '../../components/ImageUpload';
 import { useApi } from '../../hooks/useApi';
@@ -13,7 +13,7 @@ const ManageCars = () => {
 
   const { data: carsData, loading, refetch: fetchCars } = useApi(() => DataService.fetchAllCars({ archived: filterStatus === 'archived' }), [filterStatus]);
   const cars = carsData?.data || [];
-  
+
   const initialFormState = {
     brand: '', model: '', year: new Date().getFullYear(), seats: 5,
     transmission: 'automatic', fuelType: 'gasoline', pricePerDay: '',
@@ -23,6 +23,9 @@ const ManageCars = () => {
     paymentType: 'full',
     downpaymentType: 'percentage',
     downpaymentValue: 20,
+    // Internal state for managing new/deleted images
+    newImages: [],
+    imagesToDelete: [],
   };
 
   const [formData, setFormData] = useState(initialFormState);
@@ -35,15 +38,42 @@ const ManageCars = () => {
     setNewPickupLocation('');
     setEditingCar(null);
   };
-  
+
   const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    const { name, value, type, checked } = e.target;
+    setFormData(prev => ({
+        ...prev,
+        [name]: type === 'checkbox' ? checked : value
+    }));
+  };
+
+  // Handle changes specifically for payment type radio buttons
+  const handlePaymentTypeChange = (e) => {
+     const { value } = e.target;
+      setFormData(prev => ({
+        ...prev,
+        paymentType: value,
+        // Reset downpayment fields if switching to 'full'
+        downpaymentType: value === 'full' ? prev.downpaymentType : (prev.downpaymentType || 'percentage'),
+        downpaymentValue: value === 'full' ? '' : prev.downpaymentValue,
+      }));
   };
 
   const handleImagesChange = (uploadedImages) => {
-    setFormData(prev => ({ ...prev, images: uploadedImages.map(img => ({ url: img.url, serverId: img.serverId })) }));
+    // This function is called by ImageUpload with the *full list* of images (existing + new)
+    setFormData(prev => ({
+        ...prev,
+        // The URL is what we save to the DB
+        images: uploadedImages.map(img => img.url)
+    }));
   };
+
+   // This function is specifically for the <ImageUpload> component prop
+   const handleImageUploadChange = (uploadedImages) => {
+     setFormData(prev => ({ ...prev, images: uploadedImages.map(img => ({ url: img.url, serverId: img.serverId })) }));
+   };
+
+
   const addFeature = () => {
     if (newFeature.trim()) {
       setFormData(prev => ({ ...prev, features: [...prev.features, newFeature.trim()] }));
@@ -65,58 +95,155 @@ const ManageCars = () => {
   const removePickupLocation = (index) => {
     setFormData(prev => ({ ...prev, pickupLocations: prev.pickupLocations.filter((_, i) => i !== index) }));
   };
+  
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
-    const payload = { ...formData, images: formData.images.map(img => img.url) };
+
+    // Downpayment validation
+     if (formData.paymentType === 'downpayment') {
+        if (!formData.downpaymentType || !formData.downpaymentValue || parseFloat(formData.downpaymentValue) <= 0) {
+            alert('Downpayment Type and a positive Value are required when downpayment is enabled.');
+            setSubmitting(false);
+            return;
+        }
+        if (formData.downpaymentType === 'percentage' && (parseFloat(formData.downpaymentValue) < 1 || parseFloat(formData.downpaymentValue) > 99)) {
+            alert('Percentage must be between 1 and 99.');
+            setSubmitting(false);
+            return;
+        }
+    }
+    
+    // We send FormData because ImageUpload handles file objects
+    // Note: This assumes ImageUpload component returns file objects in its `onImagesChange` prop
+    // If ImageUpload *uploads* and returns URLs, we don't need FormData
+    
+    // Let's assume ImageUpload *does not* upload, but gives us File objects
+    // We need a different handler for ImageUpload
+    
+    // --- RE-ADJUSTING LOGIC ---
+    // We will pass the File objects from ImageUpload directly
+    // `formData.images` will store the *final list of URLs* (strings)
+    // `formData.newImages` will store new *File objects*
+    // `formData.imagesToDelete` will store *URLs* to delete
+
+    const payload = new FormData();
+
+    // Append standard fields
+    Object.keys(formData).forEach(key => {
+         if (key === 'images' || key === 'newImages' || key === 'imagesToDelete' || key === '_id' || key === '__v' || key === 'createdAt' || key === 'updatedAt' || key === 'serverId') {
+            return; // Skip these
+         }
+         
+         // Handle arrays (features, pickupLocations - convert back from string)
+         if (key === 'features' || key === 'pickupLocations') {
+            // Check if it's an array or string (from manual testing)
+             if (Array.isArray(formData[key])) {
+                formData[key].forEach(item => payload.append(key, item));
+             } else if (typeof formData[key] === 'string') {
+                 // Split string back into array for backend
+                 formData[key].split(',').map(s => s.trim()).filter(Boolean).forEach(item => payload.append(key, item));
+             }
+         } else if (key === 'isAvailable') {
+             payload.append('availabilityStatus', formData[key] ? 'available' : 'unavailable');
+         } else if (key === 'paymentType' && formData.paymentType === 'full') {
+             payload.append('paymentType', 'full');
+             // Don't append downpayment fields
+         } else if ((key === 'downpaymentType' || key === 'downpaymentValue') && formData.paymentType === 'full') {
+             // Skip
+         }
+         else {
+             payload.append(key, formData[key]);
+         }
+    });
+
+    // Append existing image URLs to keep
+     if (editingCar) {
+         formData.images.forEach(img => {
+            // `img` is now an object { url, serverId } from ImageUpload
+            if (typeof img === 'string') {
+                 payload.append('existingImages', img); // Keep old string URLs
+            } else if (img && img.url) {
+                 payload.append('existingImages', img.url); // Keep existing URLs
+            }
+         });
+     }
+     
+     // We rely on ImageUpload's internal state for `imagesToDelete` and `newImages`
+     // The `handleImageUploadChange` needs to set `formData.images` (as URLs)
+     // Let's simplify: `ImageUpload` should just give us the final list of File/URL objects.
+     
+     // --- SIMPLIFIED PAYLOAD (assuming ImageUpload gives URLs) ---
+     const simplePayload = { ...formData };
+     // We must ensure `images` is just an array of strings (URLs)
+     if (simplePayload.images && Array.isArray(simplePayload.images)) {
+         simplePayload.images = simplePayload.images.map(img => (typeof img === 'string' ? img : img.url)).filter(Boolean);
+     }
+     // Clean up payment fields
+     if (simplePayload.paymentType === 'full') {
+         delete simplePayload.downpaymentType;
+         delete simplePayload.downpaymentValue;
+     }
+    
+
     try {
       if (editingCar) {
-        await DataService.updateCar(editingCar._id, payload);
+        // We use the simplePayload (JSON) because ImageUpload already handled uploads/deletions
+        await DataService.updateCar(editingCar._id, simplePayload);
         alert('Car updated successfully!');
       } else {
-        await DataService.createCar(payload);
+        // Create car also needs to handle this payload
+        // The backend controller needs to be adapted for `images` as array of URLs
+        await DataService.createCar(simplePayload);
         alert('Car created successfully!');
       }
       setShowModal(false);
       fetchCars();
     } catch (error) {
       console.error('Error saving car:', error);
-      alert('Failed to save car');
+      alert(`Failed to save car: ${error.message || 'Unknown error'}`);
     } finally {
       setSubmitting(false);
     }
   };
 
+
   const handleEdit = (car) => {
     setEditingCar(car);
-    
-    const processedImages = Array.isArray(car.images) 
-      ? car.images.map(img => {
+
+    // Ensure images are in the { url, serverId, name } format for ImageUpload
+    const processedImages = Array.isArray(car.images)
+      ? car.images.map((img, index) => {
           if (typeof img === 'string') {
-            return { 
-              url: img, 
-              serverId: img.split('/').pop().split('.')[0],
-              name: img.split('/').pop(),
-              uploadedAt: new Date().toISOString()
-            };
-          } else {
+            // Simple string URL
             return {
-              url: img.url || img,
-              serverId: img.serverId || img._id || img.url?.split('/').pop().split('.')[0],
-              name: img.name || img.url?.split('/').pop() || 'image',
-              uploadedAt: img.uploadedAt || new Date().toISOString()
+              url: img,
+              serverId: img.split('/').pop() || `img-${index}`, // Guess a serverId
+              name: img.split('/').pop() || 'image.jpg',
             };
+          } else if (img && img.url) {
+            // Already in object format
+            return { ...img, serverId: img.serverId || img.url.split('/').pop() || `img-${index}` };
           }
-        })
+          return null; // Invalid image entry
+        }).filter(Boolean)
       : [];
 
     setFormData({
       ...initialFormState,
       ...car,
-      images: processedImages
+      images: processedImages, // Use the processed image objects
+      // Ensure payment fields have defaults if missing
+      paymentType: car.paymentType || 'full',
+      downpaymentType: car.downpaymentType || 'percentage',
+      downpaymentValue: car.downpaymentValue || (car.paymentType === 'downpayment' ? 20 : ''),
+      // Convert arrays back to comma-separated strings for textareas
+      features: Array.isArray(car.features) ? car.features.join(', ') : (car.features || ''),
+      pickupLocations: Array.isArray(car.pickupLocations) ? car.pickupLocations.join(', ') : (car.pickupLocations || ''),
     });
     setShowModal(true);
   };
+
   const handleArchive = async (carId) => {
     if (window.confirm('Are you sure you want to archive this car?')) {
       try {
@@ -145,20 +272,29 @@ const ManageCars = () => {
     const action = car.isAvailable ? 'unavailable' : 'available';
     if (window.confirm(`Are you sure you want to mark this car as ${action}?`)) {
       try {
-        await DataService.updateCar(car._id, { ...car, isAvailable: !car.isAvailable });
+        // We must send the full payload or at least the fields the backend expects
+        // Let's just update the 'isAvailable' flag
+        await DataService.updateCar(car._id, { isAvailable: !car.isAvailable });
         fetchCars();
       } catch (error) {
         alert('Failed to toggle availability.');
       }
     }
   };
+
   const filteredCars = Array.isArray(cars) ? cars.filter(car => {
     const lowerSearchTerm = searchTerm.toLowerCase();
-    return (
+    const carStatus = car.archived ? 'archived' : 'active';
+    
+    const matchesSearch = (
       car.brand?.toLowerCase().includes(lowerSearchTerm) ||
       car.model?.toLowerCase().includes(lowerSearchTerm) ||
       car.location?.toLowerCase().includes(lowerSearchTerm)
     );
+    
+    const matchesStatus = filterStatus === 'all' || carStatus === filterStatus;
+    
+    return matchesSearch && matchesStatus;
   }) : [];
 
 
@@ -200,6 +336,7 @@ const ManageCars = () => {
             >
               <option value="active">Active Cars</option>
               <option value="archived">Archived Cars</option>
+              <option value="all">All Cars</option>
             </select>
           </div>
         </div>
@@ -210,10 +347,10 @@ const ManageCars = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredCars.length > 0 ? filteredCars.map((car) => (
-            <div key={car._id} className="bg-white rounded-lg shadow-sm border overflow-hidden">
+            <div key={car._id} className={`bg-white rounded-lg shadow-sm border overflow-hidden transition-opacity ${car.archived ? 'opacity-60' : ''}`}>
               <div className="h-48 bg-gray-200 relative">
                 <img
-                  src={car.images && car.images.length > 0 ? getImageUrl(car.images[0]) : ''}
+                  src={car.images && car.images.length > 0 ? getImageUrl(car.images[0]) : 'https://placehold.co/600x400/e2e8f0/475569?text=No+Image'}
                   alt={`${car.brand} ${car.model}`}
                   className="w-full h-full object-cover"
                 />
@@ -228,91 +365,140 @@ const ManageCars = () => {
                     </>
                   )}
                 </div>
+                 <span className={`absolute top-2 left-2 px-2 py-1 text-xs font-semibold rounded ${car.isAvailable ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                    {car.isAvailable ? 'Available' : 'Unavailable'}
+                 </span>
               </div>
               <div className="p-4">
                 <h3 className="text-lg font-semibold">{car.brand} {car.model} ({car.year})</h3>
                 <p className="text-2xl font-bold text-blue-600">₱{car.pricePerDay?.toLocaleString()}/day</p>
+                <p className="text-sm text-gray-500">{car.location}</p>
               </div>
             </div>
           )) : (
             <div className="col-span-full text-center py-12">
               <Car className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-lg font-medium">No {filterStatus} cars found.</h3>
+              <h3 className="text-lg font-medium">No cars found.</h3>
               <p className="text-gray-500">There are no cars matching your current filter.</p>
             </div>
           )}
         </div>
       )}
-      
+
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6"><h2 className="text-2xl font-bold text-gray-900">{editingCar ? 'Edit Car' : 'Add New Car'}</h2><button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600"><X className="w-6 h-6" /></button></div>
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="p-6 border-b flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-gray-900">{editingCar ? 'Edit Car' : 'Add New Car'}</h2>
+                <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600"><X className="w-6 h-6" /></button>
+            </div>
+            <form id="carForm" onSubmit={handleSubmit} className="space-y-6 overflow-y-auto p-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div><label className="block text-sm font-medium text-gray-700 mb-1">Brand *</label><input type="text" name="brand" required value={formData.brand} onChange={handleInputChange} className="w-full p-2 border rounded-lg" placeholder="Toyota, Honda, etc." /></div>
                     <div><label className="block text-sm font-medium text-gray-700 mb-1">Model *</label><input type="text" name="model" required value={formData.model} onChange={handleInputChange} className="w-full p-2 border rounded-lg" placeholder="Camry, Civic, etc." /></div>
                     <div><label className="block text-sm font-medium text-gray-700 mb-1">Year *</label><input type="number" name="year" required min="1990" max={new Date().getFullYear() + 1} value={formData.year} onChange={handleInputChange} className="w-full p-2 border rounded-lg" /></div>
-                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Seats *</label><select name="seats" required value={formData.seats} onChange={handleInputChange} className="w-full p-2 border rounded-lg">{[2, 4, 5, 6, 7, 8, 9, 12, 15].map(num => (<option key={num} value={num}>{num} seats</option>))}</select></div>
-                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Transmission *</label><select name="transmission" required value={formData.transmission} onChange={handleInputChange} className="w-full p-2 border rounded-lg"><option value="automatic">Automatic</option><option value="manual">Manual</option></select></div>
-                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Fuel Type *</label><select name="fuelType" required value={formData.fuelType} onChange={handleInputChange} className="w-full p-2 border rounded-lg"><option value="gasoline">Gasoline</option><option value="diesel">Diesel</option><option value="hybrid">Hybrid</option><option value="electric">Electric</option></select></div>
-                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Price Per Day (₱) *</label><input type="number" name="pricePerDay" required min="0" step="0.01" value={formData.pricePerDay} onChange={handleInputChange} className="w-full p-2 border rounded-lg" placeholder="2500.00" /></div>
+                </div>
+                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Seats *</label><select name="seats" required value={formData.seats} onChange={handleInputChange} className="w-full p-2 border rounded-lg bg-white">{[2, 4, 5, 6, 7, 8, 9, 12, 15].map(num => (<option key={num} value={num}>{num} seats</option>))}</select></div>
+                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Transmission *</label><select name="transmission" required value={formData.transmission} onChange={handleInputChange} className="w-full p-2 border rounded-lg bg-white"><option value="automatic">Automatic</option><option value="manual">Manual</option></select></div>
+                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Fuel Type *</label><select name="fuelType" required value={formData.fuelType} onChange={handleInputChange} className="w-full p-2 border rounded-lg bg-white"><option value="gasoline">Gasoline</option><option value="diesel">Diesel</option><option value="hybrid">Hybrid</option><option value="electric">Electric</option></select></div>
                     <div><label className="block text-sm font-medium text-gray-700 mb-1">Location *</label><input type="text" name="location" required value={formData.location} onChange={handleInputChange} className="w-full p-2 border rounded-lg" placeholder="Manila, Cebu, etc." /></div>
                 </div>
-                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 border-t pt-6">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Payment Requirement</label>
-                        <select name="paymentType" value={formData.paymentType} onChange={handleInputChange} className="w-full p-2 border rounded-lg">
-                            <option value="full">Full Payment Required</option>
-                            <option value="downpayment">Downpayment Required</option>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                     <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Price Per Day (₱) *</label>
+                        <input type="number" name="pricePerDay" required min="0" step="0.01" value={formData.pricePerDay} onChange={handleInputChange} className="w-full p-2 border rounded-lg" placeholder="2500.00" />
+                     </div>
+                     <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Availability</label>
+                        <select name="isAvailable" value={formData.isAvailable ? 'true' : 'false'} onChange={(e) => setFormData(prev => ({...prev, isAvailable: e.target.value === 'true'}))} className="w-full p-2 border rounded-lg bg-white">
+                            <option value="true">Available</option>
+                            <option value="false">Unavailable</option>
                         </select>
-                    </div>
-                    {formData.paymentType === 'downpayment' && (
-                        <>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Downpayment Type</label>
-                            <select name="downpaymentType" value={formData.downpaymentType} onChange={handleInputChange} className="w-full p-2 border rounded-lg">
-                                <option value="percentage">Percentage</option>
-                                <option value="fixed">Fixed Amount per Day</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                {formData.downpaymentType === 'percentage' ? 'Percentage (%)' : 'Amount per Day (₱)'}
-                            </label>
-                            <input type="number" name="downpaymentValue" min="0" value={formData.downpaymentValue} onChange={handleInputChange} className="w-full p-2 border rounded-lg" />
-                        </div>
-                        </>
-                    )}
+                     </div>
                 </div>
+                 
+                 {/* --- Payment Configuration --- */}
+                 <div className="border p-4 rounded-md bg-gray-50">
+                    <h3 className="text-lg font-semibold mb-3 flex items-center gap-2"><DollarSign size={18}/> Payment Options</h3>
+                    <div className="flex gap-6 mb-4">
+                        <label className="flex items-center cursor-pointer">
+                            <input type="radio" name="paymentType" value="full" checked={formData.paymentType === 'full'} onChange={handlePaymentTypeChange} className="mr-2"/>
+                            Full Payment Only
+                        </label>
+                        <label className="flex items-center cursor-pointer">
+                            <input type="radio" name="paymentType" value="downpayment" checked={formData.paymentType === 'downpayment'} onChange={handlePaymentTypeChange} className="mr-2"/>
+                            Allow Downpayment
+                        </label>
+                    </div>
+
+                    {formData.paymentType === 'downpayment' && (
+                        <div className="border-t pt-4 space-y-3 animate-in fade-in duration-300">
+                            <p className="text-sm text-gray-600">Configure Downpayment:</p>
+                            <div className="flex gap-6 mb-2">
+                               <label className="flex items-center cursor-pointer">
+                                    <input type="radio" name="downpaymentType" value="percentage" checked={formData.downpaymentType === 'percentage'} onChange={handleInputChange} className="mr-2"/>
+                                    Percentage (%)
+                                </label>
+                                <label className="flex items-center cursor-pointer">
+                                    <input type="radio" name="downpaymentType" value="fixed" checked={formData.downpaymentType === 'fixed'} onChange={handleInputChange} className="mr-2"/>
+                                    Fixed Amount (₱)
+                                </label>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  {formData.downpaymentType === 'percentage' ? 'Percentage Value (1-99)' : 'Fixed Amount (PHP)'} *
+                                </label>
+                                 <div className="relative">
+                                    <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500">
+                                        {formData.downpaymentType === 'percentage' ? '%' : '₱'}
+                                    </span>
+                                    <input
+                                        name="downpaymentValue"
+                                        type="number"
+                                        step={formData.downpaymentType === 'percentage' ? "1" : "0.01"}
+                                        min="1"
+                                        max={formData.downpaymentType === 'percentage' ? "99" : undefined}
+                                        value={formData.downpaymentValue}
+                                        onChange={handleInputChange}
+                                        placeholder={formData.downpaymentType === 'percentage' ? 'e.g., 20' : 'e.g., 1000'}
+                                        className="p-2 pl-7 border rounded w-full md:w-1/2"
+                                        required
+                                    />
+                                </div>
+                                <p className="text-xs text-gray-500 mt-1 flex items-center gap-1"><Info size={12}/> {formData.downpaymentType === 'fixed' ? 'This amount will be multiplied by the number of rental days.' : 'This percentage will be calculated based on the total booking price.'} </p>
+                            </div>
+                        </div>
+                    )}
+                 </div>
+                 {/* --- End Payment Configuration --- */}
+
                 <div><label className="block text-sm font-medium text-gray-700 mb-1">Description</label><textarea name="description" rows="4" value={formData.description} onChange={handleInputChange} className="w-full p-2 border rounded-lg" placeholder="Describe the car features, condition, etc." /></div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Features</label>
-                  <div className="flex gap-2 mb-2"><input type="text" value={newFeature} onChange={(e) => setNewFeature(e.target.value)} className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Add a feature (e.g., Air Conditioning, GPS)" onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addFeature())} /><button type="button" onClick={addFeature} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Add</button></div>
-                  {formData.features.length > 0 && (<div className="flex flex-wrap gap-2">{formData.features.map((feature, index) => (<span key={index} className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">{feature}<button type="button" onClick={() => removeFeature(index)} className="text-blue-600 hover:text-blue-800"><X className="w-3 h-3" /></button></span>))}</div>)}
+                  <div className="flex gap-2 mb-2"><input type="text" value={newFeature} onChange={(e) => setNewFeature(e.target.value)} className="flex-1 px-3 py-2 border border-gray-300 rounded-lg" placeholder="Add a feature (e.g., Air Conditioning)" onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addFeature())} /><button type="button" onClick={addFeature} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Add</button></div>
+                  {formData.features && formData.features.length > 0 && (<div className="flex flex-wrap gap-2">{formData.features.map((feature, index) => (<span key={index} className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">{feature}<button type="button" onClick={() => removeFeature(index)} className="text-blue-600 hover:text-blue-800"><X className="w-3 h-3" /></button></span>))}</div>)}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Pickup Locations</label>
-                  <div className="flex gap-2 mb-2"><input type="text" value={newPickupLocation} onChange={(e) => setNewPickupLocation(e.target.value)} className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Add a pickup location" onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addPickupLocation())} /><button type="button" onClick={addPickupLocation} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Add</button></div>
-                  {formData.pickupLocations.length > 0 && (<div className="flex flex-wrap gap-2">{formData.pickupLocations.map((location, index) => (<span key={index} className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">{location}<button type="button" onClick={() => removePickupLocation(index)} className="text-blue-600 hover:text-blue-800"><X className="w-3 h-3" /></button></span>))}</div>)}
+                  <div className="flex gap-2 mb-2"><input type="text" value={newPickupLocation} onChange={(e) => setNewPickupLocation(e.target.value)} className="flex-1 px-3 py-2 border border-gray-300 rounded-lg" placeholder="Add a pickup location" onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addPickupLocation())} /><button type="button" onClick={addPickupLocation} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Add</button></div>
+                  {formData.pickupLocations && formData.pickupLocations.length > 0 && (<div className="flex flex-wrap gap-2">{formData.pickupLocations.map((location, index) => (<span key={index} className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">{location}<button type="button" onClick={() => removePickupLocation(index)} className="text-blue-600 hover:text-blue-800"><X className="w-3 h-3" /></button></span>))}</div>)}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Images</label>
-                  <ImageUpload 
-                    onImagesChange={handleImagesChange} 
-                    existingImages={formData.images} 
-                    maxImages={5} 
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Images (First image is main)</label>
+                  <ImageUpload
+                    onImagesChange={handleImageUploadChange}
+                    existingImages={formData.images}
+                    maxImages={5}
                     category="cars"
                   />
                 </div>
-                <div className="flex justify-end gap-3 pt-6 border-t border-gray-200">
-                  <button type="button" onClick={() => setShowModal(false)} className="px-6 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors">Cancel</button>
-                  <button type="submit" disabled={submitting} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+            </form>
+            <div className="flex justify-end gap-3 p-4 border-t bg-gray-50">
+                <button type="button" onClick={() => setShowModal(false)} className="px-6 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors">Cancel</button>
+                <button type="submit" form="carForm" disabled={submitting} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
                     {submitting ? (<><div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>{editingCar ? 'Updating...' : 'Creating...'}</>) : (editingCar ? 'Update Car' : 'Create Car')}
-                  </button>
-                </div>
-              </form>
+                </button>
             </div>
           </div>
         </div>

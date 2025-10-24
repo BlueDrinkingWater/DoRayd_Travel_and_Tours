@@ -29,7 +29,6 @@ const tourSchema = new mongoose.Schema({
     trim: true,
     maxlength: [50, 'Duration cannot exceed 50 characters']
   },
-  // --- ADDED FIELDS ---
   startDate: {
     type: Date,
     required: [true, 'Start date is required for tours']
@@ -38,7 +37,6 @@ const tourSchema = new mongoose.Schema({
     type: Date,
     required: [true, 'End date is required for tours']
   },
-  // --- END ADDED FIELDS ---
   maxGroupSize: {
     type: Number,
     required: [true, 'Maximum group size is required'],
@@ -60,10 +58,10 @@ const tourSchema = new mongoose.Schema({
     type: String,
     required: false
   }],
-  itinerary: [{
+  itinerary: [{ // Expects an array of objects
     day: { type: Number },
     title: { type: String },
-    activities: [{ type: String }]
+    activities: { type: String } // Changed from array to single string
   }],
   inclusions: [{ type: String }],
   exclusions: [{ type: String }],
@@ -83,6 +81,7 @@ const tourSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  // --- PAYMENT FIELDS ---
   paymentType: {
     type: String,
     enum: ['full', 'downpayment'],
@@ -91,12 +90,21 @@ const tourSchema = new mongoose.Schema({
   downpaymentType: {
     type: String,
     enum: ['fixed', 'percentage'],
-    default: 'percentage'
   },
   downpaymentValue: {
     type: Number,
-    default: 20 // Default to 20%
+    min: 0,
+    validate: {
+        validator: function(value) {
+            if (this.paymentType !== 'downpayment') {
+                return true;
+            }
+            return value != null && value > 0;
+        },
+        message: 'Downpayment value is required when downpayment is enabled and must be greater than 0.'
+    }
   }
+  // --- END PAYMENT FIELDS ---
 }, {
   timestamps: true,
   toJSON: { virtuals: true },

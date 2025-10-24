@@ -1,5 +1,6 @@
 import express from 'express';
-import { getAllMessages, createMessage, replyToMessage, updateMessageStatus } from '../controllers/messagesController.js';
+// Import deleteMessage controller
+import { getAllMessages, createMessage, replyToMessage, updateMessageStatus, deleteMessage } from '../controllers/messagesController.js';
 import { auth, authorize } from '../middleware/auth.js';
 import { uploadAttachment } from '../middleware/upload.js';
 
@@ -14,5 +15,9 @@ router.route('/:id/reply')
 
 router.route('/:id/status')
     .put(auth, authorize('admin', 'employee'), updateMessageStatus);
+
+// --- ADD THIS ROUTE ---
+router.route('/:id')
+    .delete(auth, authorize('admin', 'employee'), deleteMessage); // Add delete route for a specific message ID
 
 export default router;

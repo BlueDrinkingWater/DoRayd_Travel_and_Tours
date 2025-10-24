@@ -7,31 +7,28 @@ export const SERVER_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000
 
 const api = axios.create({
   baseURL: API_BASE_URL,
-  withCredentials: true, // This is crucial for sending httpOnly cookies
+  withCredentials: true, // Crucial for sending httpOnly cookies
 });
 
+// Helper function remains the same
 export const getImageUrl = (path) => {
   if (!path) {
-    // Return a placeholder or an empty string if there's no path to avoid errors
     return 'https://placehold.co/600x400/e2e8f0/475569?text=No+Image';
   }
-  // If the path is already a full, absolute URL (like from Cloudinary),
-  // return it directly without any changes.
-  // CRITICAL: Files secured with 'authenticated' access will return a full URL 
-  // but will require the 'secure' endpoint if the user isn't logged in.
   if (path.startsWith('http://') || path.startsWith('https://')) {
     return path;
   }
-  // Otherwise, it's a relative path for a locally-hosted image.
-  // Construct the full URL by combining the server URL and the path.
   return `${SERVER_URL}${path.startsWith('/') ? '' : '/'}${path}`;
 };
 
 
 const handleError = (error, defaultMessage = 'An unknown error occurred.') => {
-  console.error('API Call Failed:', error);
+  console.error('API Call Failed:', error.response || error);
+  // Prioritize backend error message
   const message = error.response?.data?.message || error.message || defaultMessage;
-  return { success: false, data: null, message };
+  // Include validation errors if present (from express-validator)
+  const errors = error.response?.data?.errors;
+  return { success: false, data: null, message, errors };
 };
 
 const DataService = {
@@ -51,7 +48,8 @@ const DataService = {
       const response = await api.post('/api/auth/register', userData);
       return response.data;
     } catch (error) {
-      throw new Error(error.response?.data?.message || 'Registration failed.');
+      // Use handleError to standardize error response
+      return handleError(error, 'Registration failed.');
     }
   },
 
@@ -60,7 +58,8 @@ const DataService = {
       const response = await api.post('/api/auth/login', credentials);
       return response.data;
     } catch (error) {
-      throw new Error(error.response?.data?.message || 'Login failed. Please check your credentials.');
+      // Use specific message from backend if available
+       return handleError(error, 'Login failed. Please check credentials.');
     }
   },
 
@@ -69,24 +68,37 @@ const DataService = {
       const response = await api.post(`/api/auth/${provider}-login`, tokenData);
       return response.data;
     } catch (error) {
-      throw new Error(error.response?.data?.message || `${provider} login failed.`);
+       return handleError(error, `${provider} login failed.`);
     }
   },
 
   logout: async () => {
     try {
+      // Still attempt server logout, but don't throw error if it fails
       await api.get('/api/auth/logout');
+      return { success: true };
     } catch (error) {
-      console.error('Server logout failed, proceeding with client-side logout:', error);
+      console.warn('Server logout endpoint failed:', error.message);
+      // Proceed with client-side cleanup regardless
+      return { success: true, message: "Server logout failed, cleared client session." };
     }
   },
 
   getCurrentUser: async () => {
     try {
       const response = await api.get('/api/auth/me');
-      return response.data;
+      // Ensure the response structure is consistent
+      if (response.data.success && response.data.user) {
+          return { success: true, user: response.data.user };
+      }
+      // If backend says success: false or user is missing
+      return { success: false, message: response.data.message || 'Failed to get user data.' };
     } catch (error) {
-      return handleError(error);
+      // Handle network errors or 401 Unauthorized
+      if (error.response?.status === 401) {
+          return { success: false, message: 'Unauthorized. Please log in.' };
+      }
+      return handleError(error, 'Could not fetch current user.');
     }
   },
 
@@ -147,25 +159,21 @@ const DataService = {
       return handleError(error, 'Failed to reset password.');
     }
   },
-  
-  // --- NEW: Secure Image Retrieval ---
-  /**
-   * Requests a secure, authenticated URL from the backend for a private image path.
-   * @param {string} publicId - The public ID (or serverId) of the image.
-   * @returns {Promise<{success: boolean, data: {url: string}}>} The signed URL object.
-   */
+
+  // --- Secure Image Retrieval ---
   getSecureImageUrl: async (publicId) => {
     try {
-      // The public_id contains slashes, so it must be URI encoded
       const encodedId = encodeURIComponent(publicId);
       const response = await api.get(`/api/images/secure/${encodedId}`);
-      return response.data;
+      // Ensure data format is consistent
+      if (response.data.success && response.data.data?.url) {
+        return { success: true, data: { url: response.data.data.url } };
+      }
+      return { success: false, message: response.data.message || 'URL not found in response.' };
     } catch (error) {
-      // This will fail if the user is not authenticated or authorized
-      return handleError(error, 'Failed to fetch secure image URL. Authentication required.');
+      return handleError(error, 'Failed to fetch secure image URL. Authentication required or image not found.');
     }
   },
-  // --- END NEW SECURE IMAGE RETRIEVAL ---
 
   // --- Notifications ---
   fetchMyNotifications: async () => {
@@ -196,24 +204,29 @@ const DataService = {
   },
 
   // --- File Upload ---
-  uploadImage: async (file, category) => {
+  uploadImage: async (file, category = 'general') => { // Added default category
     const formData = new FormData();
     formData.append('category', category);
     formData.append('image', file);
-   
+
     try {
       const response = await api.post('/api/upload/image', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      return response.data;
+      // Ensure data format is consistent
+       if (response.data.success && response.data.data?.url && response.data.data?.id) {
+          return { success: true, data: { url: response.data.data.url, id: response.data.data.id } };
+       }
+       return { success: false, message: response.data.message || 'Upload succeeded but response format is invalid.' };
     } catch (error) {
-      return handleError(error, 'File upload failed.');
+      return handleError(error, `File upload failed: ${error.response?.data?.message || error.message}`);
     }
   },
 
   deleteImage: async (publicId) => {
     try {
-      const response = await api.delete(`/api/upload/image/${encodeURIComponent(publicId)}`);
+      // No need to encode here, backend controller handles decoding
+      const response = await api.delete(`/api/upload/image/${publicId}`);
       return response.data;
     } catch (error) {
       return handleError(error, 'Failed to delete image.');
@@ -226,7 +239,7 @@ const DataService = {
       const response = await api.get('/api/cars', { params: filters });
       return response.data;
     } catch (error) {
-      return handleError(error);
+      return handleError(error, 'Failed to fetch cars.');
     }
   },
 
@@ -244,7 +257,7 @@ const DataService = {
       const response = await api.get('/api/tours', { params: filters });
       return response.data;
     } catch (error) {
-      return handleError(error);
+      return handleError(error, 'Failed to fetch tours.');
     }
   },
 
@@ -258,10 +271,11 @@ const DataService = {
   },
 
   // --- Bookings ---
-   createBooking: async (bookingData) => {
+   createBooking: async (bookingFormData) => { // Expect FormData
     try {
-      const headers = { 'Content-Type': 'multipart/form-data' };
-      const response = await api.post('/api/bookings', bookingData, { headers });
+      const response = await api.post('/api/bookings', bookingFormData, {
+          headers: { 'Content-Type': 'multipart/form-data' } // Ensure header is set
+      });
       return response.data;
     } catch (error) {
       return handleError(error, 'Failed to create booking.');
@@ -273,7 +287,7 @@ const DataService = {
       const response = await api.get('/api/bookings/my-bookings');
       return response.data;
     } catch (error) {
-      return handleError(error);
+      return handleError(error, 'Failed to fetch your bookings.');
     }
   },
 
@@ -282,36 +296,30 @@ const DataService = {
       const response = await api.get('/api/bookings', { params: params });
       return response.data;
     } catch (error) {
-      return handleError(error);
+      return handleError(error, 'Failed to fetch all bookings.');
     }
   },
 
-  updateBookingStatus: async (id, status, adminNotes, attachment) => {
+  // **MODIFIED:** Expect FormData for status updates to handle attachments and new fields
+  updateBookingStatus: async (id, formData) => { // Expect FormData directly
     try {
-      const formData = new FormData();
-      formData.append('status', status);
-      formData.append('adminNotes', adminNotes);
-      if (attachment) {
-        formData.append('attachment', attachment);
-      }
+      // The formData object already contains status, adminNotes, attachment (if any),
+      // paymentDueDuration, and paymentDueUnit (if applicable).
       const response = await api.put(`/api/bookings/${id}/status`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+        headers: { 'Content-Type': 'multipart/form-data' }, // Important for file uploads
       });
       return response.data;
     } catch (error) {
-      return handleError(error);
+      return handleError(error, 'Failed to update booking status.');
     }
   },
- 
-  cancelBooking: async (id, adminNotes, attachment) => {
+
+  // **MODIFIED:** Expect FormData for cancellation to handle attachments
+  cancelBooking: async (id, formData) => { // Expect FormData
     try {
-      const formData = new FormData();
-      formData.append('adminNotes', adminNotes);
-      if (attachment) {
-        formData.append('attachment', attachment);
-      }
+      // The formData object contains adminNotes and attachment (if any)
       const response = await api.patch(`/api/bookings/${id}/cancel`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+        headers: { 'Content-Type': 'multipart/form-data' }, // Important for file uploads
       });
       return response.data;
     } catch (error) {
@@ -319,7 +327,8 @@ const DataService = {
     }
   },
 
-  addPaymentProof: async (bookingId, paymentData) => {
+
+  addPaymentProof: async (bookingId, paymentData) => { // Expect FormData
     try {
         const response = await api.post(`/api/bookings/${bookingId}/add-payment`, paymentData, {
             headers: { 'Content-Type': 'multipart/form-data' },
@@ -368,9 +377,9 @@ const DataService = {
     }
   },
 
-  fetchAllReviews: async () => {
+  fetchAllReviews: async () => { // Renamed from fetchAllReviewsAdmin for clarity
     try {
-      const response = await api.get('/api/reviews');
+      const response = await api.get('/api/reviews'); // Uses admin-protected route
       return response.data;
     } catch (error) {
       return handleError(error, 'Failed to fetch all reviews.');
@@ -385,7 +394,7 @@ const DataService = {
       return handleError(error, 'Failed to approve review.');
     }
   },
- 
+
   deleteReview: async (id) => {
     try {
       const response = await api.delete(`/api/reviews/${id}`);
@@ -396,9 +405,11 @@ const DataService = {
   },
 
   // --- Feedback ---
-  submitFeedback: async (feedbackData) => {
+  submitFeedback: async (feedbackData) => { // Expect FormData
     try {
-      const response = await api.post('/api/feedback', feedbackData);
+      const response = await api.post('/api/feedback', feedbackData, {
+          headers: { 'Content-Type': 'multipart/form-data' } // For potential image upload
+      });
       return response.data;
     } catch (error) {
       return handleError(error, 'Failed to submit feedback.');
@@ -413,7 +424,7 @@ const DataService = {
       return handleError(error, 'Failed to fetch public feedback.');
     }
   },
- 
+
   getMyFeedback: async () => {
     try {
       const response = await api.get('/api/feedback/my-feedback');
@@ -423,9 +434,9 @@ const DataService = {
     }
   },
 
-  fetchAllFeedback: async () => {
+  fetchAllFeedback: async () => { // Renamed for clarity
     try {
-      const response = await api.get('/api/feedback');
+      const response = await api.get('/api/feedback'); // Uses admin-protected route
       return response.data;
     } catch (error) {
       return handleError(error, 'Failed to fetch feedback.');
@@ -440,7 +451,7 @@ const DataService = {
       return handleError(error, 'Failed to approve feedback.');
     }
   },
- 
+
   deleteFeedback: async (id) => {
     try {
       const response = await api.delete(`/api/feedback/${id}`);
@@ -449,8 +460,8 @@ const DataService = {
       return handleError(error, 'Failed to delete feedback.');
     }
   },
- 
-  // --- Admin Functions ---
+
+  // --- Admin/Employee Functions (User Management) ---
   fetchAllCustomers: async () => {
     try {
       const response = await api.get('/api/users/customers');
@@ -466,116 +477,6 @@ const DataService = {
       return response.data;
     } catch (error) {
       return handleError(error, 'Failed to reset customer password.');
-    }
-  },
-
-  createCar: async (carData) => {
-    try {
-      const response = await api.post('/api/cars', carData);
-      return response.data;
-    } catch (error) {
-      return handleError(error, 'Failed to create car.');
-    }
-  },
-
-  updateCar: async (id, carData) => {
-    try {
-      const response = await api.put(`/api/cars/${id}`, carData);
-      return response.data;
-    } catch (error) {
-      return handleError(error, 'Failed to update car.');
-    }
-  },
-
-  archiveCar: async (id) => {
-    try {
-      const response = await api.patch(`/api/cars/${id}/archive`);
-      return response.data;
-    } catch (error) {
-      return handleError(error, 'Failed to archive car.');
-    }
-  },
-
-  unarchiveCar: async (id) => {
-    try {
-      const response = await api.patch(`/api/cars/${id}/unarchive`);
-      return response.data;
-    } catch (error) {
-      return handleError(error, 'Failed to unarchive car.');
-    }
-  },
-
-  createTour: async (tourData) => {
-    try {
-      const response = await api.post('/api/tours', tourData);
-      return response.data;
-    } catch (error) {
-      return handleError(error, 'Failed to create tour.');
-    }
-  },
-
-  updateTour: async (id, tourData) => {
-    try {
-      const response = await api.put(`/api/tours/${id}`, tourData);
-      return response.data;
-    } catch (error) {
-      return handleError(error, 'Failed to update tour.');
-    }
-  },
-
-  archiveTour: async (id) => {
-    try {
-      const response = await api.patch(`/api/tours/${id}/archive`);
-      return response.data;
-    } catch (error) {
-      return handleError(error, 'Failed to archive tour.');
-    }
-  },
-
-  unarchiveTour: async (id) => {
-    try {
-      const response = await api.patch(`/api/tours/${id}/unarchive`);
-      return response.data;
-    } catch (error) {
-      return handleError(error, 'Failed to unarchive tour.');
-    }
-  },
-
-  createMessage: async (messageData) => {
-    try {
-      const response = await api.post('/api/messages', messageData);
-      return response.data;
-    } catch (error) {
-      return handleError(error, 'Failed to create message.');
-    }
-  },
-
-  fetchAllMessages: async () => {
-    try {
-      const response = await api.get('/api/messages');
-      return response.data;
-    } catch (error) {
-      return handleError(error, 'Failed to fetch messages.');
-    }
-  },
- 
-  replyToMessage: async (messageId, formData) => {
-    try {
-      const response = await api.post(`/api/messages/${messageId}/reply`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      return response.data;
-    } catch (error) {
-      return handleError(error, 'Failed to send reply.');
-    }
-  },
-
-  updateMessageStatus: async (messageId, status) => {
-    try {
-      const response = await api.put(`/api/messages/${messageId}/status`, { status });
-      return response.data;
-    } catch (error) {
-      return handleError(error, 'Failed to update message status.');
     }
   },
 
@@ -615,15 +516,146 @@ const DataService = {
     }
   },
 
+  // --- Admin Functions (Service Management) ---
+  createCar: async (carData) => {
+    try {
+      const response = await api.post('/api/cars', carData);
+      return response.data;
+    } catch (error) {
+      return handleError(error, 'Failed to create car.');
+    }
+  },
+
+  updateCar: async (id, carData) => {
+    try {
+      const response = await api.put(`/api/cars/${id}`, carData);
+      return response.data;
+    } catch (error) {
+      return handleError(error, 'Failed to update car.');
+    }
+  },
+
+  archiveCar: async (id) => {
+    try {
+      const response = await api.patch(`/api/cars/${id}/archive`);
+      return response.data;
+    } catch (error) {
+      return handleError(error, 'Failed to archive car.');
+    }
+  },
+
+  unarchiveCar: async (id) => {
+    try {
+      const response = await api.patch(`/api/cars/${id}/unarchive`);
+      return response.data;
+    } catch (error) {
+      return handleError(error, 'Failed to restore car.'); // Corrected message
+    }
+  },
+
+  createTour: async (tourData) => {
+    try {
+      const response = await api.post('/api/tours', tourData);
+      return response.data;
+    } catch (error) {
+      return handleError(error, 'Failed to create tour.');
+    }
+  },
+
+  updateTour: async (id, tourData) => {
+    try {
+      const response = await api.put(`/api/tours/${id}`, tourData);
+      return response.data;
+    } catch (error) {
+      return handleError(error, 'Failed to update tour.');
+    }
+  },
+
+  archiveTour: async (id) => {
+    try {
+      const response = await api.patch(`/api/tours/${id}/archive`);
+      return response.data;
+    } catch (error) {
+      return handleError(error, 'Failed to archive tour.');
+    }
+  },
+
+  unarchiveTour: async (id) => {
+    try {
+      const response = await api.patch(`/api/tours/${id}/unarchive`);
+      return response.data;
+    } catch (error) {
+      return handleError(error, 'Failed to restore tour.'); // Corrected message
+    }
+  },
+
+  // --- Messages (Admin/Employee) ---
+  getAllMessages: async (params = {}) => { // Use getAllMessages now
+    try {
+      const response = await api.get('/api/messages', { params });
+      return response.data;
+    } catch (error) {
+      return handleError(error, 'Failed to fetch messages.');
+    }
+  },
+
+   getMessageById: async (id) => { // Added function to fetch single message
+    try {
+      const response = await api.get(`/api/messages/${id}`);
+      return response.data;
+    } catch (error) {
+      return handleError(error, 'Failed to fetch message details.');
+    }
+  },
+
+  // **MODIFIED:** Expect FormData for reply to handle attachments
+  replyToMessage: async (messageId, replyText, attachmentFile) => {
+    try {
+        const formData = new FormData();
+        formData.append('replyMessage', replyText);
+        if (attachmentFile) {
+            formData.append('attachment', attachmentFile);
+        }
+
+        const response = await api.post(`/api/messages/${messageId}/reply`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        return response.data;
+    } catch (error) {
+        return handleError(error, 'Failed to send reply.');
+    }
+  },
+
+
+  updateMessageStatus: async (messageId, status) => {
+    try {
+      const response = await api.put(`/api/messages/${messageId}/status`, { status });
+      return response.data;
+    } catch (error) {
+      return handleError(error, 'Failed to update message status.');
+    }
+  },
+
+   deleteMessage: async (id) => { // Added delete message function
+    try {
+      const response = await api.delete(`/api/messages/${id}`);
+      return response.data;
+    } catch (error) {
+      return handleError(error, 'Failed to delete message.');
+    }
+  },
+
+  // --- Analytics ---
   fetchDashboardAnalytics: async () => {
     try {
       const response = await api.get('/api/analytics/dashboard');
       return response.data;
     } catch (error) {
-      return handleError(error);
+      return handleError(error, 'Failed to fetch dashboard analytics.');
     }
   },
 
+  // --- Content Management ---
   fetchContent: async (type) => {
     try {
       const response = await api.get(`/api/content/${type}`);
@@ -642,6 +674,7 @@ const DataService = {
     }
   },
 
+  // --- Activity Log ---
   fetchActivityLogs: async () => {
     try {
       const response = await api.get('/api/activity-log');
@@ -650,8 +683,9 @@ const DataService = {
       return handleError(error, 'Failed to fetch activity logs.');
     }
   },
- 
-  fetchAllFaqs: async () => {
+
+  // --- FAQs ---
+  fetchAllFaqs: async () => { // Public fetch
     try {
       const response = await api.get('/api/faq');
       return response.data;
@@ -660,7 +694,7 @@ const DataService = {
     }
   },
 
-  fetchAllFaqsAdmin: async () => {
+  fetchAllFaqsAdmin: async () => { // Admin fetch
     try {
       const response = await api.get('/api/faq/admin');
       return response.data;
@@ -695,8 +729,9 @@ const DataService = {
       return handleError(error, 'Failed to delete FAQ.');
     }
   },
- 
-  fetchAllPromotions: async () => {
+
+  // --- Promotions ---
+  fetchAllPromotions: async () => { // Public fetch
     try {
       const response = await api.get('/api/promotions');
       return response.data;
@@ -705,7 +740,7 @@ const DataService = {
     }
   },
 
-  fetchAllPromotionsAdmin: async () => {
+  fetchAllPromotionsAdmin: async () => { // Admin fetch
     try {
       const response = await api.get('/api/promotions/admin');
       return response.data;
@@ -740,40 +775,14 @@ const DataService = {
       return handleError(error, 'Failed to delete promotion.');
     }
   },
-  
-  searchCars: async (searchTerm) => {
-    try {
-      const response = await api.post('/api/cars/search', { searchTerm });
-      return response.data;
-    } catch (error) {
-      return handleError(error, 'Failed to search cars.');
-    }
-  },
 
-  filterCars: async (filterOptions) => {
+   // --- Messages (Public/Contact Form) ---
+  createMessage: async (messageData) => {
     try {
-      const response = await api.post('/api/cars/filter', filterOptions);
+      const response = await api.post('/api/messages', messageData);
       return response.data;
     } catch (error) {
-      return handleError(error, 'Failed to filter cars.');
-    }
-  },
-
-  searchTours: async (searchTerm) => {
-    try {
-      const response = await api.post('/api/tours/search', { searchTerm });
-      return response.data;
-    } catch (error) {
-      return handleError(error, 'Failed to search tours.');
-    }
-  },
-
-  filterTours: async (filterOptions) => {
-    try {
-      const response = await api.post('/api/tours/filter', filterOptions);
-      return response.data;
-    } catch (error) {
-      return handleError(error, 'Failed to filter tours.');
+      return handleError(error, 'Failed to send your message.');
     }
   },
 };

@@ -12,13 +12,35 @@ export const getAllCars = async (req, res) => {
     if (filters.brand) query.brand = new RegExp(filters.brand, 'i');
     if (filters.location) query.location = new RegExp(filters.location, 'i');
     if (filters.isAvailable) query.isAvailable = filters.isAvailable === 'true';
-    if (filters.seats) query.seats = { $gte: Number(filters.seats) }; // Added this line
+    if (filters.seats) query.seats = { $gte: Number(filters.seats) };
 
     if (filters.minPrice || filters.maxPrice) {
         query.pricePerDay = {};
         if (filters.minPrice) query.pricePerDay.$gte = Number(filters.minPrice);
         if (filters.maxPrice) query.pricePerDay.$lte = Number(filters.maxPrice);
     }
+    
+    // Handle 'search' query for broader matching
+    if (filters.search) {
+        const searchRegex = new RegExp(filters.search, 'i');
+        query.$or = [
+            { brand: searchRegex },
+            { model: searchRegex },
+            { location: searchRegex },
+            { type: searchRegex } // 'type' is category in model
+        ];
+    }
+    // Handle 'includeArchived'
+    if (req.query.includeArchived === 'true') {
+        query.archived = { $in: [true, false] };
+    } else {
+        query.archived = false; // Default to active cars unless specified
+    }
+    // Override if 'archived' filter is explicitly set
+    if (req.query.archived) {
+         query.archived = req.query.archived === 'true';
+    }
+
 
     const cars = await Car.find(query)
       .limit(parseInt(limit))
@@ -80,34 +102,124 @@ export const getAllCars = async (req, res) => {
 
 export const createCar = async (req, res) => {
   try {
-    const car = new Car({ ...req.body, owner: req.user.id });
+    const { 
+        brand, model, year, category, transmission, seats, fuelType, pricePerDay,
+        description, features, pickupLocations, availabilityStatus,
+        paymentType, downpaymentType, downpaymentValue, images // Images now passed as array of URLs
+    } = req.body;
+    
+    // Downpayment validation
+    if (paymentType === 'downpayment') {
+        if (!downpaymentType || !downpaymentValue || Number(downpaymentValue) <= 0) {
+            return res.status(400).json({ success: false, message: 'If allowing downpayment, type and a value greater than 0 are required.' });
+        }
+         if (downpaymentType === 'percentage' && (Number(downpaymentValue) < 1 || Number(downpaymentValue) > 99)) {
+             return res.status(400).json({ success: false, message: 'Downpayment percentage must be between 1 and 99.' });
+        }
+    }
+
+    const car = new Car({ 
+        ...req.body, 
+        owner: req.user.id,
+        // Ensure arrays are saved correctly from comma-separated strings if needed
+        features: Array.isArray(features) ? features : (features ? features.split(',').map(f => f.trim()) : []),
+        pickupLocations: Array.isArray(pickupLocations) ? pickupLocations : (pickupLocations ? pickupLocations.split(',').map(f => f.trim()) : []),
+        images: Array.isArray(images) ? images : (images ? [images] : []), // Ensure images is an array of URLs
+        isAvailable: availabilityStatus ? availabilityStatus === 'available' : (req.body.isAvailable !== undefined ? req.body.isAvailable : true), // Handle both inputs
+        // Handle payment fields
+        paymentType: paymentType || 'full',
+        downpaymentType: paymentType === 'downpayment' ? downpaymentType : undefined,
+        downpaymentValue: paymentType === 'downpayment' ? Number(downpaymentValue) : undefined,
+    });
+    
     await car.save();
 
     const io = req.app.get('io');
     if (io && req.user.role === 'employee') {
         const newLog = await createActivityLog(req.user.id, 'CREATE_CAR', `Car: ${car.brand} ${car.model}`, '/owner/manage-cars');
-        io.to('admin').emit('activity-log-update', newLog);
+        if(newLog) io.to('admin').emit('activity-log-update', newLog);
     }
 
     res.status(201).json({ success: true, data: car });
   } catch (error) {
+     if (error.name === 'ValidationError') {
+        return res.status(400).json({ success: false, message: error.message });
+     }
     res.status(400).json({ success: false, message: error.message });
   }
 };
 
 export const updateCar = async (req, res) => {
   try {
-    const car = await Car.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
-    if (!car) return res.status(404).json({ success: false, message: 'Car not found' });
+     const { id } = req.params;
+     const updateData = { ...req.body };
 
+     // Find car first
+     const car = await Car.findById(id);
+     if (!car) return res.status(404).json({ success: false, message: 'Car not found' });
+     
+     // Handle availabilityStatus
+     if (updateData.availabilityStatus) {
+         updateData.isAvailable = updateData.availabilityStatus === 'available';
+         delete updateData.availabilityStatus; // Remove field to avoid saving it
+     }
+     
+     // Handle features conversion from string
+     if (updateData.features && typeof updateData.features === 'string') {
+         updateData.features = updateData.features.split(',').map(f => f.trim()).filter(Boolean);
+     }
+     
+     // Handle pickupLocations conversion from string
+     if (updateData.pickupLocations && typeof updateData.pickupLocations === 'string') {
+         updateData.pickupLocations = updateData.pickupLocations.split(',').map(f => f.trim()).filter(Boolean);
+     }
+
+     // Handle images (assuming 'images' in body is the final array of URLs)
+     if (updateData.images && Array.isArray(updateData.images)) {
+         car.images = updateData.images.map(img => (typeof img === 'string' ? img : img.url)).filter(Boolean);
+     } else if (updateData.existingImages) {
+         // Fallback if ImageUpload sends 'existingImages'
+         car.images = Array.isArray(updateData.existingImages) ? updateData.existingImages : [updateData.existingImages];
+     }
+     // Note: Image DELETION logic should be handled by ImageUpload component calling delete endpoint
+     // This update just saves the final list of URLs
+
+    // --- PAYMENT FIELD LOGIC ---
+    if (updateData.paymentType) {
+        car.paymentType = updateData.paymentType;
+        if (updateData.paymentType === 'full') {
+            car.downpaymentType = undefined;
+            car.downpaymentValue = undefined;
+        } else { // paymentType is 'downpayment'
+            // Validation
+            if (!updateData.downpaymentType || !updateData.downpaymentValue || Number(updateData.downpaymentValue) <= 0) {
+                 return res.status(400).json({ success: false, message: 'If allowing downpayment, type and a value greater than 0 are required.' });
+            }
+            if (updateData.downpaymentType === 'percentage' && (Number(updateData.downpaymentValue) < 1 || Number(updateData.downpaymentValue) > 99)) {
+                 return res.status(400).json({ success: false, message: 'Downpayment percentage must be between 1 and 99.' });
+            }
+            car.downpaymentType = updateData.downpaymentType;
+            car.downpaymentValue = Number(updateData.downpaymentValue);
+        }
+    }
+    // --- END PAYMENT LOGIC ---
+
+    // Update other fields
+    car.set(updateData); // Apply other updates from req.body
+    
+    const updatedCar = await car.save(); // Run validators on save
+    
     const io = req.app.get('io');
     if (io && req.user.role === 'employee') {
-        const newLog = await createActivityLog(req.user.id, 'UPDATE_CAR', `Car: ${car.brand} ${car.model}`, '/owner/manage-cars');
-        io.to('admin').emit('activity-log-update', newLog);
+        const newLog = await createActivityLog(req.user.id, 'UPDATE_CAR', `Car: ${updatedCar.brand} ${updatedCar.model}`, '/owner/manage-cars');
+        if(newLog) io.to('admin').emit('activity-log-update', newLog);
     }
 
-    res.json({ success: true, data: car });
+    res.json({ success: true, data: updatedCar });
   } catch (error) {
+     if (error.name === 'ValidationError') {
+        return res.status(400).json({ success: false, message: error.message });
+     }
     res.status(400).json({ success: false, message: error.message });
   }
 };
@@ -120,7 +232,7 @@ export const archiveCar = async (req, res) => {
     const io = req.app.get('io');
     if (io && req.user.role === 'employee') {
         const newLog = await createActivityLog(req.user.id, 'ARCHIVE_CAR', `Car: ${car.brand} ${car.model}`, '/owner/manage-cars');
-        io.to('admin').emit('activity-log-update', newLog);
+        if(newLog) io.to('admin').emit('activity-log-update', newLog);
     }
 
     res.json({ success: true, message: "Car archived successfully", data: car });
@@ -137,7 +249,7 @@ export const unarchiveCar = async (req, res) => {
     const io = req.app.get('io');
     if (io && req.user.role === 'employee') {
         const newLog = await createActivityLog(req.user.id, 'RESTORE_CAR', `Car: ${car.brand} ${car.model}`, '/owner/manage-cars');
-        io.to('admin').emit('activity-log-update', newLog);
+        if(newLog) io.to('admin').emit('activity-log-update', newLog);
     }
 
     res.json({ success: true, message: "Car restored successfully", data: car });

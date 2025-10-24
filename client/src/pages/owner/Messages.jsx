@@ -5,6 +5,7 @@ import { Mail, Send, Inbox, Edit, Trash2, X, AlertOctagon, Archive, Search, Pape
 import { useAuth } from '../../components/Login.jsx';
 import { useSocket } from '../../hooks/useSocket.jsx';
 import { useSecureImage } from '../../hooks/useSecureImage.jsx'; // <-- ADDED IMPORT
+import { useNavigate } from 'react-router-dom'; // <-- ADDED useNavigate
 
 const formatDate = (dateString) => {
   if (!dateString) return 'N/A';
@@ -56,44 +57,65 @@ const Messages = () => { // <-- FIXED: ()_> to () =>
   const [isReplying, setIsReplying] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(null);
   const { user } = useAuth();
-  const socket = useSocket();
+  const { socket } = useSocket(); // <-- Destructure socket here
+  const navigate = useNavigate(); // <-- Added navigate
 
   const { data: messagesData, loading, error, refetch: fetchMessages } = useApi(
-    () => DataService.getAllMessages({ status: filter, search: searchTerm }),
+    () => DataService.fetchAllMessages({ status: filter, search: searchTerm }),
     [filter, searchTerm]
   );
 
   const messages = messagesData?.data || [];
 
   // Refetch messages on socket event
-  useEffect(() => { // <-- FIXED: useState(()_> to useEffect(() =>
+  useEffect(() => {
+    // --- FIX: Check if socket exists before using it ---
     if (socket) {
-      socket.on('newMessage', (newMessage) => {
-        console.log('New message received via socket');
+      // Listen for the generic 'notification' event which might indicate a new message
+      const handleNewMessageNotification = (notification) => {
+        // You might add more specific checks here if needed,
+        // e.g., check notification.type if it's available
+        console.log('Notification possibly related to messages received:', notification);
         fetchMessages();
-      });
+      };
+
+      socket.on('notification', handleNewMessageNotification);
 
       return () => {
-        socket.off('newMessage');
+        // --- FIX: Check if socket exists before removing listener ---
+        if (socket) {
+          socket.off('notification', handleNewMessageNotification);
+        }
       };
     }
-  }, [socket, fetchMessages]);
+    // --- END FIX ---
+  }, [socket, fetchMessages]); // Dependency array includes socket
 
   const handleSelectMessage = async (message) => {
     try {
-      // Fetch the full message details, which also marks it as read on the backend
-      const response = await DataService.getMessageById(message._id);
-      if (response.success) {
-        setSelectedMessage(response.data);
-        setReplyMessage(''); // Clear reply box
-        setAttachment(null); // Clear attachment
-        // Update the list locally to reflect 'read' status without full refetch
-        fetchMessages(); 
+      // Fetch the full message details, which also marks it as read on the backend if needed
+      // Assuming getMessageById doesn't exist or isn't needed, we mark read locally if status is 'new'
+      setSelectedMessage(message);
+      setReplyMessage(''); // Clear reply box
+      setAttachment(null); // Clear attachment
+
+      // If the message is 'new', update its status to 'read' via API
+      if (message.status === 'new') {
+        try {
+          await DataService.updateMessageStatus(message._id, 'read');
+          fetchMessages(); // Refetch to update the list visually
+        } catch (statusUpdateError) {
+          console.error("Failed to mark message as read:", statusUpdateError);
+          // Proceed to show the message anyway
+        }
       }
+
     } catch (err) {
-      console.error('Error fetching message:', err);
+      console.error('Error selecting message:', err);
+      // Handle error (e.g., show a notification to the user)
     }
   };
+
 
   const handleReplySubmit = async (e) => {
     e.preventDefault();
@@ -101,30 +123,53 @@ const Messages = () => { // <-- FIXED: ()_> to () =>
 
     setIsReplying(true);
     try {
-      const response = await DataService.replyToMessage(selectedMessage._id, replyMessage, attachment);
+      // Use FormData to handle potential file uploads
+      const formData = new FormData();
+      formData.append('replyMessage', replyMessage.trim());
+      if (attachment) {
+        formData.append('attachment', attachment);
+      }
+
+      const response = await DataService.replyToMessage(selectedMessage._id, formData); // Pass FormData
+
       if (response.success) {
         setSelectedMessage(response.data); // Update with the new reply
         setReplyMessage(''); // Clear reply box
         setAttachment(null); // Clear attachment
         fetchMessages(); // Refetch the list to update status
+      } else {
+        // Handle specific errors returned from the API
+        throw new Error(response.message || 'Failed to send reply.');
       }
     } catch (err) {
       console.error('Error sending reply:', err);
+      // Potentially show an error message to the user
+      alert(`Error sending reply: ${err.message}`);
     } finally {
       setIsReplying(false);
     }
   };
 
+
   const handleDelete = async (messageId) => {
     try {
-      await DataService.deleteMessage(messageId);
-      setShowDeleteModal(null);
-      setSelectedMessage(null); // Close the detail view if it was deleted
-      fetchMessages(); // Refresh the list
+        // Assuming DataService.deleteMessage exists and handles the API call
+        const response = await DataService.deleteMessage(messageId);
+        if (response.success) {
+            setShowDeleteModal(null);
+            setSelectedMessage(null); // Close the detail view if it was deleted
+            fetchMessages(); // Refresh the list
+            alert('Message deleted successfully.');
+        } else {
+            throw new Error(response.message || 'Failed to delete message.');
+        }
     } catch (err) {
-      console.error('Error deleting message:', err);
+        console.error('Error deleting message:', err);
+        alert(`Error deleting message: ${err.message}`);
+        // Optionally keep the modal open or provide more specific feedback
     }
   };
+
 
   const filteredMessages = messages; // Data is already filtered by API
 
@@ -229,7 +274,7 @@ const Messages = () => { // <-- FIXED: ()_> to () =>
                       <p className="text-gray-800 whitespace-pre-wrap leading-relaxed">
                         {reply.message}
                       </p>
-                      
+
                       {/* --- ADDED ATTACHMENT LINK --- */}
                       {reply.attachment && (
                         <div className="mt-3">
@@ -240,7 +285,7 @@ const Messages = () => { // <-- FIXED: ()_> to () =>
                         </div>
                       )}
                       {/* --- END ADDED BLOCK --- */}
-                      
+
                       <div className="mt-3 text-sm text-gray-600">
                         Replied by {reply.repliedBy?.firstName || 'Admin'} on {formatDate(reply.repliedAt)}
                       </div>
@@ -265,9 +310,9 @@ const Messages = () => { // <-- FIXED: ()_> to () =>
                   <div>
                     <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
                       <Paperclip size={16} />
-                      <input 
-                        type="file" 
-                        className="hidden" 
+                      <input
+                        type="file"
+                        className="hidden"
                         onChange={(e) => setAttachment(e.target.files[0])}
                       />
                       <span>{attachment ? attachment.name : 'Attach file'}</span>

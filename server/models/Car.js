@@ -87,6 +87,7 @@ const carSchema = new mongoose.Schema({
     type: String,
     trim: true
   }],
+  // --- PAYMENT FIELDS ---
   paymentType: {
     type: String,
     enum: ['full', 'downpayment'],
@@ -95,12 +96,24 @@ const carSchema = new mongoose.Schema({
   downpaymentType: {
     type: String,
     enum: ['fixed', 'percentage'],
-    default: 'percentage'
+    // No default, only relevant if paymentType is 'downpayment'
   },
   downpaymentValue: {
     type: Number,
-    default: 20 // Default to 20%
+    min: 0,
+    // Validate that value exists and is positive if downpayment is enabled
+    validate: {
+        validator: function(value) {
+            if (this.paymentType !== 'downpayment') {
+                return true; // Not required if full payment
+            }
+            // Required and must be > 0 if paymentType is downpayment
+            return value != null && value > 0;
+        },
+        message: 'Downpayment value is required when downpayment is enabled and must be greater than 0.'
+    }
   }
+  // --- END PAYMENT FIELDS ---
 }, {
   timestamps: true,
   toJSON: { virtuals: true },

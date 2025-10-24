@@ -1,5 +1,6 @@
 import Message from '../models/Message.js';
-import { sendEmail } from '../utils/emailServices.js';
+// Corrected import: Import the default export (EmailService instance)
+import EmailService from '../utils/emailServices.js';
 import { createNotification } from './notificationController.js';
 import User from '../models/User.js';
 
@@ -12,7 +13,7 @@ export const getAllMessages = async (req, res, next) => {
     if (status && status !== 'all') {
       query.status = status;
     }
-    
+
     if (search) {
       query.$or = [
         { name: { $regex: search, $options: 'i' } },
@@ -25,7 +26,7 @@ export const getAllMessages = async (req, res, next) => {
       .populate('user', 'firstName lastName')
       .populate('replies.repliedBy', 'firstName lastName')
       .sort({ createdAt: -1 });
-      
+
     res.status(200).json({ success: true, data: messages });
   } catch (error) {
     next(error);
@@ -38,17 +39,17 @@ export const getMessageById = async (req, res, next) => {
     const message = await Message.findById(req.params.id)
       .populate('user', 'firstName lastName')
       .populate('replies.repliedBy', 'firstName lastName');
-      
+
     if (!message) {
       return res.status(404).json({ success: false, message: 'Message not found' });
     }
-    
+
     // Mark as read if it's new
     if (message.status === 'new') {
       message.status = 'read';
       await message.save();
     }
-    
+
     res.status(200).json({ success: true, data: message });
   } catch (error) {
     next(error);
@@ -59,13 +60,13 @@ export const getMessageById = async (req, res, next) => {
 export const createMessage = async (req, res, next) => {
   try {
     const { name, email, phone, subject, message, userId } = req.body;
-    
+
     const newMessageData = { name, email, phone, subject, message };
-    
+
     if (userId) {
       newMessageData.user = userId;
     }
-    
+
     const newMessage = await Message.create(newMessageData);
 
     // Notify all admins
@@ -78,7 +79,7 @@ export const createMessage = async (req, res, next) => {
     for (const admin of admins) {
       await createNotification(admin._id, notificationData);
     }
-    
+
     res.status(201).json({ success: true, data: newMessage });
   } catch (error) {
     next(error);
@@ -90,7 +91,7 @@ export const replyToMessage = async (req, res, next) => {
   try {
     const { replyMessage } = req.body;
     const message = await Message.findById(req.params.id);
-    
+
     if (!message) {
       return res.status(404).json({ success: false, message: 'Message not found' });
     }
@@ -142,9 +143,9 @@ export const replyToMessage = async (req, res, next) => {
         path: req.file.path // Use path for Cloudinary attachments (if nodemailer-storage-cloudinary is used) or local path
       }];
     }
-    
-    // Send the email
-    await sendEmail(emailData);
+
+    // Send the email using the imported EmailService instance
+    await EmailService.sendEmail(emailData);
 
     // Notify the user if they are registered
     if (message.user) {
@@ -189,10 +190,31 @@ export const deleteMessage = async (req, res, next) => {
     if (!message) {
       return res.status(404).json({ success: false, message: 'Message not found' });
     }
-    
+
     await message.deleteOne(); // Use deleteOne()
-    
+
     res.status(200).json({ success: true, message: 'Message deleted' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// --- Added missing export ---
+export const updateMessageStatus = async (req, res, next) => {
+  try {
+    const { status } = req.body;
+    if (!['new', 'read', 'replied'].includes(status)) {
+      return res.status(400).json({ success: false, message: 'Invalid status provided.' });
+    }
+    const message = await Message.findByIdAndUpdate(
+      req.params.id,
+      { status: status },
+      { new: true }
+    );
+    if (!message) {
+      return res.status(404).json({ success: false, message: 'Message not found' });
+    }
+    res.status(200).json({ success: true, data: message });
   } catch (error) {
     next(error);
   }

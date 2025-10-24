@@ -26,9 +26,9 @@ const ManageTransport = () => {
     images: [],
     pricing: [],
     isAvailable: true,
-    paymentType: 'full',
-    downpaymentType: 'percentage',
-    downpaymentValue: 20,
+    // Aligned with Car model
+    downpaymentRate: 0.2,
+    requiresDownpayment: true,
   };
 
   const [formData, setFormData] = useState(initialFormState);
@@ -46,17 +46,15 @@ const ManageTransport = () => {
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
-  };
 
-  const handlePaymentTypeChange = (e) => {
-    const { value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      paymentType: value,
-      downpaymentType: value === 'full' ? prev.downpaymentType : (prev.downpaymentType || 'percentage'),
-      downpaymentValue: value === 'full' ? '' : prev.downpaymentValue,
-    }));
+    if (name === 'downpaymentRate') {
+      // Convert percentage (e.g., 20) to decimal (e.g., 0.2)
+      setFormData(prev => ({ ...prev, [name]: value === '' ? '' : Number(value) / 100 }));
+    } else if (type === 'checkbox') {
+      setFormData(prev => ({ ...prev, [name]: checked }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleImagesChange = (uploadedImages) => {
@@ -89,26 +87,12 @@ const ManageTransport = () => {
   };
 
   const removePriceRow = (index) => {
-    setFormData(prev => ({ ...prev, pricing: prev.pricing.filter((_, i) => i !== index) }));
+    setFormData(prev => ({ ...prev, pricing: formData.pricing.filter((_, i) => i !== index) }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
-
-    // Downpayment validation (similar to ManageCars)
-    if (formData.paymentType === 'downpayment') {
-       if (!formData.downpaymentType || !formData.downpaymentValue || parseFloat(formData.downpaymentValue) <= 0) {
-            alert('Downpayment Type and a positive Value are required.');
-            setSubmitting(false);
-            return;
-        }
-        if (formData.downpaymentType === 'percentage' && (parseFloat(formData.downpaymentValue) < 1 || parseFloat(formData.downpaymentValue) > 99)) {
-             alert('Percentage must be between 1 and 99.');
-            setSubmitting(false);
-            return;
-        }
-    }
 
     // Prepare payload
     const payload = {
@@ -123,11 +107,6 @@ const ManageTransport = () => {
           dropAndPickPrice: parseFloat(p.dropAndPickPrice) || null,
       })),
     };
-     // Clean up payment fields if 'full'
-     if (payload.paymentType === 'full') {
-         delete payload.downpaymentType;
-         delete payload.downpaymentValue;
-     }
 
     try {
       if (editingService) {
@@ -161,9 +140,9 @@ const ManageTransport = () => {
       ...service,
       images: processedImages,
       pricing: Array.isArray(service.pricing) ? service.pricing : [], // Ensure pricing is array
-      paymentType: service.paymentType || 'full',
-      downpaymentType: service.downpaymentType || 'percentage',
-      downpaymentValue: service.downpaymentValue || (service.paymentType === 'downpayment' ? 20 : ''),
+      // Load aligned fields, providing defaults if they don't exist on the service yet
+      downpaymentRate: service.downpaymentRate !== undefined ? service.downpaymentRate : 0.2,
+      requiresDownpayment: service.requiresDownpayment !== undefined ? service.requiresDownpayment : true,
     });
     setShowModal(true);
   };
@@ -275,27 +254,42 @@ const ManageTransport = () => {
                   <div className="flex flex-wrap gap-2">{formData.amenities.map((item, index) => (<span key={index} className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">{item}<button type="button" onClick={() => removeAmenity(index)}><X className="w-3 h-3" /></button></span>))}</div>
               </div>
 
-              {/* Payment Configuration */}
+              {/* Payment Configuration (Aligned with Car model) */}
               <div className="border p-4 rounded-md bg-gray-50">
-                    <h3 className="text-lg font-semibold mb-3 flex items-center gap-2"><DollarSign size={18}/> Payment Options</h3>
-                    <div className="flex gap-6 mb-4">
-                        <label className="flex items-center cursor-pointer"><input type="radio" name="paymentType" value="full" checked={formData.paymentType === 'full'} onChange={handlePaymentTypeChange} className="mr-2"/>Full Payment Only</label>
-                        <label className="flex items-center cursor-pointer"><input type="radio" name="paymentType" value="downpayment" checked={formData.paymentType === 'downpayment'} onChange={handlePaymentTypeChange} className="mr-2"/>Allow Downpayment</label>
+                <h3 className="text-lg font-semibold mb-3 flex items-center gap-2"><DollarSign size={18}/> Payment Options</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Downpayment Rate (%)</label>
+                    <div className="relative">
+                      <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500"><Percent size={14}/></span>
+                      <input
+                        name="downpaymentRate"
+                        type="number"
+                        // Convert decimal (0.2) to percentage (20) for display
+                        value={formData.downpaymentRate === '' ? '' : formData.downpaymentRate * 100}
+                        onChange={handleInputChange}
+                        placeholder="e.g., 20"
+                        className="w-full p-2 pl-8 border rounded-lg"
+                        min="0"
+                        max="100"
+                      />
                     </div>
-                    {formData.paymentType === 'downpayment' && (
-                        <div className="border-t pt-4 space-y-3 animate-in fade-in duration-300">
-                            <div className="flex gap-6 mb-2">
-                               <label className="flex items-center cursor-pointer"><input type="radio" name="downpaymentType" value="percentage" checked={formData.downpaymentType === 'percentage'} onChange={handleInputChange} className="mr-2"/>Percentage (%)</label>
-                                <label className="flex items-center cursor-pointer"><input type="radio" name="downpaymentType" value="fixed" checked={formData.downpaymentType === 'fixed'} onChange={handleInputChange} className="mr-2"/>Fixed Amount (₱)</label>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">{formData.downpaymentType === 'percentage' ? 'Percentage Value (1-99)' : 'Fixed Amount (PHP)'} *</label>
-                                 <div className="relative"><span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500">{formData.downpaymentType === 'percentage' ? '%' : '₱'}</span><input name="downpaymentValue" type="number" step={formData.downpaymentType === 'percentage' ? "1" : "0.01"} min="1" max={formData.downpaymentType === 'percentage' ? "99" : undefined} value={formData.downpaymentValue} onChange={handleInputChange} placeholder={formData.downpaymentType === 'percentage' ? 'e.g., 20' : 'e.g., 1000'} className="p-2 pl-7 border rounded w-full md:w-1/2" required/></div>
-                                <p className="text-xs text-gray-500 mt-1 flex items-center gap-1"><Info size={12}/> {formData.downpaymentType === 'fixed' ? 'This fixed amount will apply per booking.' : 'Percentage of the selected trip price.'} </p>
-                            </div>
-                        </div>
-                    )}
-                 </div>
+                  </div>
+                  <div className="pt-7">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        name="requiresDownpayment"
+                        checked={formData.requiresDownpayment}
+                        onChange={handleInputChange}
+                        className="form-checkbox h-5 w-5 rounded text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="text-sm font-medium text-gray-700">Requires Downpayment</span>
+                    </label>
+                    <p className="text-xs text-gray-500 mt-1">If unchecked, only full payment is allowed.</p>
+                  </div>
+                </div>
+              </div>
 
               {/* Pricing Table */}
               <div>

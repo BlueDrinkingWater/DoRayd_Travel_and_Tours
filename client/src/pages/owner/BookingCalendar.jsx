@@ -1,3 +1,4 @@
+/* bluedrinkingwater/krippingstone/krippingStone-84965bfbc7954bea3c6c15700d756ced6ba1b3a8/client/src/pages/owner/BookingCalendar.jsx */
 import React, { useState, useMemo } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
@@ -203,14 +204,15 @@ const InfoRow = ({ label, value, icon: Icon }) => (
 // --- Main Calendar Component ---
 const BookingCalendar = () => {
   const { data: bookingsData, loading, refetch: fetchBookings } = useApi(DataService.fetchAllBookings);
-  const bookings = useMemo(() => bookingsData?.data || [], [bookingsData]);
+  // Fix: Correctly access the bookings array from the API response data.
+  const bookings = useMemo(() => bookingsData?.data?.bookings || [], [bookingsData]); // Changed from bookingsData?.data
 
   const [modalState, setModalState] = useState({ isOpen: false, date: null, events: [] });
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [statusFilters, setStatusFilters] = useState(['pending', 'confirmed']);
 
   const handleFilterChange = (status) => {
-    setStatusFilters(prev => 
+    setStatusFilters(prev =>
       prev.includes(status) ? prev.filter(s => s !== status) : [...prev, status]
     );
   };
@@ -230,7 +232,7 @@ const BookingCalendar = () => {
     };
     return styles[status] || { backgroundColor: '#A1A1AA', borderColor: '#71717A' };
   };
-  
+
   const events = useMemo(() => filteredBookings.map(booking => {
     // Ensure dates are valid before creating event
     const startDate = new Date(booking.startDate);
@@ -261,7 +263,7 @@ const BookingCalendar = () => {
     const dayEvents = events.filter(event => {
         const eventStart = new Date(event.start);
         eventStart.setHours(0,0,0,0);
-        
+
         // Handle events without an end date (e.g., single-day tours)
         if (!event.end) {
             return eventStart.getTime() === clickedDate.getTime();
@@ -287,7 +289,7 @@ const BookingCalendar = () => {
         handleViewBookingDetails(clickInfo.event.id);
     }, 0);
   };
-  
+
   const handleViewBookingDetails = (bookingId) => {
     const booking = bookings.find(b => b._id === bookingId);
     if (booking) {
@@ -363,11 +365,11 @@ const BookingCalendar = () => {
             onEventSelect={handleViewBookingDetails}
         />
       )}
-      
+
       {selectedBooking && (
           <BookingDetailModal
-            booking={selectedBooking} 
-            onClose={() => setSelectedBooking(null)} 
+            booking={selectedBooking}
+            onClose={() => setSelectedBooking(null)}
             onUpdate={() => {
               fetchBookings();
               setSelectedBooking(null);

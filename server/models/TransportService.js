@@ -53,27 +53,17 @@ const transportServiceSchema = new Schema({
     type: Schema.Types.ObjectId,
     ref: 'User',
   },
-  // --- PAYMENT FIELDS ---
-  paymentType: {
-    type: String,
-    enum: ['full', 'downpayment'],
-    default: 'full'
+  // --- PAYMENT FIELDS (Aligned with Car model) ---
+  downpaymentRate: { 
+    type: Number, 
+    default: 0.2, // Default 20%
+    min: 0, 
+    max: 1 
   },
-  downpaymentType: {
-    type: String,
-    enum: ['fixed', 'percentage'],
+  requiresDownpayment: { 
+    type: Boolean, 
+    default: true 
   },
-  downpaymentValue: {
-    type: Number,
-    min: 0,
-    validate: {
-        validator: function(value) {
-            if (this.paymentType !== 'downpayment') return true;
-            return value != null && value > 0;
-        },
-        message: 'Downpayment value is required when downpayment is enabled and must be > 0.'
-    }
-  }
   // --- END PAYMENT FIELDS ---
 }, {
   timestamps: true

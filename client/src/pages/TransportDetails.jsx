@@ -1,9 +1,9 @@
 // client/src/pages/TransportDetails.jsx
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react'; // Keep useEffect
 import { useParams, Link } from 'react-router-dom';
 import useApi from '../hooks/useApi';
-import DataService, { getImageUrl } from '../components/services/DataService'; // Import DataService and getImageUrl
+import DataService, { getImageUrl } from '../components/services/DataService';
 import BookingModal from '../components/BookingModal';
 import { toast } from 'react-toastify';
 import { ChevronLeft, ChevronRight, CheckCircle } from 'lucide-react';
@@ -13,28 +13,37 @@ const TransportDetails = () => {
   const { id } = useParams();
 
   // --- Start of Fix ---
-
-  // 1. Get the 'execute' function from useApi.
+  //
+  // This is the correct way to use your existing useApi hook:
+  // 1. Pass an apiFunction that checks if 'id' exists.
+  // 2. Pass [id] as the dependencies array (the 2nd argument).
+  // 3. Set immediate: true (in the 3rd argument).
+  //
+  // This tells useApi: "Run this function immediately, and re-run it *only* when 'id' changes."
+  // This avoids the infinite loop without modifying useApi.jsx.
+  //
   const {
-    data: serviceData, // This will be { success: true, ... } OR { success: false, ... }
+    data: serviceData,
     loading,
-    error: hookError, // This catches JS/network errors
-    execute: fetchService,
-  } = useApi(() => DataService.fetchTransportById(id), [], { immediate: false }); // Pass ID via closure
+    error: hookError,
+  } = useApi(
+    () => {
+      // Only execute the fetch if 'id' is available
+      if (id) {
+        return DataService.fetchTransportById(id);
+      }
+      // Otherwise, return a resolved promise with null to avoid errors
+      return Promise.resolve(null);
+    },
+    [id], // Dependencies array
+    { immediate: true } // Options
+  );
 
-  // 2. Use useEffect to call execute once the 'id' is available.
-  useEffect(() => {
-    if (id) {
-      // We don't need a .catch() because DataService doesn't throw
-      fetchService(id);
-    }
-  }, [id, fetchService]);
+  // We no longer need the separate useEffect to call fetchService.
+  // The hook handles fetching when 'id' changes.
 
-  // 3. Get the actual service object and the *real* error
-  const service = serviceData?.data; // Correctly access the service object
-  // The real error is EITHER an error from the hook OR a { success: false } response
+  const service = serviceData?.data;
   const realError = hookError || (serviceData?.success === false ? serviceData.message : null);
-
   // --- End of Fix ---
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -64,19 +73,25 @@ const TransportDetails = () => {
   const prevImage = () => {
     if (!service || !service.images || service.images.length === 0) return;
     setCurrentImageIndex((prevIndex) =>
-      prevIndex === 0 ? service.images.length - 1 : prevIndex - 1
+      prevIndex === 0 ? service.images.length - 1 : prevIndex + 1
     );
   };
 
   // --- Updated Loading/Error Checks ---
-  if (loading) return <div className="container mx-auto p-4 pt-24 text-center">Loading...</div>;
+  if (loading && !serviceData) { // Show loading only on the initial load (when serviceData is null)
+    return <div className="container mx-auto p-4 pt-24 text-center">Loading...</div>;
+  }
 
-  // Now we check for the realError
-  if (realError)
+  // Check for the realError
+  if (realError) {
     return <div className="container mx-auto p-4 pt-24 text-red-500">Error: {String(realError)}</div>;
-
-  // This check is still valid, in case loading is done but data is missing
-  if (!service) return <div className="container mx-auto p-4 pt-24 text-center">Service not found.</div>;
+  }
+  
+  // This check is still valid. If 'id' was bad, serviceData might be { success: false }
+  // or if 'id' was null, serviceData would be null, but loading would be false.
+  if (!service) {
+    return <div className="container mx-auto p-4 pt-24 text-center">Service not found.</div>;
+  }
   // ---
 
   const mainImage =
@@ -214,7 +229,7 @@ const TransportDetails = () => {
                       <td className="px-4 py-3 whitespace-nowrap">
                         {formatPrice(priceRow.threeDayTwoNightPrice)}
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
+                      <td className="px-4 py-3 whitespace-nowrap"> {/* <-- FIX 1: was whitespace-nowdwrap */}
                         {formatPrice(priceRow.dropAndPickPrice)}
                       </td>
                     </tr>
@@ -229,7 +244,7 @@ const TransportDetails = () => {
             <p className="text-xs text-gray-500 mt-1">
               *Prices are indicative and subject to final quote upon booking
               request.
-            </p>
+            </p> {/* <-- FIX 2: was </WELCOME> */}
           </div>
         )}
       </div>

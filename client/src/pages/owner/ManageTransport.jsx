@@ -1,523 +1,494 @@
-// client/src/pages/owner/ManageTransport.jsx
-
-import React, { useState, useEffect, useCallback, useMemo } from 'react'; // Added useMemo
-import { toast } from 'react-toastify';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
-  Edit,
-  Trash,
-  PlusCircle,
+  Plus,
+  Edit3,
   Archive,
   Eye,
-  Plus,
+  EyeOff,
+  Search,
+  MapPin,
+  X,
+  RotateCcw,
+  DollarSign,
+  Percent,
+  Info,
+  Bus,
   Trash2,
+  Tag,
+  Calendar,
+  CircleDot,
+  Trash,
 } from 'lucide-react';
-import DataService from '../../components/services/DataService'; // Import DataService
-import ImageUpload from '../../components/ImageUpload';
-import { formatPrice, formatDate } from '../../utils/helpers';
-// Removed useApi as it's not the correct pattern for this component
-
-const initialFormState = {
-  vehicleType: 'Tourist Bus',
-  name: '',
-  capacity: '',
-  amenities: [],
-  description: '',
-  images: [], // Will now hold image objects: { url, serverId, ... }
-  downpaymentRate: 0.2,
-  requiresDownpayment: true,
-  isAvailable: true,
-  archived: false,
-  pricing: [],
-};
-
-const initialNewPriceRow = {
-  region: '',
-  destination: '',
-  dayTourTime: '',
-  dayTourPrice: '',
-  ovnPrice: '',
-  threeDayTwoNightPrice: '',
-  dropAndPickPrice: '',
-};
+import DataService, { getImageUrl } from '../../components/services/DataService.jsx';
+import ImageUpload from '../../components/ImageUpload.jsx';
+import { useApi } from '../../hooks/useApi.jsx';
+import { toast } from 'react-toastify'; // Optional: for better notifications
 
 const ManageTransport = () => {
-  const [services, setServices] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [editingTransport, setEditingTransport] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState('active');
+  const [submitting, setSubmitting] = useState(false);
+
+  // Use useApi for fetching transport services
+  const { data: transportData, loading, refetch: fetchTransport } = useApi(
+    () => DataService.fetchAllTransportAdmin({ archived: filterStatus === 'archived' }),
+    [filterStatus]
+  );
+  const transports = transportData?.data || [];
+
+  const initialFormState = {
+    vehicleType: 'Tourist Bus',
+    name: '',
+    capacity: '',
+    amenities: [],
+    description: '',
+    images: [], // Holds image objects { url, serverId, name }
+    isAvailable: true,
+    archived: false,
+    pricing: [],
+    // Payment options similar to ManageTours
+    paymentType: 'full',
+    downpaymentType: 'percentage', // Default type if downpayment is enabled
+    downpaymentValue: 20, // Default value if downpayment is enabled
+  };
+
   const [formData, setFormData] = useState(initialFormState);
-  const [currentAmenity, setCurrentAmenity] = useState('');
-  const [editingId, setEditingId] = useState(null);
-  const [viewArchived, setViewArchived] = useState(false);
-  const [newPriceRow, setNewPriceRow] = useState(initialNewPriceRow);
+  const [newAmenity, setNewAmenity] = useState('');
+  const [newPriceRow, setNewPriceRow] = useState({
+    region: '',
+    destination: '',
+    dayTourTime: '',
+    dayTourPrice: '',
+    ovnPrice: '',
+    threeDayTwoNightPrice: '',
+    dropAndPickPrice: '',
+  });
 
-  // --- Start of Fix: Correct Data Fetching & Actions ---
-
-  const fetchServices = useCallback(async () => {
-    setLoading(true);
-    try {
-      // Fetch using DataService directly
-      const data = await DataService.fetchAllTransportAdmin({ archived: viewArchived });
-      if (data.success) {
-        // The API returns data in the 'data' field
-        setServices(data.data || []); // Use data.data and default to empty array
-        setError(null); // Clear previous errors on success
-      } else {
-        throw new Error(data.message || 'Unknown error fetching data');
-      }
-    } catch (err) {
-      setError(err.message || 'Failed to fetch transport services');
-      toast.error(err.message || 'Failed to fetch transport services');
-    } finally {
-      setLoading(false);
-    }
-  }, [viewArchived]); // Dependency is viewArchived
-
-  useEffect(() => {
-    fetchServices();
-  }, [fetchServices]); // useEffect depends on the fetchServices callback
-
-  const openModal = (service = null) => {
-    if (service) {
-      // Correctly map image URLs to the format ImageUpload expects
-      const imageObjects =
-        service.images?.map((url) => ({
-          url: url, // Assuming URL is the Cloudinary path/URL
-          serverId: url,
-          name: 'Existing Image',
-        })) || [];
-
-      setFormData({
-        vehicleType: service.vehicleType || 'Tourist Bus',
-        name: service.name || '',
-        capacity: service.capacity || '',
-        amenities: service.amenities || [],
-        description: service.description || '',
-        images: imageObjects, // Use the processed image objects
-        downpaymentRate: service.downpaymentRate || 0,
-        requiresDownpayment: service.requiresDownpayment !== false,
-        isAvailable: service.isAvailable !== false,
-        archived: service.archived || false,
-        pricing: service.pricing || [],
-      });
-      setEditingId(service._id);
-    } else {
-      setFormData(initialFormState);
-      setEditingId(null); // Ensure editingId is null for new service
-    }
-    setNewPriceRow(initialNewPriceRow);
-    setIsModalOpen(true);
-  };
-
-  const closeModal = () => {
-    setIsModalOpen(false);
+  const resetForm = () => {
     setFormData(initialFormState);
-    setEditingId(null);
-    setCurrentAmenity('');
-    setNewPriceRow(initialNewPriceRow);
+    setNewAmenity('');
+    setNewPriceRow({
+      region: '', destination: '', dayTourTime: '', dayTourPrice: '',
+      ovnPrice: '', threeDayTwoNightPrice: '', dropAndPickPrice: ''
+    });
+    setEditingTransport(null);
   };
 
-  const handleChange = (e) => {
+  const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]:
-        type === 'checkbox'
-          ? checked
-          : type === 'number'
-          ? parseFloat(value)
-          : value,
+      [name]: type === 'checkbox' ? checked : value,
     }));
   };
 
-  const handleAmenityChange = (e) => {
-    setCurrentAmenity(e.target.value);
+  const handlePaymentTypeChange = (e) => {
+     const { value } = e.target;
+      setFormData(prev => ({
+        ...prev,
+        paymentType: value,
+        // Reset downpayment fields if switching to 'full', keep existing if switching to downpayment
+        downpaymentType: value === 'full' ? prev.downpaymentType : (prev.downpaymentType || 'percentage'),
+        downpaymentValue: value === 'full' ? '' : (prev.downpaymentValue || 20),
+      }));
   };
 
+  const handleImagesChange = (uploadedImages) => {
+    // uploadedImages is an array of { url, serverId, name } from ImageUpload
+    setFormData(prev => ({ ...prev, images: uploadedImages }));
+  };
+
+  // Amenity Handlers
   const addAmenity = () => {
-    if (currentAmenity.trim() && !formData.amenities.includes(currentAmenity.trim())) {
-      setFormData((prev) => ({
-        ...prev,
-        amenities: [...prev.amenities, currentAmenity.trim()],
-      }));
-      setCurrentAmenity('');
+    if (newAmenity.trim()) {
+      setFormData(prev => ({ ...prev, amenities: [...prev.amenities, newAmenity.trim()] }));
+      setNewAmenity('');
     }
   };
-
-  const removeAmenity = (amenityToRemove) => {
-    setFormData((prev) => ({
-      ...prev,
-      amenities: prev.amenities.filter((amenity) => amenity !== amenityToRemove),
-    }));
+  const removeAmenity = (index) => {
+    setFormData(prev => ({ ...prev, amenities: prev.amenities.filter((_, i) => i !== index) }));
   };
 
-  // This function receives the array of image objects from ImageUpload
-  const handleImagesChange = (images) => {
-    setFormData((prev) => ({
-      ...prev,
-      images: images,
-    }));
-  };
-
-  // --- Pricing Handlers (No change needed) ---
-
+  // Pricing Handlers
   const handlePriceRowChange = (index, field, value) => {
     const updatedPricing = [...formData.pricing];
-    const numValue =
-      field.includes('Price') && value !== '' ? parseFloat(value) : value;
+    // Ensure numeric fields are stored as numbers, allow empty string
+    const numValue = field.includes('Price') && value !== '' ? parseFloat(value) : value;
     updatedPricing[index] = { ...updatedPricing[index], [field]: numValue };
-    setFormData((prev) => ({ ...prev, pricing: updatedPricing }));
+    setFormData(prev => ({ ...prev, pricing: updatedPricing }));
   };
 
   const handleNewPriceRowChange = (e) => {
     const { name, value } = e.target;
-    const numValue =
-      name.includes('Price') && value !== '' ? parseFloat(value) : value;
-    setNewPriceRow((prev) => ({ ...prev, [name]: numValue }));
+    const numValue = name.includes('Price') && value !== '' ? parseFloat(value) : value;
+    setNewPriceRow(prev => ({ ...prev, [name]: numValue }));
   };
 
   const addPriceRow = () => {
     if (!newPriceRow.destination || !newPriceRow.destination.trim()) {
-      toast.error('Destination is required for a price row.');
+      alert('Destination is required for a price row.');
       return;
     }
-    setFormData((prev) => ({
+    setFormData(prev => ({
       ...prev,
-      pricing: [...prev.pricing, { ...newPriceRow }],
+      pricing: [...prev.pricing, { ...newPriceRow }]
     }));
-    setNewPriceRow(initialNewPriceRow);
+    setNewPriceRow({ region: '', destination: '', dayTourTime: '', dayTourPrice: '', ovnPrice: '', threeDayTwoNightPrice: '', dropAndPickPrice: '' });
   };
 
-  // Remove price row logic remains the same
   const removePriceRow = (index) => {
-    if (
-      window.confirm(
-        `Are you sure you want to remove the price for "${formData.pricing[index].destination}"?`
-      )
-    ) {
-      setFormData((prev) => ({
-        ...prev,
-        pricing: prev.pricing.filter((_, i) => i !== index),
-      }));
-    }
+    setFormData(prev => ({
+      ...prev,
+      pricing: prev.pricing.filter((_, i) => i !== index)
+    }));
   };
-
-  // --- End Pricing Handlers ---
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setSubmitting(true);
 
-    // Extract just the URLs for the API payload
-    const imagesForApi = formData.images.map((img) => img.url);
+    // Downpayment validation (including fixed amount)
+     if (formData.paymentType === 'downpayment') {
+        if (!formData.downpaymentType || !formData.downpaymentValue || parseFloat(formData.downpaymentValue) <= 0) {
+            alert('Downpayment Type and a positive Value are required when downpayment is enabled.');
+            setSubmitting(false);
+            return;
+        }
+        if (formData.downpaymentType === 'percentage' && (parseFloat(formData.downpaymentValue) < 1 || parseFloat(formData.downpaymentValue) > 99)) {
+            alert('Percentage must be between 1 and 99.');
+            setSubmitting(false);
+            return;
+        }
+        // No upper limit validation needed for fixed amount here, maybe add later if required
+    }
+
+    // Prepare payload
+    const payload = {
+       ...formData,
+       images: formData.images.map(img => img.url), // Send only URLs
+       // Convert numeric price fields to numbers, handle potential empty strings
+       pricing: formData.pricing.map(p => ({
+           ...p,
+           dayTourPrice: p.dayTourPrice ? parseFloat(p.dayTourPrice) : null,
+           ovnPrice: p.ovnPrice ? parseFloat(p.ovnPrice) : null,
+           threeDayTwoNightPrice: p.threeDayTwoNightPrice ? parseFloat(p.threeDayTwoNightPrice) : null,
+           dropAndPickPrice: p.dropAndPickPrice ? parseFloat(p.dropAndPickPrice) : null,
+       })),
+    };
+
+    // Clean up payment fields if 'full'
+     if (payload.paymentType === 'full') {
+         delete payload.downpaymentType;
+         delete payload.downpaymentValue;
+     }
 
     try {
-      // Create the data payload for the API
-      const dataToSend = { ...formData, images: imagesForApi };
-
-      let response;
-      if (editingId) {
-        // Use DataService to update
-        response = await DataService.updateTransport(editingId, dataToSend);
-        if (!response.success) throw new Error(response.message || 'Update failed');
-        toast.success(response.message || 'Transport service updated!');
+      if (editingTransport) {
+        await DataService.updateTransport(editingTransport._id, payload);
+        toast.success('Transport updated successfully!'); // Use toast
       } else {
-        // Use DataService to create
-        response = await DataService.createTransport(dataToSend);
-        if (!response.success) throw new Error(response.message || 'Creation failed');
-        toast.success(response.message || 'Transport service created!');
+        await DataService.createTransport(payload);
+        toast.success('Transport created successfully!'); // Use toast
       }
-      fetchServices();
-      closeModal();
-    } catch (err) {
-      setError(err.message || 'Failed to save transport service');
-      toast.error(err.message || 'Failed to save transport service');
+      setShowModal(false);
+      fetchTransport();
+    } catch (error) {
+      console.error('Error saving transport:', error);
+      toast.error(`Failed to save transport: ${error.message || 'Unknown error'}`); // Use toast
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const handleToggleArchive = async (service) => {
-    const action = service.archived ? 'unarchive' : 'archive';
-    if (
-      window.confirm(
-        `Are you sure you want to ${action} "${service.name || service.vehicleType}"?`
-      )
-    ) {
+  const handleEdit = (transport) => {
+    setEditingTransport(transport);
+
+    // Convert image URLs to objects for ImageUpload
+    const processedImages = Array.isArray(transport.images)
+      ? transport.images.map((imgUrl, index) => ({
+          url: imgUrl,
+          serverId: imgUrl.split('/').pop() || `img-${index}`, // Attempt to get ID from URL
+          name: imgUrl.split('/').pop() || `image-${index}.jpg`,
+        }))
+      : [];
+
+    setFormData({
+      ...initialFormState,
+      ...transport,
+      images: processedImages,
+      // Ensure pricing is an array
+      pricing: Array.isArray(transport.pricing) ? transport.pricing : [],
+      // Ensure payment fields have defaults if missing
+      paymentType: transport.paymentType || 'full',
+      downpaymentType: transport.downpaymentType || 'percentage',
+      downpaymentValue: transport.downpaymentValue || (transport.paymentType === 'downpayment' ? 20 : ''),
+    });
+    setNewPriceRow({ region: '', destination: '', dayTourTime: '', dayTourPrice: '', ovnPrice: '', threeDayTwoNightPrice: '', dropAndPickPrice: '' });
+    setShowModal(true);
+  };
+
+  const handleArchive = async (transportId, transportName) => {
+    if (window.confirm(`Are you sure you want to archive this transport (${transportName})?`)) {
       try {
-        let response;
-        // Use DataService to archive/unarchive
-        if (service.archived) {
-          response = await DataService.unarchiveTransport(service._id);
-        } else {
-          response = await DataService.archiveTransport(service._id);
-        }
-        if (!response.success) throw new Error(response.message || `Failed to ${action}`);
-        
-        toast.success(response.message || `Service ${action}d!`);
-        fetchServices(); // Refetch the list
-      } catch (err) {
-        toast.error(err.message || `Failed to ${action} service`);
+        await DataService.archiveTransport(transportId);
+        toast.success('Transport archived successfully!');
+        fetchTransport();
+      } catch (error) {
+        toast.error('Failed to archive transport.');
       }
     }
   };
-  
-  // --- End of Fix ---
 
-  // Use useMemo for filtering if needed, though API might handle it
-  const filteredServices = useMemo(() => services.filter(
-    (service) => service.archived === viewArchived
-  ), [services, viewArchived]);
+  const handleRestore = async (transportId, transportName) => {
+    if (window.confirm(`Are you sure you want to restore this transport (${transportName})?`)) {
+      try {
+        await DataService.unarchiveTransport(transportId);
+        toast.success('Transport restored successfully!');
+        fetchTransport();
+      } catch (error) {
+        toast.error('Failed to restore transport.');
+      }
+    }
+  };
 
-  if (loading) return <div>Loading...</div>;
-  if (error) return <div className="text-red-500">{error}</div>;
+  const handleToggleAvailability = async (transport) => {
+    const action = transport.isAvailable ? 'unavailable' : 'available';
+    if (window.confirm(`Are you sure you want to mark this transport (${transport.name || transport.vehicleType}) as ${action}?`)) {
+      try {
+        await DataService.updateTransport(transport._id, { isAvailable: !transport.isAvailable });
+        fetchTransport();
+      } catch (error) {
+        toast.error('Failed to toggle availability.');
+      }
+    }
+  };
+
+  // Filter logic (adjust fields as necessary)
+  const filteredTransports = Array.isArray(transports) ? transports.filter(transport => {
+    const lowerSearchTerm = searchTerm.toLowerCase();
+    const transportStatus = transport.archived ? 'archived' : 'active';
+
+    const matchesSearch = (
+        transport.vehicleType?.toLowerCase().includes(lowerSearchTerm) ||
+        transport.name?.toLowerCase().includes(lowerSearchTerm) ||
+        transport.capacity?.toLowerCase().includes(lowerSearchTerm)
+    );
+
+    const matchesStatus = filterStatus === 'all' || transportStatus === filterStatus;
+
+    return matchesSearch && matchesStatus;
+  }) : [];
+
 
   return (
     <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Manage Transport Services</h1>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <button
-            onClick={() => setViewArchived(!viewArchived)}
-            className="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg mr-4 flex items-center gap-2" // Added flex items-center gap-2
-          >
-            {viewArchived ? <Eye size={18} /> : <Archive size={18} />}
-            {viewArchived ? ' View Active' : ' View Archived'}
-          </button>
-          <button
-            onClick={() => openModal()}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg inline-flex items-center gap-2" // Use inline-flex
-          >
-            <PlusCircle className="w-5 h-5" />
-            Add Transport
-          </button>
+          <h1 className="text-3xl font-bold text-gray-900">Manage Transport</h1>
+          <p className="text-gray-600">Add, edit, and manage your transport fleet</p>
+        </div>
+        <button
+          onClick={() => { resetForm(); setShowModal(true); }}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold flex items-center gap-2"
+        >
+          <Plus className="w-5 h-5" /> Add New Transport
+        </button>
+      </div>
+
+      {/* Search and Filter Bar */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
+        <div className="flex flex-col md:flex-row gap-4">
+          <div className="flex-1">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <input type="text" placeholder="Search by type, name, or capacity..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+          </div>
+          <div className="flex gap-4">
+            <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="active">Active Transport</option>
+              <option value="archived">Archived Transport</option>
+              <option value="all">All Transport</option>
+            </select>
+          </div>
         </div>
       </div>
 
-      {/* Transport List Table */}
-      <div className="overflow-x-auto shadow-lg rounded-lg">
-        <table className="min-w-full bg-white">
-          <thead className="bg-gray-100">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Type
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Name
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Capacity
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Status
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Downpayment
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            {filteredServices.length > 0 ? (
-              filteredServices.map((service) => (
-                <tr key={service._id}>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {service.vehicleType}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {service.name}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {service.capacity}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {service.isAvailable ? (
-                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                        Available
-                      </span>
-                    ) : (
-                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
-                        Not Available
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {service.requiresDownpayment
-                      ? `${(service.downpaymentRate * 100).toFixed(0)}%`
-                      : 'Not Required'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <button
-                      onClick={() => openModal(service)}
-                      className="text-indigo-600 hover:text-indigo-900 mr-4 inline-flex items-center" // Use inline-flex
-                    >
-                      <Edit className="w-5 h-5" />
-                    </button>
-                    <button // Button styles remain the same for toggle
-                      onClick={() => handleToggleArchive(service)}
-                      className={
-                        service.archived
-                          ? 'text-green-600 hover:text-green-900'
-                          : 'text-red-600 hover:text-red-900'
-                      }
-                    >
-                      {service.archived ? (
-                        <Eye className="w-5 h-5" />
-                      ) : (
-                        <Archive className="w-5 h-5" />
-                      )}
-                    </button>
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td
-                  colSpan="6"
-                  className="px-6 py-4 text-center text-gray-500"
-                >
-                  No {viewArchived ? 'archived' : 'active'} services found.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      {/* Content Area */}
+      {loading ? (
+        <div className="text-center py-12"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div></div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredTransports.length > 0 ? filteredTransports.map((transport) => (
+            <div key={transport._id} className={`bg-white rounded-lg shadow-sm border overflow-hidden transition-opacity ${transport.archived ? 'opacity-60' : ''}`}>
+              <div className="h-48 bg-gray-200 relative">
+                <img src={transport.images && transport.images.length > 0 ? getImageUrl(transport.images[0]) : 'https://placehold.co/600x400/e2e8f0/475569?text=No+Image'}
+                  alt={transport.name || transport.vehicleType}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute top-2 right-2 flex gap-1">
+                  {transport.archived ? (
+                    <button onClick={() => handleRestore(transport._id, transport.name || transport.vehicleType)} className="p-2 bg-white rounded-full shadow-md" title="Restore Transport"><RotateCcw className="w-4 h-4 text-green-600" /></button>
+                  ) : (
+                    <>
+                      <button onClick={() => handleEdit(transport)} className="p-2 bg-white rounded-full shadow-md" title="Edit Transport"><Edit3 className="w-4 h-4" /></button>
+                      <button onClick={() => handleToggleAvailability(transport)} className="p-2 bg-white rounded-full shadow-md" title={transport.isAvailable ? 'Mark Unavailable' : 'Mark Available'}>{transport.isAvailable ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</button>
+                      <button onClick={() => handleArchive(transport._id, transport.name || transport.vehicleType)} className="p-2 bg-white rounded-full shadow-md" title="Archive Transport"><Archive className="w-4 h-4 text-red-600" /></button>
+                    </>
+                  )}
+                </div>
+                 <span className={`absolute top-2 left-2 px-2 py-1 text-xs font-semibold rounded ${transport.isAvailable ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                    {transport.isAvailable ? 'Available' : 'Unavailable'}
+                 </span>
+              </div>
+              <div className="p-4">
+                <h3 className="text-lg font-semibold">{transport.vehicleType} {transport.name ? `(${transport.name})` : ''}</h3>
+                <p className="text-sm text-gray-500">{transport.capacity}</p>
+                 {/* Optionally display a base price or range here */}
+                {/* <p className="text-xl font-bold text-blue-600">Quote Based</p> */}
+              </div>
+            </div>
+          )) : (
+            <div className="col-span-full text-center py-12">
+              <Bus className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-lg font-medium">No {filterStatus} transport found.</h3>
+              <p className="text-gray-500">There are no transport services matching your current filter.</p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-          <div className="bg-white p-8 rounded-lg shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-            <h2 className="text-2xl font-bold mb-6">
-              {editingId ? 'Edit Transport Service' : 'Add Transport Service'}
-            </h2>
-            <form id="transportForm" onSubmit={handleSubmit} className="space-y-6"> {/* Added space-y-6 */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Vehicle Type */}
-                <div>
-                  <label
-                    htmlFor="vehicleType"
-                    className="block text-sm font-medium text-gray-700"
-                  >
-                    Vehicle Type
-                  </label>
-                  <select
-                    id="vehicleType"
-                    name="vehicleType"
-                    value={formData.vehicleType}
-                    onChange={handleChange}
-                    className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm"
-                  >
-                    <option value="Tourist Bus">Tourist Bus</option>
-                    <option value="Coaster">Coaster</option>
-                  </select>
-                </div>
+      {showModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="p-6 border-b flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-gray-900">{editingTransport ? 'Edit Transport Service' : 'Add Transport Service'}</h2>
+              {/* --- FIX 1: Use setShowModal(false) --- */}
+              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600"><X className="w-6 h-6" /></button>
+            </div>
+             {/* Use the same form structure */}
+            <form id="transportFormModal" onSubmit={handleSubmit} className="space-y-6 overflow-y-auto p-6 scrollbar-thin">
 
-                {/* Name */}
-                <div>
-                  <label
-                    htmlFor="name"
-                    className="block text-sm font-medium text-gray-700"
-                  >
-                    Name (e.g., "Bus 01", "Coaster A")
-                  </label>
-                  <input
-                    type="text"
-                    id="name"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleChange}
-                    className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm"
-                  />
-                </div>
-
-                {/* Capacity */}
-                <div>
-                  <label
-                    htmlFor="capacity"
-                    className="block text-sm font-medium text-gray-700"
-                  >
-                    Capacity
-                  </label>
-                  <input
-                    type="text"
-                    id="capacity"
-                    name="capacity"
-                    value={formData.capacity}
-                    onChange={handleChange}
-                    required
-                    className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm"
-                    placeholder="e.g., 49 Regular Seats"
-                  />
-                </div>
-
-                {/* Amenities */}
-                <div className="md:col-span-1">
-                  <label
-                    htmlFor="amenities"
-                    className="block text-sm font-medium text-gray-700"
-                  >
-                    Amenities
-                  </label>
-                  <div className="flex mt-1">
-                    <input
-                      type="text"
-                      id="amenityInput"
-                      value={currentAmenity}
-                      onChange={handleAmenityChange}
-                      onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addAmenity())}
-                      className="flex-grow p-2 border border-gray-300 rounded-l-md shadow-sm"
-                      placeholder="Type amenity and press Add"
-                    />
-                    <button
-                      type="button"
-                      onClick={addAmenity}
-                      className="px-4 py-2 bg-blue-500 text-white rounded-r-md"
-                    >
-                      Add
-                    </button>
-                  </div>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {formData.amenities.map((amenity, index) => (
-                      <span
-                        key={index}
-                        className="px-2 py-1 bg-gray-200 text-gray-700 rounded-full text-sm flex items-center"
-                      >
-                        {amenity}
-                        <button
-                          type="button"
-                          onClick={() => removeAmenity(amenity)}
-                          className="ml-2 text-red-500 hover:text-red-700"
-                        >
-                          &times;
-                        </button>
-                      </span>
-                    ))}
-                  </div>
+                {/* Basic Info */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Vehicle Type *</label>
+                        <select name="vehicleType" value={formData.vehicleType} onChange={handleInputChange} required className="w-full p-2 border rounded-lg bg-white">
+                            <option value="Tourist Bus">Tourist Bus</option>
+                            <option value="Coaster">Coaster</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Name (Optional)</label>
+                        <input type="text" name="name" value={formData.name} onChange={handleInputChange} className="w-full p-2 border rounded-lg" placeholder="e.g., Bus Alpha"/>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Capacity *</label>
+                        <input type="text" name="capacity" value={formData.capacity} onChange={handleInputChange} required className="w-full p-2 border rounded-lg" placeholder="e.g., 49 Regular + 6 Jump"/>
+                    </div>
                 </div>
 
                 {/* Description */}
-                <div className="md:col-span-2">
-                  <label
-                    htmlFor="description"
-                    className="block text-sm font-medium text-gray-700"
-                  >
-                    Description
-                  </label>
-                  <textarea
-                    id="description"
-                    name="description"
-                    rows="3"
-                    value={formData.description}
-                    onChange={handleChange}
-                    className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm"
-                  ></textarea>
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                    <textarea name="description" rows="3" value={formData.description} onChange={handleInputChange} className="w-full p-2 border rounded-lg" placeholder="Describe the vehicle, features, etc." />
                 </div>
 
-                {/* --- Pricing Table (No changes needed) --- */}
+                {/* Amenities */}
+                 <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Amenities</label>
+                  <div className="flex gap-2 mb-2">
+                      <input type="text" value={newAmenity} onChange={(e) => setNewAmenity(e.target.value)} className="flex-1 px-3 py-2 border border-gray-300 rounded-lg" placeholder="Add amenity (e.g., Wifi, Karaoke)" onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addAmenity())} />
+                      <button type="button" onClick={addAmenity} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Add</button>
+                  </div>
+                  {Array.isArray(formData.amenities) && formData.amenities.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                          {formData.amenities.map((amenity, index) => (
+                              <span key={index} className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                                  {amenity}
+                                  <button type="button" onClick={() => removeAmenity(index)} className="text-blue-600 hover:text-blue-800">
+                                      <X className="w-3 h-3" />
+                                  </button>
+                              </span>
+                          ))}
+                      </div>
+                  )}
+                </div>
+
+                {/* --- Payment Configuration --- */}
+                 <div className="border p-4 rounded-md bg-gray-50">
+                    <h3 className="text-lg font-semibold mb-3 flex items-center gap-2"><DollarSign size={18}/> Payment Options</h3>
+                    <div className="flex gap-6 mb-4">
+                        <label className="flex items-center cursor-pointer">
+                            <input type="radio" name="paymentType" value="full" checked={formData.paymentType === 'full'} onChange={handlePaymentTypeChange} className="mr-2"/>
+                            Full Payment Only
+                        </label>
+                        <label className="flex items-center cursor-pointer">
+                            <input type="radio" name="paymentType" value="downpayment" checked={formData.paymentType === 'downpayment'} onChange={handlePaymentTypeChange} className="mr-2"/>
+                            Allow Downpayment
+                        </label>
+                    </div>
+
+                    {formData.paymentType === 'downpayment' && (
+                        <div className="border-t pt-4 space-y-3 animate-in fade-in duration-300">
+                            <p className="text-sm text-gray-600">Configure Downpayment:</p>
+                            <div className="flex gap-6 mb-2">
+                               <label className="flex items-center cursor-pointer">
+                                    <input type="radio" name="downpaymentType" value="percentage" checked={formData.downpaymentType === 'percentage'} onChange={handleInputChange} className="mr-2"/>
+                                    Percentage (%)
+                                </label>
+                                <label className="flex items-center cursor-pointer">
+                                    <input type="radio" name="downpaymentType" value="fixed" checked={formData.downpaymentType === 'fixed'} onChange={handleInputChange} className="mr-2"/>
+                                    Fixed Amount (₱)
+                                </label>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  {formData.downpaymentType === 'percentage' ? 'Percentage Value (1-99)' : 'Fixed Amount (PHP)'} *
+                                </label>
+                                 <div className="relative">
+                                    <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500">
+                                        {formData.downpaymentType === 'percentage' ? '%' : '₱'}
+                                    </span>
+                                    <input
+                                        name="downpaymentValue"
+                                        type="number"
+                                        step={formData.downpaymentType === 'percentage' ? "1" : "0.01"}
+                                        min="1"
+                                        max={formData.downpaymentType === 'percentage' ? "99" : undefined}
+                                        value={formData.downpaymentValue}
+                                        onChange={handleInputChange}
+                                        placeholder={formData.downpaymentType === 'percentage' ? 'e.g., 20' : 'e.g., 5000'}
+                                        className="p-2 pl-7 border rounded w-full md:w-1/2"
+                                        required
+                                    />
+                                </div>
+                                <p className="text-xs text-gray-500 mt-1 flex items-center gap-1"><Info size={12}/> {formData.downpaymentType === 'fixed' ? 'This amount will be requested upfront.' : 'This percentage will be calculated based on the total quote price.'} </p>
+                            </div>
+                        </div>
+                    )}
+                 </div>
+                 {/* --- End Payment Configuration --- */}
+
+                {/* Availability */}
+                <div>
+                   <label className="block text-sm font-medium text-gray-700 mb-1">Availability</label>
+                   <select name="isAvailable" value={formData.isAvailable ? 'true' : 'false'} onChange={(e) => setFormData(prev => ({...prev, isAvailable: e.target.value === 'true'}))} className="w-full p-2 border rounded-lg bg-white">
+                       <option value="true">Available</option>
+                       <option value="false">Unavailable</option>
+                   </select>
+                </div>
+
+                {/* --- Pricing Table --- */}
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Destination Pricing
+                  <label className="block text-lg font-semibold text-gray-700 mb-3">
+                    Destination Pricing Guide
                   </label>
+                  <p className="text-xs text-gray-500 mb-3">Add pricing rows for different destinations and service types. Leave price fields blank if not applicable.</p>
                   <div className="overflow-x-auto border rounded-lg">
                     <table className="min-w-full divide-y divide-gray-200 text-sm">
                       <thead className="bg-gray-50">
@@ -561,94 +532,24 @@ const ManageTransport = () => {
                   </div>
                 </div>
 
-                {/* Downpayment Rate */}
-                <div>
-                  <label
-                    htmlFor="downpaymentRate"
-                    className="block text-sm font-medium text-gray-700"
-                  >
-                    Downpayment Rate (e.g., 0.2 for 20%)
-                  </label>
-                  <input
-                    type="number"
-                    id="downpaymentRate"
-                    name="downpaymentRate"
-                    step="0.01"
-                    min="0"
-                    max="1"
-                    value={formData.downpaymentRate}
-                    onChange={handleChange}
-                    className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm"
-                  />
-                </div>
-
-                {/* Checkboxes */}
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center">
-                    <input
-                      id="requiresDownpayment"
-                      name="requiresDownpayment"
-                      type="checkbox"
-                      checked={formData.requiresDownpayment}
-                      onChange={handleChange}
-                      className="h-4 w-4 text-blue-600 border-gray-300 rounded"
-                    />
-                    <label
-                      htmlFor="requiresDownpayment"
-                      className="ml-2 block text-sm text-gray-900"
-                    >
-                      Requires Downpayment
-                    </label>
-                  </div>
-                  <div className="flex items-center">
-                    <input
-                      id="isAvailable"
-                      name="isAvailable"
-                      type="checkbox"
-                      checked={formData.isAvailable}
-                      onChange={handleChange}
-                      className="h-4 w-4 text-blue-600 border-gray-300 rounded"
-                    />
-                    <label
-                      htmlFor="isAvailable"
-                      className="ml-2 block text-sm text-gray-900"
-                    >
-                      Is Available
-                    </label>
-                  </div>
-                </div>
-
                 {/* Image Upload */}
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700">
-                    Images
-                  </label>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Images (First image is main)</label>
                   <ImageUpload
                     onImagesChange={handleImagesChange}
                     existingImages={formData.images}
-                    category="transport"
                     maxImages={10}
+                    category="transport" // Specify category for uploads
                   />
                 </div>
-              </div>
-
-              <div className="flex justify-end mt-6">
-                <button
-                  type="button" // Important to prevent form submission
-                  onClick={closeModal}
-                  className="mr-3 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg"
-                >
-                  Cancel
-                </button>
-                <button // Submit button remains the same
-                  type="submit"
-                  form="transportForm"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg"
-                >
-                  {editingId ? 'Save Changes' : 'Create Service'}
-                </button>
-              </div>
             </form>
+            <div className="flex justify-end gap-3 p-4 border-t bg-gray-50">
+                {/* --- FIX 2: Use setShowModal(false) --- */}
+                <button type="button" onClick={() => setShowModal(false)} className="px-6 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors">Cancel</button>
+                <button type="submit" form="transportFormModal" disabled={submitting} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                    {submitting ? (<><div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>{editingTransport ? 'Updating...' : 'Creating...'}</>) : (editingTransport ? 'Update Transport' : 'Create Transport')}
+                </button>
+            </div>
           </div>
         </div>
       )}

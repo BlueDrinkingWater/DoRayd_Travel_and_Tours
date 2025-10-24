@@ -30,7 +30,7 @@ const paymentSchema = new mongoose.Schema({
   amount: { type: Number, required: true },
   paymentReference: { type: String }, // System generated
   manualPaymentReference: { type: String }, // From bank/payment provider
-  paymentProof: { type: String, required: true }, // Cloudinary path
+  paymentProof: { type: String, required: true }, // Cloudinary path/filename
   paymentDate: { type: Date, default: Date.now },
 }, { _id: false }); // Don't create separate _id for payments
 
@@ -57,15 +57,15 @@ const bookingSchema = new mongoose.Schema(
     // Item Information
     itemId: { type: Schema.Types.ObjectId, required: true, index: true },
     itemName: { type: String, required: true },
-    itemType: { type: String, enum: ['car', 'tour'], required: true },
-    itemModel: { type: String, enum: ['Car', 'Tour'], required: true }, // Ensure this is set on creation
+    itemType: { type: String, enum: ['car', 'tour', 'transport'], required: true },
+    itemModel: { type: String, enum: ['Car', 'Tour', 'TransportService'], required: true }, // Ensure this is set on creation
 
     // Booking Dates & Details
     startDate: { type: Date, required: true },
     endDate: { type: Date, required: true },
     time: { type: String, required: true }, // Storing time as a string e.g., "14:00"
     numberOfDays: { type: Number },
-    numberOfGuests: { type: Number },
+    numberOfGuests: { type: Number }, // Used for tour and transport
 
     // Delivery & Location (Mainly for cars)
     deliveryMethod: { type: String, enum: ['pickup', 'dropoff'] },
@@ -75,6 +75,11 @@ const bookingSchema = new mongoose.Schema(
       lat: Number,
       lng: Number,
     },
+
+    // *** ADDED: New fields for transport ***
+    transportDestination: { type: String, trim: true },
+    transportServiceType: { type: String, trim: true },
+    // *** END OF ADDED fields ***
 
     // Payment Details
     totalPrice: { type: Number, required: true, min: 0 },
@@ -97,17 +102,12 @@ const bookingSchema = new mongoose.Schema(
 
     notes: [noteSchema], // Admin/Employee notes
 
-    // **MODIFIED:** Renamed expiresAt to pendingExpiresAt
     pendingExpiresAt: {
         type: Date,
-        // Set expiration 15 minutes from creation for pending bookings
-        default: () => new Date(Date.now() + 15 * 60 * 1000),
-        // MongoDB TTL index to automatically remove *pending* documents after 15 min
-        // Note: This deletes the document. If you want to *update* status instead, use a background job.
-        // For status update, remove 'index: { expires: '15m' }' and rely on the server.js job.
-        index: { expires: '15m' }
+        // *** MODIFIED: Default expiry set conditionally in pre-save hook ***
+        default: () => new Date(Date.now() + 15 * 60 * 1000), 
+        // Removed TTL index - rely on background job in server.js to update status
     },
-    // **NEW:** Added paymentDueDate for confirmed downpayments
     paymentDueDate: {
         type: Date,
         index: true // Index for efficient querying by the background job
@@ -125,7 +125,6 @@ bookingSchema.pre('save', function (next) {
   if (!this.bookingReference) {
     const generateBookingReference = () => {
       const prefix = 'DRYD';
-      // More concise timestamp + random part
       const timestampPart = Date.now().toString(36).slice(-6).toUpperCase();
       const randomPart = Math.random().toString(36).substr(2, 4).toUpperCase();
       return `${prefix}-${timestampPart}-${randomPart}`;
@@ -134,17 +133,36 @@ bookingSchema.pre('save', function (next) {
   }
   // Ensure itemModel is set based on itemType
   if (this.itemType && !this.itemModel) {
-    this.itemModel = this.itemType.charAt(0).toUpperCase() + this.itemType.slice(1);
+    if (this.itemType === 'car') this.itemModel = 'Car';
+    else if (this.itemType === 'tour') this.itemModel = 'Tour';
+    else if (this.itemType === 'transport') this.itemModel = 'TransportService';
   }
 
   // Ensure numberOfDays is calculated for cars if possible
-  if (this.itemType === 'car' && this.startDate && this.endDate && !this.numberOfDays) {
+  if (this.itemType === 'car' && this.startDate && this.endDate && (!this.numberOfDays || this.isModified('startDate') || this.isModified('endDate'))) {
     const start = new Date(this.startDate);
     const end = new Date(this.endDate);
-    const diffTime = Math.abs(end - start);
-    // Add 1 because the calculation is inclusive of the start day
-    this.numberOfDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+    if (end > start) {
+        const diffTime = Math.abs(end - start);
+        // Calculate difference in days, rounding up.
+        this.numberOfDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    } else {
+        this.numberOfDays = 1; // Default to 1 day if dates are same or invalid order
+    }
   }
+
+  // *** ADDED: Logic to handle pendingExpiresAt for transport ***
+  if (this.isNew) { // Only run this logic when the document is new
+    if (this.itemType === 'transport') {
+      // Transport bookings are quotes, they should not expire in 15 mins
+      this.pendingExpiresAt = undefined;
+    } else if (!this.pendingExpiresAt) {
+      // Ensure other new bookings get the default expiry
+      this.pendingExpiresAt = new Date(Date.now() + 15 * 60 * 1000);
+    }
+  }
+  // *** END OF ADDED logic ***
+
   next();
 });
 

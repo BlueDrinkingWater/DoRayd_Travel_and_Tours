@@ -3,6 +3,7 @@
 import Booking from '../models/Booking.js';
 import Car from '../models/Car.js';
 import Tour from '../models/Tour.js';
+import TransportService from '../models/TransportService.js'; // Ensure this is imported
 import User from '../models/User.js';
 import EmailService from '../utils/emailServices.js';
 import { createNotification } from './notificationController.js';
@@ -20,7 +21,8 @@ export const getBookingAvailability = async (req, res) => {
     const bookedDates = bookings.reduce((acc, booking) => {
       // Ensure dates are valid before processing
       const startDate = booking.startDate ? new Date(booking.startDate) : null;
-      const endDate = booking.endDate ? new Date(booking.endDate) : startDate; // Use start date if end date is missing
+      // *** MODIFIED: Use startDate if endDate is invalid or missing ***
+      const endDate = booking.endDate && !isNaN(new Date(booking.endDate)) ? new Date(booking.endDate) : startDate;
 
       if (!startDate || isNaN(startDate.getTime())) return acc; // Skip invalid entries
 
@@ -49,11 +51,17 @@ export const getBookingAvailability = async (req, res) => {
 // Get all bookings (for admin/employee) with filtering and searching
 export const getAllBookings = async (req, res) => {
   try {
-    const { search, status } = req.query;
+    const { search, status, itemType, page = 1, limit = 10, sort = 'createdAt', order = 'desc' } = req.query; // Added itemType, pagination, sorting
     const query = {};
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const sortOrder = order === 'asc' ? 1 : -1;
 
     if (status && status !== 'all') {
       query.status = status;
+    }
+
+    if (itemType) { // Filter by itemType if provided
+        query.itemType = itemType;
     }
 
     if (search) {
@@ -71,12 +79,20 @@ export const getAllBookings = async (req, res) => {
 
     const bookings = await Booking.find(query)
         .populate({
-            path: 'itemId', // Populate related Car or Tour
-            select: 'brand model title' // Select only needed fields
+            path: 'itemId', // Populate related Car, Tour, or TransportService
+            select: 'brand model title vehicleType name' // Select potentially relevant fields
         })
         .populate('user', 'firstName lastName') // Populate user info
-        .sort({ createdAt: -1 }); // Sort by creation date descending
-    res.json({ success: true, data: bookings });
+        .sort({ [sort]: sortOrder }) // Apply dynamic sorting
+        .skip(skip)
+        .limit(parseInt(limit));
+
+    const totalBookings = await Booking.countDocuments(query); // Count documents matching the query
+
+    res.json({
+        success: true,
+        data: { bookings, totalBookings } // Return bookings and total count
+     });
   } catch (error) {
     console.error('Error fetching all bookings:', error);
     res.status(500).json({ success: false, message: 'Server Error' });
@@ -87,7 +103,7 @@ export const getAllBookings = async (req, res) => {
 export const getMyBookings = async (req, res) => {
     try {
         const bookings = await Booking.find({ user: req.user.id })
-            .populate('itemId', 'brand model title images') // Populate related item with images
+            .populate('itemId', 'brand model title images vehicleType name capacity') // Populate related item
             .sort({ createdAt: -1 });
 
         // Filter out bookings where the linked item might have been deleted
@@ -108,16 +124,20 @@ export const createBooking = async (req, res) => {
 
         const {
             itemType, itemId, itemName, startDate, endDate, time, dropoffCoordinates,
-            paymentReference, manualPaymentReference, amountPaid, paymentOption, // System ref + manual ref
-            firstName, lastName, email, phone, address, // Address added
+            paymentReference, manualPaymentReference, amountPaid, paymentOption,
+            firstName, lastName, email, phone, address,
             numberOfGuests, specialRequests, agreedToTerms, deliveryMethod,
             pickupLocation, dropoffLocation, totalPrice,
-            originalPrice, discountApplied, promotionTitle // Promotion fields
+            originalPrice, discountApplied, promotionTitle
         } = req.body;
 
         // --- Basic Validations ---
-        if (!itemType || !itemId || !startDate || !time || !paymentOption || !totalPrice || !agreedToTerms) {
+        if (!itemType || !itemId || !startDate || !time || !paymentOption || !agreedToTerms) {
             return res.status(400).json({ success: false, message: 'Missing required booking details.' });
+        }
+        // Client-sent totalPrice is now validated on the server, but we still check if it exists for non-transport
+        if (itemType !== 'transport' && (totalPrice === undefined || totalPrice === null)) {
+            return res.status(400).json({ success: false, message: 'Total price is required.' });
         }
         if (agreedToTerms !== 'true' && agreedToTerms !== true) {
              return res.status(400).json({ success: false, message: 'You must agree to the terms and conditions.' });
@@ -125,32 +145,138 @@ export const createBooking = async (req, res) => {
         if (!firstName || !lastName || !email || !phone || !address) {
              return res.status(400).json({ success: false, message: 'Missing required personal information.' });
         }
-        if (!amountPaid || !req.file || !(manualPaymentReference || paymentReference)) { // Ensure payment details are present
+        // Payment validation only if it's not a transport booking (which has totalPrice 0 initially)
+        if (itemType !== 'transport' && (!amountPaid || !req.file || !(manualPaymentReference || paymentReference))) {
              return res.status(400).json({ success: false, message: 'Missing required payment details (amount, proof, reference).' });
         }
         if (paymentOption === 'downpayment' && !isUserLoggedIn) {
             return res.status(400).json({ success: false, message: 'You must be logged in to choose the downpayment option.' });
         }
+        // Ensure guests for tour/transport
+        if ((itemType === 'tour' || itemType === 'transport') && (!numberOfGuests || Number(numberOfGuests) < 1)) {
+            return res.status(400).json({ success: false, message: 'Number of guests/passengers is required.' });
+        }
 
         // --- Fetch Item and Check Availability ---
-        const item = itemType === 'car' ? await Car.findById(itemId) : await Tour.findById(itemId);
+        let item;
+        let itemModelName;
+        if (itemType === 'car') {
+            item = await Car.findById(itemId);
+            itemModelName = 'Car';
+        } else if (itemType === 'tour') {
+            item = await Tour.findById(itemId);
+            itemModelName = 'Tour';
+        } else if (itemType === 'transport') {
+            item = await TransportService.findById(itemId);
+            itemModelName = 'TransportService';
+        } else {
+             return res.status(400).json({ success: false, message: 'Invalid item type specified.' });
+        }
+
         if (!item || !item.isAvailable) {
             return res.status(400).json({ success: false, message: 'Selected item is currently unavailable.' });
         }
+        
+        const newStartDate = new Date(startDate);
+        const newEndDate = endDate ? new Date(endDate) : newStartDate;
 
-        // --- Check for Date Conflicts (Simplified Check - more robust check might be needed) ---
-        // Basic check for confirmed/pending bookings overlapping the start date
-         const conflictingBooking = await Booking.findOne({
-           itemId: itemId,
-           status: { $in: ['confirmed', 'pending', 'fully_paid'] },
-           // Check if the new booking's start date falls within an existing booking's range
-           startDate: { $lte: new Date(startDate) },
-           endDate: { $gte: new Date(startDate) }
-         });
+        // --- Check for Date Conflicts (Improved Check) ---
+        const conflictingBooking = await Booking.findOne({
+          itemId: itemId,
+          status: { $in: ['confirmed', 'pending', 'fully_paid'] },
+          // Check for overlap: existing starts before new ends AND existing ends after new starts
+          startDate: { $lt: newEndDate },
+          endDate: { $gt: newStartDate }
+        });
 
          if (conflictingBooking) {
-           return res.status(400).json({ success: false, message: 'Selected start date is unavailable. Please choose another date.' });
+           return res.status(400).json({ success: false, message: 'Selected dates conflict with an existing booking. Please choose different dates.' });
          }
+         
+        // *** ADDED: SERVER-SIDE PRICE CALCULATION & VALIDATION (Security Fix) ***
+        let serverCalculatedPrice = 0;
+        let serverNumberOfDays = 0;
+        let finalPrice = 0;
+
+        if (itemType === 'car') {
+            const start = new Date(newStartDate);
+            const end = new Date(newEndDate);
+            if (end > start) {
+                const diffTime = Math.abs(end - start);
+                serverNumberOfDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            } else {
+                serverNumberOfDays = 1;
+            }
+            // Use pricePerDay from the fetched item
+            serverCalculatedPrice = item.pricePerDay * serverNumberOfDays;
+        } else if (itemType === 'tour') {
+            // Use price from the fetched item
+            serverCalculatedPrice = item.price * (Number(numberOfGuests) || 1);
+        } else if (itemType === 'transport') {
+            serverCalculatedPrice = 0; // Stays 0 for quote
+        }
+
+        if (itemType === 'transport') {
+            finalPrice = 0;
+        } else if (promotionTitle && originalPrice !== undefined && discountApplied !== undefined) {
+            // A promotion is being applied by the client
+            const clientOriginalPrice = Number(originalPrice);
+            const clientDiscount = Number(discountApplied);
+            const clientTotalPrice = Number(totalPrice);
+
+            // 1. Verify the client's 'originalPrice' matches the server-calculated price
+            if (Math.abs(serverCalculatedPrice - clientOriginalPrice) > 0.01) {
+                return res.status(400).json({ 
+                    success: false, 
+                    message: `Price mismatch. Server-calculated base price (${serverCalculatedPrice}) does not match reported original price (${clientOriginalPrice}).` 
+                });
+            }
+            
+            // 2. Verify the client's math
+            if (Math.abs(clientOriginalPrice - clientDiscount - clientTotalPrice) > 0.01) {
+                return res.status(400).json({ success: false, message: 'Promotion calculation error. Client math is incorrect.' });
+            }
+            
+            // If both checks pass, trust the client's final discounted price
+            finalPrice = clientTotalPrice;
+        } else {
+            // No promotion, just use the server's calculated price
+            finalPrice = serverCalculatedPrice;
+            
+            // 3. Verify the client's 'totalPrice' matches the server-calculated price
+            if (Math.abs(Number(totalPrice) - finalPrice) > 0.01) {
+                 return res.status(400).json({ 
+                    success: false, 
+                    message: `Price mismatch. Client price (${totalPrice}) does not match server-calculated price (${finalPrice}).` 
+                });
+            }
+        }
+        // *** END OF SERVER-SIDE PRICE CALCULATION ***
+
+        // *** ADDED: Parse specialRequests for transport data (Data Structure Fix) ***
+        let transportDestination = null;
+        let transportServiceType = null;
+        let finalSpecialRequests = specialRequests; // Use the original unless we parse it
+
+        if (itemType === 'transport' && specialRequests) {
+            const destMatch = specialRequests.match(/Destination: (.*?)(, Service:|$)/);
+            const serviceMatch = specialRequests.match(/Service: (.*?)(. Notes:|$)/);
+            const notesMatch = specialRequests.match(/. Notes: (.*)/);
+
+            if (destMatch && destMatch[1]) {
+                transportDestination = destMatch[1].trim();
+            }
+            if (serviceMatch && serviceMatch[1]) {
+                transportServiceType = serviceMatch[1].trim();
+            }
+            if (notesMatch && notesMatch[1]) {
+                finalSpecialRequests = notesMatch[1].trim(); // Only the notes part remains
+            } else if (destMatch || serviceMatch) {
+                // If we parsed fields but there are no "Notes:", the special request is just the parsed data
+                finalSpecialRequests = ''; 
+            }
+        }
+        // *** END OF PARSING logic ***
 
         // --- Prepare Booking Data ---
         let coords = null;
@@ -159,55 +285,64 @@ export const createBooking = async (req, res) => {
             catch (error) { console.warn('Invalid dropoff coordinates format.'); }
         }
 
-        // Use user details if logged in, otherwise use form data
         const finalFirstName = isUserLoggedIn ? req.user.firstName : firstName;
         const finalLastName = isUserLoggedIn ? req.user.lastName : lastName;
         const finalEmail = isUserLoggedIn ? req.user.email : email;
         const finalPhone = phone || (isUserLoggedIn ? req.user.phone : '');
-        const finalAddress = address || (isUserLoggedIn ? req.user.address : ''); // Use provided address or user's address
-
+        const finalAddress = address || (isUserLoggedIn ? req.user.address : '');
 
         const newBooking = new Booking({
             user: userId,
             itemType,
             itemId,
-            itemName, // Make sure this is passed correctly (e.g., "Toyota Vios" or "El Nido Tour")
-            startDate: new Date(startDate), // Ensure date conversion
-            endDate: endDate ? new Date(endDate) : new Date(startDate), // Ensure date conversion
+            itemName: itemName || (itemType === 'car' ? `${item.brand} ${item.model}` : item.title || item.vehicleType),
+            startDate: newStartDate,
+            endDate: newEndDate,
             time,
-            itemModel: itemType.charAt(0).toUpperCase() + itemType.slice(1),
+            itemModel: itemModelName,
             dropoffCoordinates: coords,
             paymentOption,
             firstName: finalFirstName,
             lastName: finalLastName,
             email: finalEmail,
             phone: finalPhone,
-            address: finalAddress, // Save address
-            numberOfGuests: Number(numberOfGuests) || (itemType === 'tour' ? 1 : null), // Default guests for tours
-            specialRequests,
-            agreedToTerms: true, // Already validated above
-            deliveryMethod: itemType === 'car' ? deliveryMethod : undefined, // Only for cars
+            address: finalAddress,
+            numberOfGuests: (itemType === 'tour' || itemType === 'transport') ? Number(numberOfGuests) : undefined,
+            specialRequests: finalSpecialRequests, // Use the cleaned-up notes
+            agreedToTerms: true,
+            deliveryMethod: itemType === 'car' ? deliveryMethod : undefined,
             pickupLocation: itemType === 'car' && deliveryMethod === 'pickup' ? pickupLocation : undefined,
             dropoffLocation: itemType === 'car' && deliveryMethod === 'dropoff' ? dropoffLocation : undefined,
-            totalPrice: Number(totalPrice) || 0,
+            
+            // *** MODIFIED: Use server-validated price and data ***
+            totalPrice: finalPrice, 
+            numberOfDays: itemType === 'car' ? serverNumberOfDays : undefined,
+            transportDestination: transportDestination,
+            transportServiceType: transportServiceType,
+            // *** END OF MODIFIED fields ***
+
             originalPrice: Number(originalPrice) || null,
             discountApplied: Number(discountApplied) || null,
             promotionTitle: promotionTitle || null,
-            // pendingExpiresAt is set by default in the model
         });
 
-        // Add initial payment
-        const paymentData = {
-            amount: Number(amountPaid) || 0,
-            paymentReference, // System generated ref
-            manualPaymentReference: manualPaymentReference || null, // User provided ref
-            // --- FIX: Save the public_id (filename) instead of the full URL ---
-            paymentProof: req.file ? req.file.filename : null, // Cloudinary public_id
-        };
-        newBooking.payments.push(paymentData);
-        newBooking.amountPaid = newBooking.payments.reduce((acc, payment) => acc + payment.amount, 0);
+        // Add initial payment only if amountPaid is positive and proof is provided
+        if (Number(amountPaid) > 0 && req.file && (manualPaymentReference || paymentReference)) {
+            const paymentData = {
+                amount: Number(amountPaid),
+                paymentReference: paymentReference || `PAY-${Date.now().toString(36).toUpperCase()}`, // Generate if missing
+                manualPaymentReference: manualPaymentReference || null,
+                paymentProof: req.file.filename,
+            };
+            newBooking.payments.push(paymentData);
+            newBooking.amountPaid = newBooking.payments.reduce((acc, payment) => acc + payment.amount, 0);
+        } else {
+             newBooking.amountPaid = 0;
+        }
+
 
         // --- Save Booking and Update User ---
+        // Note: The pre-save hook in Booking.js now handles the pendingExpiresAt logic
         await newBooking.save();
 
         if(userId) {
@@ -220,10 +355,11 @@ export const createBooking = async (req, res) => {
             const notificationMessage = `New booking received: ${newBooking.bookingReference} for ${newBooking.itemName}`;
             await createNotification(
               io,
-              { roles: ['admin', 'employee'], module: 'bookings' }, // Target admins and employees with booking permissions
+              { roles: ['admin', 'employee'], module: 'bookings' },
               notificationMessage,
-              { admin: '/owner/manage-bookings', employee: '/employee/manage-bookings' } // Links for different roles
+              { admin: '/owner/manage-bookings', employee: '/employee/manage-bookings' }
             );
+            io.to('admin').to('employee').emit('new-booking', newBooking); // Emit specific event
         }
 
         // --- Confirmation Email ---
@@ -231,7 +367,6 @@ export const createBooking = async (req, res) => {
             await EmailService.sendBookingConfirmation(newBooking);
         } catch (emailError) {
             console.error('Failed to send confirmation email:', emailError.message);
-            // Don't fail the whole booking if email fails, but log it
         }
 
         res.status(201).json({ success: true, data: newBooking });
@@ -245,7 +380,7 @@ export const createBooking = async (req, res) => {
     }
 };
 
-// Add another payment to a booking (typically the remaining balance)
+// Add another payment to a booking
 export const addPayment = async (req, res) => {
     try {
         const { id } = req.params;
@@ -256,12 +391,10 @@ export const addPayment = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Booking not found.' });
         }
 
-        // Ensure the logged-in user owns this booking
         if (!booking.user || booking.user.toString() !== req.user.id) {
             return res.status(403).json({ success: false, message: 'You are not authorized to add payment to this booking.' });
         }
 
-        // Only allow adding payment to 'confirmed' downpayment bookings
         if (booking.status !== 'confirmed' || booking.paymentOption !== 'downpayment') {
             return res.status(403).json({ success: false, message: 'You can only add payments to confirmed downpayment bookings.' });
         }
@@ -277,33 +410,28 @@ export const addPayment = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Invalid payment amount.' });
         }
 
-        // Optionally, enforce paying the exact remaining balance
-        if (paymentAmount !== remainingBalance) {
-           console.warn(`Payment amount ${paymentAmount} does not match remaining balance ${remainingBalance} for booking ${booking.bookingReference}. Allowing partial payment.`);
-           // If strict balance payment is required, return error here:
-           // return res.status(400).json({ success: false, message: `Payment amount must be exactly the remaining balance of ${remainingBalance.toFixed(2)}.` });
+        // Use Math.abs for comparison with a small tolerance for floating point issues
+        if (Math.abs(paymentAmount - remainingBalance) > 0.01) {
+             console.warn(`Payment amount ${paymentAmount} does not exactly match remaining balance ${remainingBalance} for booking ${booking.bookingReference}. Proceeding.`);
         }
 
         const newPayment = {
             amount: paymentAmount,
             manualPaymentReference,
-             // --- FIX: Save the public_id (filename) instead of the full URL ---
-            paymentProof: req.file.filename, // Cloudinary public_id
-            paymentReference: `PAY-${Date.now().toString(36).toUpperCase()}` // Simple unique ID for this payment
+            paymentProof: req.file.filename,
+            paymentReference: `PAY-${Date.now().toString(36).toUpperCase()}`
         };
 
         booking.payments.push(newPayment);
         booking.amountPaid = booking.payments.reduce((acc, payment) => acc + payment.amount, 0);
 
-        // **MODIFIED:** Update status to fully_paid if applicable
         if (booking.amountPaid >= booking.totalPrice) {
             booking.status = 'fully_paid';
-            booking.paymentDueDate = undefined; // Clear due date once fully paid
+            booking.paymentDueDate = undefined;
         }
 
         await booking.save();
 
-        // Notify Admins/Employees
         const io = req.app.get('io');
         if (io) {
             const notificationMessage = `Balance payment received for booking ${booking.bookingReference}. New status: ${booking.status}.`;
@@ -313,6 +441,7 @@ export const addPayment = async (req, res) => {
                 notificationMessage,
                 { admin: '/owner/manage-bookings', employee: '/employee/manage-bookings' }
             );
+            io.to('admin').to('employee').emit('booking-updated', booking);
         }
 
         res.json({ success: true, data: booking, message: 'Payment added successfully.' });
@@ -322,20 +451,38 @@ export const addPayment = async (req, res) => {
     }
 };
 
-
 // Update booking status (Admin/Employee action)
 export const updateBookingStatus = async (req, res) => {
   try {
-    const { status, adminNotes, paymentDueDuration, paymentDueUnit } = req.body; // Added duration and unit
+    // *** MODIFIED: Added newTotalPrice to destructure from req.body ***
+    const { status, adminNotes, paymentDueDuration, paymentDueUnit, newTotalPrice } = req.body;
     const booking = await Booking.findById(req.params.id);
 
     if (!booking) {
       return res.status(404).json({ success: false, message: 'Booking not found' });
     }
 
-    const previousStatus = booking.status; // Store previous status
+    const previousStatus = booking.status;
 
-    // **MODIFIED:** Handle payment due date setting
+    // *** ADDED: Logic to update transport price (Workflow Fix) ***
+    if (newTotalPrice !== undefined && (req.user.role === 'admin' || req.user.role === 'employee')) {
+        if (booking.itemType !== 'transport') {
+            return res.status(400).json({ success: false, message: 'Price can only be set for transport bookings.' });
+        }
+        const price = Number(newTotalPrice);
+        if (isNaN(price) || price < 0) {
+            return res.status(400).json({ success: false, message: 'Invalid total price specified.' });
+        }
+        
+        // Only set the price if it's changing
+        if (booking.totalPrice !== price) {
+            booking.totalPrice = price;
+        }
+    }
+    // *** END OF ADDED price logic ***
+
+
+    // Handle payment due date setting
     if (status === 'confirmed' && booking.paymentOption === 'downpayment') {
       if (paymentDueDuration && paymentDueUnit) {
           const duration = parseInt(paymentDueDuration, 10);
@@ -343,7 +490,7 @@ export const updateBookingStatus = async (req, res) => {
               const now = new Date();
               if (paymentDueUnit === 'days') {
                   now.setDate(now.getDate() + duration);
-              } else { // Default to hours
+              } else {
                   now.setHours(now.getHours() + duration);
               }
               booking.paymentDueDate = now;
@@ -353,35 +500,29 @@ export const updateBookingStatus = async (req, res) => {
           }
       } else {
         console.warn(`Missing payment due duration/unit for confirming downpayment booking ${booking.bookingReference}`);
-        // Optionally return an error if due date is mandatory for confirmation
-        // return res.status(400).json({ success: false, message: 'Payment due duration and unit are required for confirming downpayment bookings.' });
       }
-       // Remove pending expiration when confirmed
-       booking.pendingExpiresAt = undefined;
+       booking.pendingExpiresAt = undefined; // Remove pending expiration
     }
 
-    // **MODIFIED:** Clear paymentDueDate if status changes from confirmed (e.g., to completed, cancelled, rejected)
+    // Clear paymentDueDate if status changes from confirmed or moves to final states
     if (previousStatus === 'confirmed' && status !== 'confirmed') {
         booking.paymentDueDate = undefined;
     }
-    // Also clear if moving directly to fully_paid or completed
-    if (status === 'fully_paid' || status === 'completed') {
+    if (status === 'fully_paid' || status === 'completed' || status === 'cancelled' || status === 'rejected') {
         booking.paymentDueDate = undefined;
-        booking.pendingExpiresAt = undefined; // Also clear pending expiry
+        booking.pendingExpiresAt = undefined;
     }
 
     booking.status = status;
 
-    // Add admin note if provided
-    if (adminNotes) {
+    if (adminNotes || req.file) { // Add note if text or attachment exists
       const newNote = {
-        note: adminNotes.trim(),
-        author: req.user.id, // Link note to the admin/employee user
+        note: adminNotes ? adminNotes.trim() : 'Attachment added.', // Default note if only file
+        author: req.user.id,
         date: new Date(),
       };
-      // Add attachment info if a file was uploaded
       if (req.file) {
-        newNote.attachment = req.file.path; // Cloudinary path
+        newNote.attachment = req.file.filename;
         newNote.attachmentOriginalName = req.file.originalname;
       }
       booking.notes.push(newNote);
@@ -389,25 +530,21 @@ export const updateBookingStatus = async (req, res) => {
 
     await booking.save();
 
-    // Populate necessary fields for notifications/emails
     const populatedBooking = await Booking.findById(booking._id)
-                                    .populate('user', 'firstName email') // Populate user for email/notification
-                                    .populate('itemId', 'brand model title'); // Populate item details
+                                    .populate('user', 'firstName email')
+                                    .populate('itemId', 'brand model title vehicleType name'); 
 
-    // --- Notifications ---
     const io = req.app.get('io');
-    // Notify customer
     if (io && populatedBooking.user) {
       const customerMessage = `Your booking ${populatedBooking.bookingReference} status updated to: ${status}. ${adminNotes ? 'Note: ' + adminNotes : ''}`;
       await createNotification(
         io,
-        { user: populatedBooking.user._id }, // Target specific user
+        { user: populatedBooking.user._id },
         customerMessage,
-        '/my-bookings', // Link for customer
-        req.user.id // Exclude the admin making the change
+        '/my-bookings',
+        req.user.id
       );
     }
-    // Notify other admins/employees
     if (io) {
       const adminMessage = `Booking ${populatedBooking.bookingReference} status changed to ${status} by ${req.user.firstName}.`;
         await createNotification(
@@ -415,21 +552,23 @@ export const updateBookingStatus = async (req, res) => {
             { roles: ['admin', 'employee'], module: 'bookings' },
             adminMessage,
             { admin: '/owner/manage-bookings', employee: '/employee/manage-bookings' },
-            req.user.id // Exclude self
+            req.user.id
         );
-        // Emit general update event for admin/employee dashboards
         io.to('admin').to('employee').emit('booking-updated', populatedBooking);
     }
 
-    // --- Status Update Email ---
     try {
-        // Send email for significant status changes
         if (['confirmed', 'rejected', 'completed', 'cancelled', 'fully_paid'].includes(status)) {
-            await EmailService.sendStatusUpdate(populatedBooking); // Assumes sendStatusUpdate handles different statuses
+            // Also send an email if a transport price was just set and it's confirmed
+            const priceWasJustSet = newTotalPrice !== undefined && Number(newTotalPrice) > 0;
+            if (status === 'confirmed' && booking.itemType === 'transport' && priceWasJustSet) {
+                 await EmailService.sendTransportQuote(populatedBooking);
+            } else {
+                 await EmailService.sendStatusUpdate(populatedBooking);
+            }
         }
     } catch (emailError) {
         console.error(`Failed to send status update email for booking ${populatedBooking.bookingReference}:`, emailError.message);
-        // Log error but don't fail the request
     }
 
     res.json({ success: true, data: populatedBooking });
@@ -449,58 +588,39 @@ export const cancelBooking = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Booking not found' });
     }
 
-    // Optional: Add checks here if certain statuses shouldn't be cancelled (e.g., 'completed')
-    // if (booking.status === 'completed') {
-    //   return res.status(400).json({ success: false, message: 'Cannot cancel a completed booking.' });
-    // }
-
     booking.status = 'cancelled';
-    booking.paymentDueDate = undefined; // Clear payment due date on cancellation
-    booking.pendingExpiresAt = undefined; // Clear pending expiry on cancellation
+    booking.paymentDueDate = undefined;
+    booking.pendingExpiresAt = undefined;
 
-    // Add cancellation reason/note
-    if (adminNotes) {
-      const newNote = {
-        note: `Cancellation reason: ${adminNotes.trim()}`,
-        author: req.user.id, // Link note to the admin/employee user
-        date: new Date(),
-      };
-      // Add attachment info if provided
-      if (req.file) {
-        newNote.attachment = req.file.path;
-        newNote.attachmentOriginalName = req.file.originalname;
-      }
-      booking.notes.push(newNote);
-    } else {
-        // Add a default note if none provided
-         booking.notes.push({
-            note: 'Booking cancelled by staff.',
-            author: req.user.id,
-            date: new Date(),
-         });
+    const noteText = adminNotes ? `Cancellation reason: ${adminNotes.trim()}` : 'Booking cancelled by staff.';
+    const newNote = {
+      note: noteText,
+      author: req.user.id,
+      date: new Date(),
+    };
+    if (req.file) {
+      newNote.attachment = req.file.filename;
+      newNote.attachmentOriginalName = req.file.originalname;
     }
+    booking.notes.push(newNote);
 
     await booking.save();
 
-    // Populate necessary fields for notifications/emails
     const populatedBooking = await Booking.findById(booking._id)
                                     .populate('user', 'firstName email')
-                                    .populate('itemId', 'brand model title');
+                                    .populate('itemId', 'brand model title vehicleType name'); 
 
-    // --- Notifications ---
     const io = req.app.get('io');
-    // Notify customer
     if (io && populatedBooking.user) {
        const customerMessage = `Your booking ${populatedBooking.bookingReference} has been cancelled. ${adminNotes ? 'Reason: ' + adminNotes : ''}`;
        await createNotification(
         io,
-        { user: populatedBooking.user._id }, // Target specific user
+        { user: populatedBooking.user._id },
         customerMessage,
-        '/my-bookings', // Link for customer
-        req.user.id // Exclude the admin making the change
+        '/my-bookings',
+        req.user.id
       );
     }
-     // Notify other admins/employees
     if (io) {
         const adminMessage = `Booking ${populatedBooking.bookingReference} was cancelled by ${req.user.firstName}.`;
         await createNotification(
@@ -508,18 +628,15 @@ export const cancelBooking = async (req, res) => {
             { roles: ['admin', 'employee'], module: 'bookings' },
             adminMessage,
             { admin: '/owner/manage-bookings', employee: '/employee/manage-bookings' },
-            req.user.id // Exclude self
+            req.user.id
         );
-      // Emit general update event for admin/employee dashboards
-      io.to('admin').to('employee').emit('booking-cancelled', populatedBooking); // Or use 'booking-updated'
+      io.to('admin').to('employee').emit('booking-updated', populatedBooking); // Use booking-updated for consistency
     }
 
-    // --- Cancellation Email ---
     try {
         await EmailService.sendBookingCancellation(populatedBooking);
     } catch (emailError) {
         console.error(`Failed to send cancellation email for booking ${populatedBooking.bookingReference}:`, emailError.message);
-        // Log error but don't fail the request
     }
 
     res.json({ success: true, data: populatedBooking });

@@ -1,355 +1,646 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Edit3, Archive, Eye, EyeOff, Search, Trash2, X, RotateCcw, DollarSign, Percent, Info, MapPin, Clock, Users, Save } from 'lucide-react';
-import DataService, { getImageUrl } from '../../components/services/DataService';
+// client/src/pages/owner/ManageTransport.jsx
+
+import React, { useState, useEffect, useCallback } from 'react';
+import { toast } from 'react-toastify';
+import {
+  Edit,
+  Trash,
+  PlusCircle,
+  Archive,
+  Eye,
+  Plus,
+  Trash2,
+} from 'lucide-react';
+import DataService from '../../components/services/DataService'; // Import DataService
 import ImageUpload from '../../components/ImageUpload';
-import { useApi } from '../../hooks/useApi';
+import { formatPrice, formatDate } from '../../utils/helpers';
+// Removed useApi as it's not the correct pattern for this component
+
+const initialFormState = {
+  vehicleType: 'Tourist Bus',
+  name: '',
+  capacity: '',
+  amenities: [],
+  description: '',
+  images: [], // Will now hold image objects: { url, serverId, ... }
+  downpaymentRate: 0.2,
+  requiresDownpayment: true,
+  isAvailable: true,
+  archived: false,
+  pricing: [],
+};
+
+const initialNewPriceRow = {
+  region: '',
+  destination: '',
+  dayTourTime: '',
+  dayTourPrice: '',
+  ovnPrice: '',
+  threeDayTwoNightPrice: '',
+  dropAndPickPrice: '',
+};
 
 const ManageTransport = () => {
-  const [showModal, setShowModal] = useState(false);
-  const [editingService, setEditingService] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState('active');
-  const [submitting, setSubmitting] = useState(false);
-
-  const { data: servicesData, loading, refetch: fetchServices } = useApi(
-    () => DataService.fetchAllTransportAdmin({ archived: filterStatus === 'archived' }), // Assuming this function exists in DataService
-    [filterStatus]
-  );
-  const services = servicesData?.data || [];
-
-  const initialFormState = {
-    vehicleType: 'Tourist Bus',
-    name: '',
-    capacity: '',
-    amenities: [],
-    description: '',
-    images: [],
-    pricing: [],
-    isAvailable: true,
-    // Aligned with Car model
-    downpaymentRate: 0.2,
-    requiresDownpayment: true,
-  };
-
+  const [services, setServices] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState(initialFormState);
-  const [newAmenity, setNewAmenity] = useState('');
-  const [newPriceRow, setNewPriceRow] = useState({
-    region: '', destination: '', dayTourTime: '', dayTourPrice: '', ovnPrice: '', threeDayTwoNightPrice: '', dropAndPickPrice: ''
-  });
+  const [currentAmenity, setCurrentAmenity] = useState('');
+  const [editingId, setEditingId] = useState(null);
+  const [viewArchived, setViewArchived] = useState(false);
+  const [newPriceRow, setNewPriceRow] = useState(initialNewPriceRow);
 
-  const resetForm = () => {
-    setFormData(initialFormState);
-    setNewAmenity('');
-    setNewPriceRow({ region: '', destination: '', dayTourTime: '', dayTourPrice: '', ovnPrice: '', threeDayTwoNightPrice: '', dropAndPickPrice: '' });
-    setEditingService(null);
+  // --- Start of Fix: Correct Data Fetching & Actions ---
+
+  const fetchServices = useCallback(async () => {
+    setLoading(true);
+    try {
+      // Fetch using DataService directly
+      const data = await DataService.fetchAllTransportAdmin({ archived: viewArchived });
+      if (data.success) {
+        setServices(data.services);
+      } else {
+        throw new Error(data.message);
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to fetch transport services');
+      toast.error(err.message || 'Failed to fetch transport services');
+    } finally {
+      setLoading(false);
+    }
+  }, [viewArchived]); // Removed 'api' from dependency array
+
+  useEffect(() => {
+    fetchServices();
+  }, [fetchServices, viewArchived]);
+
+  const openModal = (service = null) => {
+    if (service) {
+      const imageObjects =
+        service.images?.map((url) => ({
+          url: url,
+          serverId: url,
+          name: 'Existing Image',
+        })) || [];
+
+      setFormData({
+        vehicleType: service.vehicleType || 'Tourist Bus',
+        name: service.name || '',
+        capacity: service.capacity || '',
+        amenities: service.amenities || [],
+        description: service.description || '',
+        images: imageObjects, 
+        downpaymentRate: service.downpaymentRate || 0,
+        requiresDownpayment: service.requiresDownpayment !== false,
+        isAvailable: service.isAvailable !== false,
+        archived: service.archived || false,
+        pricing: service.pricing || [],
+      });
+      setEditingId(service._id);
+    } else {
+      setFormData(initialFormState);
+      setEditingId(null);
+    }
+    setNewPriceRow(initialNewPriceRow);
+    setIsModalOpen(true);
   };
 
-  const handleInputChange = (e) => {
-    const { name, value, type, checked } = e.target;
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setFormData(initialFormState);
+    setEditingId(null);
+    setCurrentAmenity('');
+    setNewPriceRow(initialNewPriceRow);
+  };
 
-    if (name === 'downpaymentRate') {
-      // Convert percentage (e.g., 20) to decimal (e.g., 0.2)
-      setFormData(prev => ({ ...prev, [name]: value === '' ? '' : Number(value) / 100 }));
-    } else if (type === 'checkbox') {
-      setFormData(prev => ({ ...prev, [name]: checked }));
-    } else {
-      setFormData(prev => ({ ...prev, [name]: value }));
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]:
+        type === 'checkbox'
+          ? checked
+          : type === 'number'
+          ? parseFloat(value)
+          : value,
+    }));
+  };
+
+  const handleAmenityChange = (e) => {
+    setCurrentAmenity(e.target.value);
+  };
+
+  const addAmenity = () => {
+    if (currentAmenity.trim() && !formData.amenities.includes(currentAmenity.trim())) {
+      setFormData((prev) => ({
+        ...prev,
+        amenities: [...prev.amenities, currentAmenity.trim()],
+      }));
+      setCurrentAmenity('');
     }
   };
 
-  const handleImagesChange = (uploadedImages) => {
-    setFormData(prev => ({ ...prev, images: uploadedImages.map(img => ({ url: img.url, serverId: img.serverId })) }));
+  const removeAmenity = (amenityToRemove) => {
+    setFormData((prev) => ({
+      ...prev,
+      amenities: prev.amenities.filter((amenity) => amenity !== amenityToRemove),
+    }));
   };
 
-  // Amenities Handlers
-  const addAmenity = () => { if (newAmenity.trim()) { setFormData(prev => ({ ...prev, amenities: [...prev.amenities, newAmenity.trim()] })); setNewAmenity(''); } };
-  const removeAmenity = (index) => setFormData(prev => ({ ...prev, amenities: prev.amenities.filter((_, i) => i !== index) }));
+  const handleImagesChange = (images) => {
+    setFormData((prev) => ({
+      ...prev,
+      images: images,
+    }));
+  };
 
-  // Pricing Handlers
+  // --- Pricing Handlers (No change needed) ---
+
   const handlePriceRowChange = (index, field, value) => {
     const updatedPricing = [...formData.pricing];
-    updatedPricing[index] = { ...updatedPricing[index], [field]: value };
-    setFormData(prev => ({ ...prev, pricing: updatedPricing }));
+    const numValue =
+      field.includes('Price') && value !== '' ? parseFloat(value) : value;
+    updatedPricing[index] = { ...updatedPricing[index], [field]: numValue };
+    setFormData((prev) => ({ ...prev, pricing: updatedPricing }));
   };
 
   const handleNewPriceRowChange = (e) => {
     const { name, value } = e.target;
-    setNewPriceRow(prev => ({ ...prev, [name]: value }));
+    const numValue =
+      name.includes('Price') && value !== '' ? parseFloat(value) : value;
+    setNewPriceRow((prev) => ({ ...prev, [name]: numValue }));
   };
 
   const addPriceRow = () => {
-    if (!newPriceRow.destination.trim()) {
-      alert("Destination is required for pricing.");
+    if (!newPriceRow.destination || !newPriceRow.destination.trim()) {
+      toast.error('Destination is required for a price row.');
       return;
     }
-    setFormData(prev => ({ ...prev, pricing: [...prev.pricing, { ...newPriceRow }] }));
-    setNewPriceRow({ region: '', destination: '', dayTourTime: '', dayTourPrice: '', ovnPrice: '', threeDayTwoNightPrice: '', dropAndPickPrice: '' }); // Reset form
+    setFormData((prev) => ({
+      ...prev,
+      pricing: [...prev.pricing, { ...newPriceRow }],
+    }));
+    setNewPriceRow(initialNewPriceRow);
   };
 
   const removePriceRow = (index) => {
-    setFormData(prev => ({ ...prev, pricing: formData.pricing.filter((_, i) => i !== index) }));
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setSubmitting(true);
-
-    // Prepare payload
-    const payload = {
-      ...formData,
-      images: formData.images.map(img => img.url), // Send only URLs
-      // Convert price strings to numbers, defaulting to null if empty or invalid
-      pricing: formData.pricing.map(p => ({
-          ...p,
-          dayTourPrice: parseFloat(p.dayTourPrice) || null,
-          ovnPrice: parseFloat(p.ovnPrice) || null,
-          threeDayTwoNightPrice: parseFloat(p.threeDayTwoNightPrice) || null,
-          dropAndPickPrice: parseFloat(p.dropAndPickPrice) || null,
-      })),
-    };
-
-    try {
-      if (editingService) {
-        await DataService.updateTransport(editingService._id, payload); // Assuming this exists
-        alert('Transport service updated successfully!');
-      } else {
-        await DataService.createTransport(payload); // Assuming this exists
-        alert('Transport service created successfully!');
-      }
-      setShowModal(false);
-      fetchServices();
-    } catch (error) {
-      console.error('Error saving transport service:', error);
-      alert(`Failed to save transport service: ${error.message || 'Unknown error'}`);
-    } finally {
-      setSubmitting(false);
+    if (
+      window.confirm(
+        `Are you sure you want to remove the price for "${formData.pricing[index].destination}"?`
+      )
+    ) {
+      setFormData((prev) => ({
+        ...prev,
+        pricing: prev.pricing.filter((_, i) => i !== index),
+      }));
     }
   };
 
-  const handleEdit = (service) => {
-    setEditingService(service);
-    const processedImages = Array.isArray(service.images)
-      ? service.images.map((img, index) => ({
-          url: img,
-          serverId: img.split('/').pop() || `img-${index}`,
-          name: img.split('/').pop() || 'image.jpg',
-        }))
-      : [];
-    setFormData({
-      ...initialFormState,
-      ...service,
-      images: processedImages,
-      pricing: Array.isArray(service.pricing) ? service.pricing : [], // Ensure pricing is array
-      // Load aligned fields, providing defaults if they don't exist on the service yet
-      downpaymentRate: service.downpaymentRate !== undefined ? service.downpaymentRate : 0.2,
-      requiresDownpayment: service.requiresDownpayment !== undefined ? service.requiresDownpayment : true,
-    });
-    setShowModal(true);
+  // --- End Pricing Handlers ---
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    const imagesForApi = formData.images.map((img) => img.url);
+
+    try {
+      const dataToSend = { ...formData, images: imagesForApi };
+
+      let response;
+      if (editingId) {
+        // Use DataService to update
+        response = await DataService.updateTransport(editingId, dataToSend);
+        if (!response.success) throw new Error(response.message);
+        toast.success(response.message || 'Transport service updated!');
+      } else {
+        // Use DataService to create
+        response = await DataService.createTransport(dataToSend);
+        if (!response.success) throw new Error(response.message);
+        toast.success(response.message || 'Transport service created!');
+      }
+      fetchServices();
+      closeModal();
+    } catch (err) {
+      setError(err.message || 'Failed to save transport service');
+      toast.error(err.message || 'Failed to save transport service');
+    }
   };
 
-  const handleArchive = async (serviceId) => { if (window.confirm('Archive this service?')) { try { await DataService.archiveTransport(serviceId); fetchServices(); } catch (e) { alert('Archive failed.'); } } };
-  const handleRestore = async (serviceId) => { if (window.confirm('Restore this service?')) { try { await DataService.unarchiveTransport(serviceId); fetchServices(); } catch (e) { alert('Restore failed.'); } } };
-  const handleToggleAvailability = async (service) => { const action = service.isAvailable ? 'unavailable' : 'available'; if (window.confirm(`Mark as ${action}?`)) { try { await DataService.updateTransport(service._id, { isAvailable: !service.isAvailable }); fetchServices(); } catch (e) { alert('Toggle failed.'); } } };
+  const handleToggleArchive = async (service) => {
+    const action = service.archived ? 'unarchive' : 'archive';
+    if (
+      window.confirm(
+        `Are you sure you want to ${action} "${service.name || service.vehicleType}"?`
+      )
+    ) {
+      try {
+        let response;
+        // Use DataService to archive/unarchive
+        if (service.archived) {
+          response = await DataService.unarchiveTransport(service._id);
+        } else {
+          response = await DataService.archiveTransport(service._id);
+        }
+        if (!response.success) throw new Error(response.message);
+        
+        toast.success(response.message || `Service ${action}d!`);
+        fetchServices();
+      } catch (err) {
+        toast.error(err.message || `Failed to ${action} service`);
+      }
+    }
+  };
+  
+  // --- End of Fix ---
 
-  const filteredServices = Array.isArray(services) ? services.filter(service => {
-    const lowerSearchTerm = searchTerm.toLowerCase();
-    const serviceStatus = service.archived ? 'archived' : 'active';
-    const matchesSearch = (
-      service.vehicleType?.toLowerCase().includes(lowerSearchTerm) ||
-      service.name?.toLowerCase().includes(lowerSearchTerm) ||
-      service.capacity?.toLowerCase().includes(lowerSearchTerm) ||
-      service.pricing?.some(p => p.destination?.toLowerCase().includes(lowerSearchTerm))
-    );
-    const matchesStatus = filterStatus === 'all' || serviceStatus === filterStatus;
-    return matchesSearch && matchesStatus;
-  }) : [];
+  const filteredServices = services.filter(
+    (service) => service.archived === viewArchived
+  );
+
+  if (loading) return <div>Loading...</div>;
+  if (error) return <div className="text-red-500">{error}</div>;
 
   return (
     <div className="p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Manage Transport Services</h1>
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Manage Transport Services</h1>
-          <p className="text-gray-600">Add, edit, and manage Buses and Coasters</p>
-        </div>
-        <button onClick={() => { resetForm(); setShowModal(true); }} className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold flex items-center gap-2">
-          <Plus className="w-5 h-5" /> Add New Service
-        </button>
-      </div>
-
-      {/* Filters */}
-      <div className="bg-white rounded-lg shadow-sm border p-4 mb-6">
-        <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-                <input type="text" placeholder="Search by type, name, capacity, destination..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"/>
-            </div>
-            <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="active">Active Services</option>
-                <option value="archived">Archived Services</option>
-                <option value="all">All Services</option>
-            </select>
+          <button
+            onClick={() => setViewArchived(!viewArchived)}
+            className="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg mr-4"
+          >
+            {viewArchived ? <Eye className="w-5 h-5" /> : <Archive className="w-5 h-5" />}
+            {viewArchived ? ' View Active' : ' View Archived'}
+          </button>
+          <button
+            onClick={() => openModal()}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg"
+          >
+            <PlusCircle className="w-5 h-5 inline-block mr-2" />
+            Add Transport
+          </button>
         </div>
       </div>
 
-      {/* Service List */}
-      {loading ? (
-          <div className="text-center py-12"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div></div>
-      ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredServices.length > 0 ? filteredServices.map((service) => (
-                  <div key={service._id} className={`bg-white rounded-lg shadow-sm border overflow-hidden transition-opacity ${service.archived ? 'opacity-60' : ''}`}>
-                      <div className="h-48 bg-gray-200 relative">
-                          <img src={service.images && service.images.length > 0 ? getImageUrl(service.images[0]) : 'https://placehold.co/600x400/e2e8f0/475569?text=No+Image'} alt={service.vehicleType} className="w-full h-full object-cover"/>
-                          <div className="absolute top-2 right-2 flex gap-1">
-                            {service.archived ? (
-                              <button onClick={() => handleRestore(service._id)} className="p-2 bg-white rounded-full shadow-md" title="Restore"><RotateCcw className="w-4 h-4 text-green-600" /></button>
-                            ) : (
-                              <>
-                                <button onClick={() => handleEdit(service)} className="p-2 bg-white rounded-full shadow-md" title="Edit"><Edit3 className="w-4 h-4" /></button>
-                                <button onClick={() => handleToggleAvailability(service)} className="p-2 bg-white rounded-full shadow-md" title={service.isAvailable ? 'Mark Unavailable' : 'Mark Available'}>{service.isAvailable ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</button>
-                                <button onClick={() => handleArchive(service._id)} className="p-2 bg-white rounded-full shadow-md" title="Archive"><Archive className="w-4 h-4 text-red-600" /></button>
-                              </>
-                            )}
-                          </div>
-                          <span className={`absolute top-2 left-2 px-2 py-1 text-xs font-semibold rounded ${service.isAvailable ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                            {service.isAvailable ? 'Available' : 'Unavailable'}
-                          </span>
-                      </div>
-                      <div className="p-4">
-                          <h3 className="text-lg font-semibold">{service.vehicleType} {service.name ? `(${service.name})` : ''}</h3>
-                          <p className="text-sm text-gray-500">{service.capacity}</p>
-                          <p className="text-sm text-gray-700 mt-2 truncate">{service.description || 'No description'}</p>
-                      </div>
-                  </div>
-              )) : (
-                  <div className="col-span-full text-center py-12"><Users className="w-16 h-16 text-gray-300 mx-auto mb-4" /><h3 className="text-lg font-medium">No transport services found.</h3><p className="text-gray-500">Add a new service or adjust your filters.</p></div>
-              )}
-          </div>
-      )}
+      {/* Transport List Table */}
+      <div className="overflow-x-auto shadow-lg rounded-lg">
+        <table className="min-w-full bg-white">
+          <thead className="bg-gray-100">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Type
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Name
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Capacity
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Status
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Downpayment
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200">
+            {filteredServices.length > 0 ? (
+              filteredServices.map((service) => (
+                <tr key={service._id}>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {service.vehicleType}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {service.name}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {service.capacity}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {service.isAvailable ? (
+                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                        Available
+                      </span>
+                    ) : (
+                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                        Not Available
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {service.requiresDownpayment
+                      ? `${(service.downpaymentRate * 100).toFixed(0)}%`
+                      : 'Not Required'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <button
+                      onClick={() => openModal(service)}
+                      className="text-indigo-600 hover:text-indigo-900 mr-4"
+                    >
+                      <Edit className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={() => handleToggleArchive(service)}
+                      className={
+                        service.archived
+                          ? 'text-green-600 hover:text-green-900'
+                          : 'text-red-600 hover:text-red-900'
+                      }
+                    >
+                      {service.archived ? (
+                        <Eye className="w-5 h-5" />
+                      ) : (
+                        <Archive className="w-5 h-5" />
+                      )}
+                    </button>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td
+                  colSpan="6"
+                  className="px-6 py-4 text-center text-gray-500"
+                >
+                  No {viewArchived ? 'archived' : 'active'} services found.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
 
       {/* Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-            {/* Modal Header */}
-            <div className="p-6 border-b flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-gray-900">{editingService ? 'Edit Transport Service' : 'Add New Transport Service'}</h2>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600"><X className="w-6 h-6" /></button>
-            </div>
-            {/* Modal Form */}
-            <form id="transportForm" onSubmit={handleSubmit} className="space-y-6 overflow-y-auto p-6">
-              {/* Basic Info */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Vehicle Type *</label><select name="vehicleType" required value={formData.vehicleType} onChange={handleInputChange} className="w-full p-2 border rounded-lg bg-white"><option value="Tourist Bus">Tourist Bus</option><option value="Coaster">Coaster</option></select></div>
-                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Name (Optional)</label><input type="text" name="name" value={formData.name} onChange={handleInputChange} className="w-full p-2 border rounded-lg" placeholder="e.g., Bus Alpha, Coaster 1" /></div>
-                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Capacity *</label><input type="text" name="capacity" required value={formData.capacity} onChange={handleInputChange} className="w-full p-2 border rounded-lg" placeholder="e.g., 49 Regular Seats" /></div>
-              </div>
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">Description</label><textarea name="description" rows="3" value={formData.description} onChange={handleInputChange} className="w-full p-2 border rounded-lg" placeholder="Brief description of the vehicle..." /></div>
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+          <div className="bg-white p-8 rounded-lg shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <h2 className="text-2xl font-bold mb-6">
+              {editingId ? 'Edit Transport Service' : 'Add Transport Service'}
+            </h2>
+            <form id="transportForm" onSubmit={handleSubmit}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Vehicle Type */}
+                <div>
+                  <label
+                    htmlFor="vehicleType"
+                    className="block text-sm font-medium text-gray-700"
+                  >
+                    Vehicle Type
+                  </label>
+                  <select
+                    id="vehicleType"
+                    name="vehicleType"
+                    value={formData.vehicleType}
+                    onChange={handleChange}
+                    className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm"
+                  >
+                    <option value="Tourist Bus">Tourist Bus</option>
+                    <option value="Coaster">Coaster</option>
+                  </select>
+                </div>
 
-              {/* Amenities */}
-              <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Amenities</label>
-                  <div className="flex gap-2 mb-2"><input type="text" value={newAmenity} onChange={(e) => setNewAmenity(e.target.value)} className="flex-1 p-2 border rounded-lg" placeholder="Add amenity (e.g., Airconditioned)" onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addAmenity())} /><button type="button" onClick={addAmenity} className="px-4 py-2 bg-blue-600 text-white rounded-lg">Add</button></div>
-                  <div className="flex flex-wrap gap-2">{formData.amenities.map((item, index) => (<span key={index} className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">{item}<button type="button" onClick={() => removeAmenity(index)}><X className="w-3 h-3" /></button></span>))}</div>
-              </div>
+                {/* Name */}
+                <div>
+                  <label
+                    htmlFor="name"
+                    className="block text-sm font-medium text-gray-700"
+                  >
+                    Name (e.g., "Bus 01", "Coaster A")
+                  </label>
+                  <input
+                    type="text"
+                    id="name"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleChange}
+                    className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm"
+                  />
+                </div>
 
-              {/* Payment Configuration (Aligned with Car model) */}
-              <div className="border p-4 rounded-md bg-gray-50">
-                <h3 className="text-lg font-semibold mb-3 flex items-center gap-2"><DollarSign size={18}/> Payment Options</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Downpayment Rate (%)</label>
-                    <div className="relative">
-                      <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500"><Percent size={14}/></span>
-                      <input
-                        name="downpaymentRate"
-                        type="number"
-                        // Convert decimal (0.2) to percentage (20) for display
-                        value={formData.downpaymentRate === '' ? '' : formData.downpaymentRate * 100}
-                        onChange={handleInputChange}
-                        placeholder="e.g., 20"
-                        className="w-full p-2 pl-8 border rounded-lg"
-                        min="0"
-                        max="100"
-                      />
-                    </div>
+                {/* Capacity */}
+                <div>
+                  <label
+                    htmlFor="capacity"
+                    className="block text-sm font-medium text-gray-700"
+                  >
+                    Capacity
+                  </label>
+                  <input
+                    type="text"
+                    id="capacity"
+                    name="capacity"
+                    value={formData.capacity}
+                    onChange={handleChange}
+                    required
+                    className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm"
+                    placeholder="e.g., 49 Regular Seats"
+                  />
+                </div>
+
+                {/* Amenities */}
+                <div className="md:col-span-1">
+                  <label
+                    htmlFor="amenities"
+                    className="block text-sm font-medium text-gray-700"
+                  >
+                    Amenities
+                  </label>
+                  <div className="flex mt-1">
+                    <input
+                      type="text"
+                      id="amenityInput"
+                      value={currentAmenity}
+                      onChange={handleAmenityChange}
+                      onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addAmenity())}
+                      className="flex-grow p-2 border border-gray-300 rounded-l-md shadow-sm"
+                      placeholder="Type amenity and press Add"
+                    />
+                    <button
+                      type="button"
+                      onClick={addAmenity}
+                      className="px-4 py-2 bg-blue-500 text-white rounded-r-md"
+                    >
+                      Add
+                    </button>
                   </div>
-                  <div className="pt-7">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        name="requiresDownpayment"
-                        checked={formData.requiresDownpayment}
-                        onChange={handleInputChange}
-                        className="form-checkbox h-5 w-5 rounded text-blue-600 focus:ring-blue-500"
-                      />
-                      <span className="text-sm font-medium text-gray-700">Requires Downpayment</span>
-                    </label>
-                    <p className="text-xs text-gray-500 mt-1">If unchecked, only full payment is allowed.</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {formData.amenities.map((amenity, index) => (
+                      <span
+                        key={index}
+                        className="px-2 py-1 bg-gray-200 text-gray-700 rounded-full text-sm flex items-center"
+                      >
+                        {amenity}
+                        <button
+                          type="button"
+                          onClick={() => removeAmenity(amenity)}
+                          className="ml-2 text-red-500 hover:text-red-700"
+                        >
+                          &times;
+                        </button>
+                      </span>
+                    ))}
                   </div>
                 </div>
-              </div>
 
-              {/* Pricing Table */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Destination Pricing</label>
-                <div className="overflow-x-auto border rounded-lg">
-                  <table className="min-w-full divide-y divide-gray-200 text-sm">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-3 py-2 text-left font-medium text-gray-500">Region</th>
-                        <th className="px-3 py-2 text-left font-medium text-gray-500">Destination*</th>
-                        <th className="px-3 py-2 text-left font-medium text-gray-500">Day Tour Time</th>
-                        <th className="px-3 py-2 text-left font-medium text-gray-500">Day Tour Price</th>
-                        <th className="px-3 py-2 text-left font-medium text-gray-500">OVN Price</th>
-                        <th className="px-3 py-2 text-left font-medium text-gray-500">3D2N Price</th>
-                        <th className="px-3 py-2 text-left font-medium text-gray-500">Drop & Pick</th>
-                        <th className="px-3 py-2 text-center font-medium text-gray-500">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {formData.pricing.map((price, index) => (
-                        <tr key={index}>
-                          <td className="px-3 py-2"><input type="text" value={price.region || ''} onChange={(e) => handlePriceRowChange(index, 'region', e.target.value)} className="w-full p-1 border rounded-md text-xs" placeholder="e.g., Quezon"/></td>
-                          <td className="px-3 py-2"><input type="text" value={price.destination || ''} onChange={(e) => handlePriceRowChange(index, 'destination', e.target.value)} className="w-full p-1 border rounded-md text-xs font-medium" required placeholder="e.g., Lucena"/></td>
-                          <td className="px-3 py-2"><input type="text" value={price.dayTourTime || ''} onChange={(e) => handlePriceRowChange(index, 'dayTourTime', e.target.value)} className="w-16 p-1 border rounded-md text-xs" placeholder="e.g., 12"/></td>
-                          <td className="px-3 py-2"><input type="number" step="0.01" value={price.dayTourPrice || ''} onChange={(e) => handlePriceRowChange(index, 'dayTourPrice', e.target.value)} className="w-24 p-1 border rounded-md text-xs" placeholder="e.g., 25000"/></td>
-                          <td className="px-3 py-2"><input type="number" step="0.01" value={price.ovnPrice || ''} onChange={(e) => handlePriceRowChange(index, 'ovnPrice', e.target.value)} className="w-24 p-1 border rounded-md text-xs" placeholder="e.g., 38000"/></td>
-                          <td className="px-3 py-2"><input type="number" step="0.01" value={price.threeDayTwoNightPrice || ''} onChange={(e) => handlePriceRowChange(index, 'threeDayTwoNightPrice', e.target.value)} className="w-24 p-1 border rounded-md text-xs" placeholder="e.g., 60000"/></td>
-                          <td className="px-3 py-2"><input type="number" step="0.01" value={price.dropAndPickPrice || ''} onChange={(e) => handlePriceRowChange(index, 'dropAndPickPrice', e.target.value)} className="w-24 p-1 border rounded-md text-xs" placeholder="e.g., 50000"/></td>
-                          <td className="px-3 py-2 text-center"><button type="button" onClick={() => removePriceRow(index)} className="text-red-500 hover:text-red-700"><Trash2 size={14}/></button></td>
+                {/* Description */}
+                <div className="md:col-span-2">
+                  <label
+                    htmlFor="description"
+                    className="block text-sm font-medium text-gray-700"
+                  >
+                    Description
+                  </label>
+                  <textarea
+                    id="description"
+                    name="description"
+                    rows="3"
+                    value={formData.description}
+                    onChange={handleChange}
+                    className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm"
+                  ></textarea>
+                </div>
+
+                {/* --- Pricing Table (No changes needed) --- */}
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Destination Pricing
+                  </label>
+                  <div className="overflow-x-auto border rounded-lg">
+                    <table className="min-w-full divide-y divide-gray-200 text-sm">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-2 py-2 text-left font-medium text-gray-500">Region</th>
+                          <th className="px-2 py-2 text-left font-medium text-gray-500">Destination*</th>
+                          <th className="px-2 py-2 text-left font-medium text-gray-500">Day Tour Time</th>
+                          <th className="px-2 py-2 text-left font-medium text-gray-500">Day Tour Price</th>
+                          <th className="px-2 py-2 text-left font-medium text-gray-500">OVN Price</th>
+                          <th className="px-2 py-2 text-left font-medium text-gray-500">3D2N Price</th>
+                          <th className="px-2 py-2 text-left font-medium text-gray-500">Drop & Pick</th>
+                          <th className="px-2 py-2 text-center font-medium text-gray-500">Act</th>
                         </tr>
-                      ))}
-                      {/* New Row Input */}
-                      <tr className="bg-gray-50">
-                        <td className="px-3 py-2"><input type="text" name="region" value={newPriceRow.region} onChange={handleNewPriceRowChange} className="w-full p-1 border rounded-md text-xs" placeholder="Region"/></td>
-                        <td className="px-3 py-2"><input type="text" name="destination" value={newPriceRow.destination} onChange={handleNewPriceRowChange} className="w-full p-1 border rounded-md text-xs" placeholder="Destination Name*"/></td>
-                        <td className="px-3 py-2"><input type="text" name="dayTourTime" value={newPriceRow.dayTourTime} onChange={handleNewPriceRowChange} className="w-16 p-1 border rounded-md text-xs" placeholder="Time/Days"/></td>
-                        <td className="px-3 py-2"><input type="number" step="0.01" name="dayTourPrice" value={newPriceRow.dayTourPrice} onChange={handleNewPriceRowChange} className="w-24 p-1 border rounded-md text-xs" placeholder="Day Tour ₱"/></td>
-                        <td className="px-3 py-2"><input type="number" step="0.01" name="ovnPrice" value={newPriceRow.ovnPrice} onChange={handleNewPriceRowChange} className="w-24 p-1 border rounded-md text-xs" placeholder="OVN ₱"/></td>
-                        <td className="px-3 py-2"><input type="number" step="0.01" name="threeDayTwoNightPrice" value={newPriceRow.threeDayTwoNightPrice} onChange={handleNewPriceRowChange} className="w-24 p-1 border rounded-md text-xs" placeholder="3D2N ₱"/></td>
-                        <td className="px-3 py-2"><input type="number" step="0.01" name="dropAndPickPrice" value={newPriceRow.dropAndPickPrice} onChange={handleNewPriceRowChange} className="w-24 p-1 border rounded-md text-xs" placeholder="Drop & Pick ₱"/></td>
-                        <td className="px-3 py-2 text-center"><button type="button" onClick={addPriceRow} className="text-blue-600 hover:text-blue-800"><Plus size={16}/></button></td>
-                      </tr>
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {formData.pricing.map((price, index) => (
+                          <tr key={index}>
+                            <td className="px-2 py-1"><input type="text" value={price.region || ''} onChange={(e) => handlePriceRowChange(index, 'region', e.target.value)} className="w-full p-1 border rounded-md text-xs"/></td>
+                            <td className="px-2 py-1"><input type="text" value={price.destination || ''} onChange={(e) => handlePriceRowChange(index, 'destination', e.target.value)} className="w-full p-1 border rounded-md text-xs font-medium" required/></td>
+                            <td className="px-2 py-1"><input type="text" value={price.dayTourTime || ''} onChange={(e) => handlePriceRowChange(index, 'dayTourTime', e.target.value)} className="w-16 p-1 border rounded-md text-xs"/></td>
+                            <td className="px-2 py-1"><input type="number" step="0.01" value={price.dayTourPrice || ''} onChange={(e) => handlePriceRowChange(index, 'dayTourPrice', e.target.value)} className="w-24 p-1 border rounded-md text-xs"/></td>
+                            <td className="px-2 py-1"><input type="number" step="0.01" value={price.ovnPrice || ''} onChange={(e) => handlePriceRowChange(index, 'ovnPrice', e.target.value)} className="w-24 p-1 border rounded-md text-xs"/></td>
+                            <td className="px-2 py-1"><input type="number" step="0.01" value={price.threeDayTwoNightPrice || ''} onChange={(e) => handlePriceRowChange(index, 'threeDayTwoNightPrice', e.target.value)} className="w-24 p-1 border rounded-md text-xs"/></td>
+                            <td className="px-2 py-1"><input type="number" step="0.01" value={price.dropAndPickPrice || ''} onChange={(e) => handlePriceRowChange(index, 'dropAndPickPrice', e.target.value)} className="w-24 p-1 border rounded-md text-xs"/></td>
+                            <td className="px-2 py-1 text-center"><button type="button" onClick={() => removePriceRow(index)} className="text-red-500 hover:text-red-700"><Trash2 size={14}/></button></td>
+                          </tr>
+                        ))}
+                        {/* New Row Input */}
+                        <tr className="bg-gray-50">
+                          <td className="px-2 py-1"><input type="text" name="region" value={newPriceRow.region} onChange={handleNewPriceRowChange} className="w-full p-1 border rounded-md text-xs" placeholder="Region"/></td>
+                          <td className="px-2 py-1"><input type="text" name="destination" value={newPriceRow.destination} onChange={handleNewPriceRowChange} className="w-full p-1 border rounded-md text-xs" placeholder="Destination Name*"/></td>
+                          <td className="px-2 py-1"><input type="text" name="dayTourTime" value={newPriceRow.dayTourTime} onChange={handleNewPriceRowChange} className="w-16 p-1 border rounded-md text-xs" placeholder="Time/Days"/></td>
+                          <td className="px-2 py-1"><input type="number" step="0.01" name="dayTourPrice" value={newPriceRow.dayTourPrice} onChange={handleNewPriceRowChange} className="w-24 p-1 border rounded-md text-xs" placeholder="Day Tour ₱"/></td>
+                          <td className="px-2 py-1"><input type="number" step="0.01" name="ovnPrice" value={newPriceRow.ovnPrice} onChange={handleNewPriceRowChange} className="w-24 p-1 border rounded-md text-xs" placeholder="OVN ₱"/></td>
+                          <td className="px-2 py-1"><input type="number" step="0.01" name="threeDayTwoNightPrice" value={newPriceRow.threeDayTwoNightPrice} onChange={handleNewPriceRowChange} className="w-24 p-1 border rounded-md text-xs" placeholder="3D2N ₱"/></td>
+                          <td className="px-2 py-1"><input type="number" step="0.01" name="dropAndPickPrice" value={newPriceRow.dropAndPickPrice} onChange={handleNewPriceRowChange} className="w-24 p-1 border rounded-md text-xs" placeholder="Drop & Pick ₱"/></td>
+                          <td className="px-2 py-1 text-center"><button type="button" onClick={addPriceRow} className="text-blue-600 hover:text-blue-800"><Plus size={16}/></button></td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Downpayment Rate */}
+                <div>
+                  <label
+                    htmlFor="downpaymentRate"
+                    className="block text-sm font-medium text-gray-700"
+                  >
+                    Downpayment Rate (e.g., 0.2 for 20%)
+                  </label>
+                  <input
+                    type="number"
+                    id="downpaymentRate"
+                    name="downpaymentRate"
+                    step="0.01"
+                    min="0"
+                    max="1"
+                    value={formData.downpaymentRate}
+                    onChange={handleChange}
+                    className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm"
+                  />
+                </div>
+
+                {/* Checkboxes */}
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center">
+                    <input
+                      id="requiresDownpayment"
+                      name="requiresDownpayment"
+                      type="checkbox"
+                      checked={formData.requiresDownpayment}
+                      onChange={handleChange}
+                      className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+                    />
+                    <label
+                      htmlFor="requiresDownpayment"
+                      className="ml-2 block text-sm text-gray-900"
+                    >
+                      Requires Downpayment
+                    </label>
+                  </div>
+                  <div className="flex items-center">
+                    <input
+                      id="isAvailable"
+                      name="isAvailable"
+                      type="checkbox"
+                      checked={formData.isAvailable}
+                      onChange={handleChange}
+                      className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+                    />
+                    <label
+                      htmlFor="isAvailable"
+                      className="ml-2 block text-sm text-gray-900"
+                    >
+                      Is Available
+                    </label>
+                  </div>
+                </div>
+
+                {/* Image Upload */}
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Images
+                  </label>
+                  <ImageUpload
+                    onImagesChange={handleImagesChange}
+                    existingImages={formData.images}
+                    category="transport"
+                    maxImages={10}
+                  />
                 </div>
               </div>
 
-              {/* Images */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Images</label>
-                <ImageUpload onImagesChange={handleImagesChange} existingImages={formData.images} maxImages={5} category="transport" />
+              <div className="flex justify-end mt-6">
+                <button
+                  type="button"
+                  onClick={closeModal}
+                  className="mr-3 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  form="transportForm"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg"
+                >
+                  {editingId ? 'Save Changes' : 'Create Service'}
+                </button>
               </div>
             </form>
-            {/* Modal Footer */}
-            <div className="flex justify-end gap-3 p-4 border-t bg-gray-50">
-              <button type="button" onClick={() => setShowModal(false)} className="px-6 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300">Cancel</button>
-              <button type="submit" form="transportForm" disabled={submitting} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2">
-                <Save size={16}/> {submitting ? 'Saving...' : (editingService ? 'Update Service' : 'Create Service')}
-              </button>
-            </div>
           </div>
         </div>
       )}

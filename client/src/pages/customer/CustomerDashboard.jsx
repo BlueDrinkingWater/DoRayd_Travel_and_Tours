@@ -133,7 +133,8 @@ const BookingsTab = () => {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [bookingToPay, setBookingToPay] = useState(null);
-  const socket = useSocket(); // Use socket for real-time updates
+  const { socket } = useSocket(); // Use socket for real-time updates
+  const navigate = useNavigate(); // Added useNavigate
 
   useEffect(() => {
     // Listen for updates from the server (e.g., admin confirms a booking)
@@ -859,7 +860,7 @@ const PaymentModal = ({ booking, isOpen, onClose, onSuccess }) => {
                        </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-700">Upload Payment Proof *</Tabel>
+                        <label className="block text-sm font-medium text-gray-700">Upload Payment Proof *</label> 
                         <input
                           type="file"
                           name="paymentProof"

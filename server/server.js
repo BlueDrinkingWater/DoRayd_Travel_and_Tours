@@ -29,7 +29,8 @@ import feedbackRoutes from './routes/feedback.js';
 import notificationRoutes from './routes/notification.js';
 import analyticsRoutes from './routes/analytics.js';
 import activityLogRoutes from './routes/activityLog.js';
-import imageRoutes from './routes/images.js'; // --- NEW IMPORT ---
+import imageRoutes from './routes/images.js';
+import transportRoutes from './routes/transportRoutes.js'; // <-- IMPORT NEW ROUTES
 
 // Error Handler
 import { errorHandler } from './middleware/errorHandler.js';
@@ -54,10 +55,11 @@ const corsOptions = {
         process.env.CLIENT_URL,
       ].filter(Boolean);
 
+      // Allow Vercel preview deployments
       if (origin && (/\.vercel\.app$/).test(origin)) {
         return callback(null, true);
       }
-      
+
       if (whitelist.indexOf(origin) !== -1 || !origin) {
         callback(null, true);
       } else {
@@ -85,7 +87,7 @@ app.use(defaultLimiter);
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: [process.env.CLIENT_URL, "http://localhost:3000"],
+    origin: [process.env.CLIENT_URL, "http://localhost:3000"].filter(Boolean),
     methods: ["GET", "POST"],
     credentials: true
   }
@@ -108,7 +110,7 @@ io.on('connection', (socket) => {
 app.get('/api/health', (req, res) => {
   const dbStatus = mongoose.connection.readyState;
   const isDbConnected = dbStatus === 1;
-  
+
   res.status(200).json({
     success: true,
     server: 'running',
@@ -132,34 +134,75 @@ app.use('/api/feedback', feedbackRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/activity-log', activityLogRoutes);
-app.use('/api/images', imageRoutes); // --- NEW ROUTE REGISTRATION ---
+app.use('/api/images', imageRoutes);
+app.use('/api/transport', transportRoutes); // <-- REGISTER NEW ROUTES
 
 // Error Handling Middleware
 app.use(errorHandler);
 
-// MongoDB Connection
+// MongoDB Connection and Server Start
 mongoose
   .connect(process.env.MONGODB_URI)
   .then(() => {
     console.log('✅ MongoDB Connected');
     server.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
-      
-      console.log('⏰ Starting background job to cancel expired bookings...');
+
+      // Background job for expired bookings (remains the same)
+      console.log('⏰ Starting background job to handle expired bookings...');
       setInterval(async () => {
+        const now = new Date();
         try {
-          const result = await Booking.updateMany(
-            { status: 'pending', expiresAt: { $lt: new Date() } },
-            { $set: { status: 'cancelled', adminNotes: 'Booking automatically cancelled due to expiration.' } }
-          );
-          if (result.modifiedCount > 0) {
-            console.log(`🧹 Cancelled ${result.modifiedCount} expired bookings.`);
-            io.to('admin').to('employee').emit('bookings-updated-by-system');
+          // Find pending bookings past expiration OR confirmed downpayments past due date
+          const expiredBookings = await Booking.find({
+            $or: [
+              { status: 'pending', pendingExpiresAt: { $lt: now } },
+              { status: 'confirmed', paymentOption: 'downpayment', paymentDueDate: { $lt: now } }
+            ]
+          });
+
+          if (expiredBookings.length > 0) {
+            const idsToCancel = expiredBookings.map(b => b._id);
+            const result = await Booking.updateMany(
+              { _id: { $in: idsToCancel } },
+              {
+                $set: {
+                  status: 'cancelled',
+                  notes: {
+                    note: 'Booking automatically cancelled due to expiration or missed payment deadline.',
+                    author: null, // Indicates system action
+                    date: new Date()
+                  },
+                  pendingExpiresAt: undefined, // Clear timers
+                  paymentDueDate: undefined
+                }
+              }
+            );
+
+            if (result.modifiedCount > 0) {
+              console.log(`🧹 Cancelled ${result.modifiedCount} expired/overdue bookings.`);
+              // Notify admins/employees about the cancellation
+              io.to('admin').to('employee').emit('bookings-updated-by-system', { cancelledCount: result.modifiedCount });
+
+              for (const booking of expiredBookings) {
+                 if (booking.user) {
+                     const customerMessage = `Your booking ${booking.bookingReference} was automatically cancelled due to expiration or missed payment deadline.`;
+                     await createNotification(
+                        io,
+                        { user: booking.user },
+                        customerMessage,
+                        '/my-bookings'
+                     );
+                     // Optionally send email
+                     // EmailService.sendBookingCancellation(booking, 'automatic cancellation').catch(console.error);
+                 }
+              }
+            }
           }
         } catch (error) {
-          console.error('❌ Error in expired bookings job:', error);
+          console.error('❌ Error in expired/overdue bookings job:', error);
         }
-      }, 60 * 1000);
+      }, 60 * 1000); // Run every minute
     });
   })
   .catch((err) => console.error('❌ MongoDB Connection Error:', err));

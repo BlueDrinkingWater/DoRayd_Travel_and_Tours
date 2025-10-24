@@ -17,15 +17,13 @@ const ManageCars = () => {
   const initialFormState = {
     brand: '', model: '', year: new Date().getFullYear(), seats: 5,
     transmission: 'automatic', fuelType: 'gasoline', pricePerDay: '',
-    location: '', description: '', features: [], images: [],
+    location: '', description: '', features: [], images: [], // Keep features as array
     isAvailable: true,
-    pickupLocations: [],
+    pickupLocations: [], // Keep pickupLocations as array
     paymentType: 'full',
     downpaymentType: 'percentage',
     downpaymentValue: 20,
-    // Internal state for managing new/deleted images
-    newImages: [],
-    imagesToDelete: [],
+    // Internal state for managing new/deleted images (Handled by ImageUpload component)
   };
 
   const [formData, setFormData] = useState(initialFormState);
@@ -59,24 +57,17 @@ const ManageCars = () => {
       }));
   };
 
-  const handleImagesChange = (uploadedImages) => {
-    // This function is called by ImageUpload with the *full list* of images (existing + new)
-    setFormData(prev => ({
-        ...prev,
-        // The URL is what we save to the DB
-        images: uploadedImages.map(img => img.url)
-    }));
-  };
-
    // This function is specifically for the <ImageUpload> component prop
+   // It receives the full list of image objects { url, serverId, name }
    const handleImageUploadChange = (uploadedImages) => {
-     setFormData(prev => ({ ...prev, images: uploadedImages.map(img => ({ url: img.url, serverId: img.serverId })) }));
+     setFormData(prev => ({ ...prev, images: uploadedImages }));
    };
 
 
   const addFeature = () => {
     if (newFeature.trim()) {
-      setFormData(prev => ({ ...prev, features: [...prev.features, newFeature.trim()] }));
+      // Ensure formData.features is always treated as an array
+      setFormData(prev => ({ ...prev, features: [...(Array.isArray(prev.features) ? prev.features : []), newFeature.trim()] }));
       setNewFeature('');
     }
   };
@@ -87,7 +78,8 @@ const ManageCars = () => {
 
   const addPickupLocation = () => {
     if (newPickupLocation.trim()) {
-      setFormData(prev => ({ ...prev, pickupLocations: [...prev.pickupLocations, newPickupLocation.trim()] }));
+      // Ensure formData.pickupLocations is always treated as an array
+      setFormData(prev => ({ ...prev, pickupLocations: [...(Array.isArray(prev.pickupLocations) ? prev.pickupLocations : []), newPickupLocation.trim()] }));
       setNewPickupLocation('');
     }
   };
@@ -95,7 +87,7 @@ const ManageCars = () => {
   const removePickupLocation = (index) => {
     setFormData(prev => ({ ...prev, pickupLocations: prev.pickupLocations.filter((_, i) => i !== index) }));
   };
-  
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
@@ -113,87 +105,36 @@ const ManageCars = () => {
             return;
         }
     }
-    
-    // We send FormData because ImageUpload handles file objects
-    // Note: This assumes ImageUpload component returns file objects in its `onImagesChange` prop
-    // If ImageUpload *uploads* and returns URLs, we don't need FormData
-    
-    // Let's assume ImageUpload *does not* upload, but gives us File objects
-    // We need a different handler for ImageUpload
-    
-    // --- RE-ADJUSTING LOGIC ---
-    // We will pass the File objects from ImageUpload directly
-    // `formData.images` will store the *final list of URLs* (strings)
-    // `formData.newImages` will store new *File objects*
-    // `formData.imagesToDelete` will store *URLs* to delete
 
-    const payload = new FormData();
-
-    // Append standard fields
-    Object.keys(formData).forEach(key => {
-         if (key === 'images' || key === 'newImages' || key === 'imagesToDelete' || key === '_id' || key === '__v' || key === 'createdAt' || key === 'updatedAt' || key === 'serverId') {
-            return; // Skip these
-         }
-         
-         // Handle arrays (features, pickupLocations - convert back from string)
-         if (key === 'features' || key === 'pickupLocations') {
-            // Check if it's an array or string (from manual testing)
-             if (Array.isArray(formData[key])) {
-                formData[key].forEach(item => payload.append(key, item));
-             } else if (typeof formData[key] === 'string') {
-                 // Split string back into array for backend
-                 formData[key].split(',').map(s => s.trim()).filter(Boolean).forEach(item => payload.append(key, item));
-             }
-         } else if (key === 'isAvailable') {
-             payload.append('availabilityStatus', formData[key] ? 'available' : 'unavailable');
-         } else if (key === 'paymentType' && formData.paymentType === 'full') {
-             payload.append('paymentType', 'full');
-             // Don't append downpayment fields
-         } else if ((key === 'downpaymentType' || key === 'downpaymentValue') && formData.paymentType === 'full') {
-             // Skip
-         }
-         else {
-             payload.append(key, formData[key]);
-         }
-    });
-
-    // Append existing image URLs to keep
-     if (editingCar) {
-         formData.images.forEach(img => {
-            // `img` is now an object { url, serverId } from ImageUpload
-            if (typeof img === 'string') {
-                 payload.append('existingImages', img); // Keep old string URLs
-            } else if (img && img.url) {
-                 payload.append('existingImages', img.url); // Keep existing URLs
-            }
-         });
-     }
-     
-     // We rely on ImageUpload's internal state for `imagesToDelete` and `newImages`
-     // The `handleImageUploadChange` needs to set `formData.images` (as URLs)
-     // Let's simplify: `ImageUpload` should just give us the final list of File/URL objects.
-     
-     // --- SIMPLIFIED PAYLOAD (assuming ImageUpload gives URLs) ---
+     // --- Payload preparation ---
      const simplePayload = { ...formData };
-     // We must ensure `images` is just an array of strings (URLs)
+
+     // Ensure `images` is just an array of strings (URLs) before sending
      if (simplePayload.images && Array.isArray(simplePayload.images)) {
          simplePayload.images = simplePayload.images.map(img => (typeof img === 'string' ? img : img.url)).filter(Boolean);
      }
-     // Clean up payment fields
+
+     // Ensure features and pickupLocations are arrays (Safety Check)
+     if (typeof simplePayload.features === 'string') {
+        simplePayload.features = simplePayload.features.split(',').map(s => s.trim()).filter(Boolean);
+     }
+     if (typeof simplePayload.pickupLocations === 'string') {
+        simplePayload.pickupLocations = simplePayload.pickupLocations.split(',').map(s => s.trim()).filter(Boolean);
+     }
+
+     // Clean up payment fields if 'full'
      if (simplePayload.paymentType === 'full') {
          delete simplePayload.downpaymentType;
          delete simplePayload.downpaymentValue;
      }
-    
 
     try {
       if (editingCar) {
-        // We use the simplePayload (JSON) because ImageUpload already handled uploads/deletions
+        // Update uses simplePayload (JSON) as ImageUpload handled uploads/deletions
         await DataService.updateCar(editingCar._id, simplePayload);
         alert('Car updated successfully!');
       } else {
-        // Create car also needs to handle this payload
-        // The backend controller needs to be adapted for `images` as array of URLs
+        // Create uses simplePayload (JSON)
         await DataService.createCar(simplePayload);
         alert('Car created successfully!');
       }
@@ -215,17 +156,15 @@ const ManageCars = () => {
     const processedImages = Array.isArray(car.images)
       ? car.images.map((img, index) => {
           if (typeof img === 'string') {
-            // Simple string URL
             return {
               url: img,
-              serverId: img.split('/').pop() || `img-${index}`, // Guess a serverId
+              serverId: img.split('/').pop() || `img-${index}`,
               name: img.split('/').pop() || 'image.jpg',
             };
           } else if (img && img.url) {
-            // Already in object format
             return { ...img, serverId: img.serverId || img.url.split('/').pop() || `img-${index}` };
           }
-          return null; // Invalid image entry
+          return null;
         }).filter(Boolean)
       : [];
 
@@ -233,13 +172,13 @@ const ManageCars = () => {
       ...initialFormState,
       ...car,
       images: processedImages, // Use the processed image objects
-      // Ensure payment fields have defaults if missing
       paymentType: car.paymentType || 'full',
       downpaymentType: car.downpaymentType || 'percentage',
       downpaymentValue: car.downpaymentValue || (car.paymentType === 'downpayment' ? 20 : ''),
-      // Convert arrays back to comma-separated strings for textareas
-      features: Array.isArray(car.features) ? car.features.join(', ') : (car.features || ''),
-      pickupLocations: Array.isArray(car.pickupLocations) ? car.pickupLocations.join(', ') : (car.pickupLocations || ''),
+      // --- FIX: Keep features and pickupLocations as arrays ---
+      features: Array.isArray(car.features) ? car.features : (car.features ? String(car.features).split(',').map(f => f.trim()).filter(Boolean) : []),
+      pickupLocations: Array.isArray(car.pickupLocations) ? car.pickupLocations : (car.pickupLocations ? String(car.pickupLocations).split(',').map(f => f.trim()).filter(Boolean) : []),
+      // --- END FIX ---
     });
     setShowModal(true);
   };
@@ -272,8 +211,6 @@ const ManageCars = () => {
     const action = car.isAvailable ? 'unavailable' : 'available';
     if (window.confirm(`Are you sure you want to mark this car as ${action}?`)) {
       try {
-        // We must send the full payload or at least the fields the backend expects
-        // Let's just update the 'isAvailable' flag
         await DataService.updateCar(car._id, { isAvailable: !car.isAvailable });
         fetchCars();
       } catch (error) {
@@ -285,15 +222,15 @@ const ManageCars = () => {
   const filteredCars = Array.isArray(cars) ? cars.filter(car => {
     const lowerSearchTerm = searchTerm.toLowerCase();
     const carStatus = car.archived ? 'archived' : 'active';
-    
+
     const matchesSearch = (
       car.brand?.toLowerCase().includes(lowerSearchTerm) ||
       car.model?.toLowerCase().includes(lowerSearchTerm) ||
       car.location?.toLowerCase().includes(lowerSearchTerm)
     );
-    
+
     const matchesStatus = filterStatus === 'all' || carStatus === filterStatus;
-    
+
     return matchesSearch && matchesStatus;
   }) : [];
 
@@ -417,7 +354,7 @@ const ManageCars = () => {
                         </select>
                      </div>
                 </div>
-                 
+
                  {/* --- Payment Configuration --- */}
                  <div className="border p-4 rounded-md bg-gray-50">
                     <h3 className="text-lg font-semibold mb-3 flex items-center gap-2"><DollarSign size={18}/> Payment Options</h3>
@@ -477,18 +414,42 @@ const ManageCars = () => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Features</label>
                   <div className="flex gap-2 mb-2"><input type="text" value={newFeature} onChange={(e) => setNewFeature(e.target.value)} className="flex-1 px-3 py-2 border border-gray-300 rounded-lg" placeholder="Add a feature (e.g., Air Conditioning)" onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addFeature())} /><button type="button" onClick={addFeature} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Add</button></div>
-                  {formData.features && formData.features.length > 0 && (<div className="flex flex-wrap gap-2">{formData.features.map((feature, index) => (<span key={index} className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">{feature}<button type="button" onClick={() => removeFeature(index)} className="text-blue-600 hover:text-blue-800"><X className="w-3 h-3" /></button></span>))}</div>)}
+                  {/* FIX: Ensure formData.features is an array before mapping */}
+                  {Array.isArray(formData.features) && formData.features.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                        {formData.features.map((feature, index) => (
+                          <span key={index} className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                            {feature}
+                            <button type="button" onClick={() => removeFeature(index)} className="text-blue-600 hover:text-blue-800">
+                              <X className="w-3 h-3" />
+                            </button>
+                          </span>
+                        ))}
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Pickup Locations</label>
                   <div className="flex gap-2 mb-2"><input type="text" value={newPickupLocation} onChange={(e) => setNewPickupLocation(e.target.value)} className="flex-1 px-3 py-2 border border-gray-300 rounded-lg" placeholder="Add a pickup location" onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addPickupLocation())} /><button type="button" onClick={addPickupLocation} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Add</button></div>
-                  {formData.pickupLocations && formData.pickupLocations.length > 0 && (<div className="flex flex-wrap gap-2">{formData.pickupLocations.map((location, index) => (<span key={index} className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">{location}<button type="button" onClick={() => removePickupLocation(index)} className="text-blue-600 hover:text-blue-800"><X className="w-3 h-3" /></button></span>))}</div>)}
+                  {/* FIX: Ensure formData.pickupLocations is an array before mapping */}
+                  {Array.isArray(formData.pickupLocations) && formData.pickupLocations.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                        {formData.pickupLocations.map((location, index) => (
+                          <span key={index} className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                            {location}
+                            <button type="button" onClick={() => removePickupLocation(index)} className="text-blue-600 hover:text-blue-800">
+                              <X className="w-3 h-3" />
+                            </button>
+                          </span>
+                        ))}
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Images (First image is main)</label>
                   <ImageUpload
                     onImagesChange={handleImageUploadChange}
-                    existingImages={formData.images}
+                    existingImages={formData.images} // Pass the array of image objects
                     maxImages={5}
                     category="cars"
                   />

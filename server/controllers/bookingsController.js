@@ -201,7 +201,8 @@ export const createBooking = async (req, res) => {
             amount: Number(amountPaid) || 0,
             paymentReference, // System generated ref
             manualPaymentReference: manualPaymentReference || null, // User provided ref
-            paymentProof: req.file ? req.file.path : null, // Cloudinary path
+            // --- FIX: Save the public_id (filename) instead of the full URL ---
+            paymentProof: req.file ? req.file.filename : null, // Cloudinary public_id
         };
         newBooking.payments.push(paymentData);
         newBooking.amountPaid = newBooking.payments.reduce((acc, payment) => acc + payment.amount, 0);
@@ -286,7 +287,8 @@ export const addPayment = async (req, res) => {
         const newPayment = {
             amount: paymentAmount,
             manualPaymentReference,
-            paymentProof: req.file.path, // Cloudinary path
+             // --- FIX: Save the public_id (filename) instead of the full URL ---
+            paymentProof: req.file.filename, // Cloudinary public_id
             paymentReference: `PAY-${Date.now().toString(36).toUpperCase()}` // Simple unique ID for this payment
         };
 

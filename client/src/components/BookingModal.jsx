@@ -1,7 +1,7 @@
 // client/src/components/BookingModal.jsx
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { X, Calendar, Users, Upload, CheckCircle, Shield, FileText, AlertTriangle, Tag, User as UserIcon, Mail, Phone, Home, Info } from 'lucide-react';
+import { X, Calendar, Users, Upload, CheckCircle, Shield, FileText, AlertTriangle, Tag, User as UserIcon, Mail, Phone, Home, Info, Clock, DollarSign, CreditCard, Car } from 'lucide-react'; // <-- FIX: Added 'Car' icon here
 import DataService, { SERVER_URL } from './services/DataService.jsx';
 import CalendarBooking from './CalendarBooking.jsx';
 import DropoffMap from './DropoffMap.jsx';
@@ -133,7 +133,7 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
   const handleFileChange = (e) => setFormData(prev => ({ ...prev, paymentProof: e.target.files[0] }));
   const handleLocationSelect = useCallback((location) => setFormData(prev => ({ ...prev, dropoffLocation: location.address, dropoffCoordinates: { lat: location.latitude, lng: location.longitude } })), []);
   const handleDateSelect = useCallback((date) => setFormData(prev => ({ ...prev, startDate: date })), []);
-  
+
   // **FIX:** Robust date/time combination
   const combineDateAndTime = (date, time) => {
     if (!date || !time) return null;
@@ -233,7 +233,7 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
     if (!fullStartDate) {
         return setSubmitError('Invalid start date or time selected.');
     }
-    
+
     // **FIX:** Calculate end date properly for submission
     let fullEndDate;
     if (itemType === 'car' && calculatedEndDate) {
@@ -318,6 +318,7 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
         const [hours, minutes] = time.split(':');
         const date = new Date();
         date.setHours(parseInt(hours, 10), parseInt(minutes, 10));
+        if (isNaN(date.getTime())) return 'Invalid Time';
         return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
     } catch {
         return 'Invalid Time';
@@ -330,7 +331,7 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
   const displayEndDate = itemType === 'car' && calculatedEndDate
     ? new Date(new Date(calculatedEndDate).setDate(calculatedEndDate.getDate() - 1)) // Subtract 1 day for display
     : calculatedEndDate;
-  
+
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-scale-in">
        <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] flex flex-col">
@@ -434,6 +435,12 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
                               </div>
                         </>
                       )}
+                      {/* Special Requests */}
+                      <div className="bg-gray-50 p-4 rounded-lg border">
+                          <h3 className="font-semibold mb-3 text-gray-800">Special Requests</h3>
+                          <textarea name="specialRequests" value={formData.specialRequests} onChange={(e) => setFormData({ ...formData, specialRequests: e.target.value })} className="w-full p-2 border rounded-md" rows="3" placeholder="Any special needs or requests? (optional)"></textarea>
+                      </div>
+
                     </div>
 
                     {/* Right Column: Payment & Summary */}
@@ -500,27 +507,41 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
                         </div>
                       </div>
 
-                      {/* Summary */}
+                      {/* --- UPDATED SUMMARY SECTION --- */}
                       <div className="bg-gray-50 p-4 rounded-lg border">
                           <h3 className="text-lg font-semibold text-gray-900 mb-4">Booking Summary</h3>
                           <div className="space-y-2 text-sm">
-                            <div className="flex justify-between"><span className="text-gray-600">Name:</span><span className="font-medium text-right">{formData.firstName} {formData.lastName}</span></div>
+                            {/* Personal Info */}
+                            <div className="flex justify-between"><span className="text-gray-600 flex items-center gap-1.5"><UserIcon size={14}/>Name:</span><span className="font-medium text-right">{formData.firstName} {formData.lastName}</span></div>
+                            <div className="flex justify-between"><span className="text-gray-600 flex items-center gap-1.5"><Mail size={14}/>Email:</span><span className="font-medium text-right">{formData.email}</span></div>
+                            <div className="flex justify-between"><span className="text-gray-600 flex items-center gap-1.5"><Phone size={14}/>Phone:</span><span className="font-medium text-right">{formData.phone}</span></div>
+                            <div className="flex justify-between"><span className="text-gray-600 flex items-center gap-1.5"><Home size={14}/>Address:</span><span className="font-medium text-right">{formData.address}</span></div>
+                            <hr className="my-2 border-gray-200"/>
+
+                            {/* Service Details */}
                             <div className="flex justify-between"><span className="text-gray-600">Service:</span><span className="font-medium text-right">{itemType === 'car' ? `${item.brand} ${item.model}` : item.title}</span></div>
+                            <div className="flex justify-between"><span className="text-gray-600 flex items-center gap-1.5"><Calendar size={14}/>From:</span><span className="font-medium text-right">{formatDate(formData.startDate)} at {formatTime(formData.time)}</span></div>
+                            <div className="flex justify-between"><span className="text-gray-600 flex items-center gap-1.5"><Calendar size={14}/>To:</span><span className="font-medium text-right">{formatDate(displayEndDate)}</span></div>
+
+                            {/* Conditional Details */}
+                            {itemType === 'car' && <div className="flex justify-between"><span className="text-gray-600 flex items-center gap-1.5"><Clock size={14}/>Days:</span><span className="font-medium text-right">{formData.numberOfDays}</span></div>}
+                            {/* --- LINE 528 (approx) --- */}
+                            {itemType === 'car' && <div className="flex justify-between"><span className="text-gray-600 flex items-center gap-1.5"><Car size={14}/>Delivery:</span><span className="font-medium capitalize text-right">{formData.deliveryMethod === 'pickup' ? formData.pickupLocation : (formData.dropoffLocation || 'Map Pin')}</span></div>}
+                            {itemType === 'tour' && <div className="flex justify-between"><span className="text-gray-600 flex items-center gap-1.5"><Users size={14}/>Guests:</span><span className="font-medium text-right">{formData.numberOfGuests}</span></div>}
+
+                            {formData.specialRequests && <div className="flex justify-between"><span className="text-gray-600 flex items-center gap-1.5"><Info size={14}/>Requests:</span><span className="font-medium text-right">{formData.specialRequests}</span></div>}
                             <hr className="my-2 border-gray-200"/>
-                            <div className="flex justify-between"><span className="text-gray-600">From:</span><span className="font-medium text-right">{formatDate(formData.startDate)} at {formatTime(formData.time)}</span></div>
-                            <div className="flex justify-between"><span className="text-gray-600">To:</span><span className="font-medium text-right">{formatDate(displayEndDate)}</span></div>
-                            {itemType === 'car' && <div className="flex justify-between"><span className="text-gray-600">Days:</span><span className="font-medium text-right">{formData.numberOfDays}</span></div>}
-                             {itemType === 'car' && <div className="flex justify-between"><span className="text-gray-600">Delivery:</span><span className="font-medium capitalize text-right">{formData.deliveryMethod === 'pickup' ? formData.pickupLocation : (formData.dropoffLocation || 'Map Pin')}</span></div>}
-                            {itemType === 'tour' && <div className="flex justify-between"><span className="text-gray-600">Guests:</span><span className="font-medium text-right">{formData.numberOfGuests}</span></div>}
-                            <hr className="my-2 border-gray-200"/>
-                             {item.promotion && (
+
+                            {/* Payment Info */}
+                            <div className="flex justify-between"><span className="text-gray-600 flex items-center gap-1.5"><CreditCard size={14}/>Pay Option:</span><span className="font-medium text-right capitalize">{selectedPaymentOption}</span></div>
+                            {item.promotion && (
                                 <>
-                                <div className="flex justify-between text-gray-500"><span >Original Price:</span><span className="line-through">{formatPrice(item.originalPrice || item.pricePerDay || item.price)}</span></div>
-                                <div className="flex justify-between text-green-600"><span>Discount ({item.promotion.title}):</span><span>- {formatPrice((item.originalPrice || item.pricePerDay || item.price) - totalPrice)}</span></div>
+                                <div className="flex justify-between text-gray-500"><span className="flex items-center gap-1.5"><DollarSign size={14}/>Original Price:</span><span className="line-through">{formatPrice(item.originalPrice || item.pricePerDay || item.price)}</span></div>
+                                <div className="flex justify-between text-green-600"><span className="flex items-center gap-1.5"><Tag size={14}/>Discount ({item.promotion.title}):</span><span>- {formatPrice((item.originalPrice || item.pricePerDay || item.price) - totalPrice)}</span></div>
                                 </>
                              )}
                             <div className="flex justify-between items-center mt-2 pt-2 border-t border-gray-300">
-                                <span className="font-semibold text-gray-900">Total Amount:</span>
+                                <span className="font-semibold text-gray-900 flex items-center gap-1.5"><DollarSign size={14}/>Total Amount:</span>
                                 <span className="font-bold text-lg text-blue-600">{formatPrice(totalPrice)}</span>
                             </div>
                              {selectedPaymentOption === 'downpayment' && (
@@ -529,17 +550,21 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
                                   <span className="font-bold text-lg">{formatPrice(requiredPayment)}</span>
                                 </div>
                               )}
-                             <div className="flex justify-between items-center mt-2 pt-2 border-t border-red-300 bg-red-50 p-2 rounded-md">
+                            <div className="flex justify-between items-center mt-2 pt-2 border-t border-red-300 bg-red-50 p-2 rounded-md">
                                 <span className="text-lg font-semibold text-red-700">Amount to Pay Now:</span>
                                 <span className="text-xl font-bold text-red-700">{formatPrice(requiredPayment)}</span>
-                              </div>
+                            </div>
                             {selectedPaymentOption === 'downpayment' && totalPrice > requiredPayment && (
                                 <p className="text-xs text-gray-600 text-center pt-2 italic">
                                 Remaining balance of {formatPrice(totalPrice - requiredPayment)} due upon service.
                                 </p>
                             )}
+                             <div className="flex justify-between"><span className="text-gray-600">Sys. Ref Code:</span><span className="font-medium font-mono text-xs text-right">{paymentReferenceCode}</span></div>
+                             <div className="flex justify-between"><span className="text-gray-600">Bank Ref Code:</span><span className="font-medium text-right">{formData.manualPaymentReference || 'N/A'}</span></div>
+                             <div className="flex justify-between"><span className="text-gray-600">Payment Proof:</span><span className="font-medium text-right text-xs">{formData.paymentProof?.name || 'Not Uploaded'}</span></div>
                           </div>
                       </div>
+                      {/* --- END UPDATED SUMMARY SECTION --- */}
 
                       {/* Terms */}
                       <div className="flex items-start mt-4">

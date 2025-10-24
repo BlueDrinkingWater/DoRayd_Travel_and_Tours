@@ -1,6 +1,6 @@
 // client/src/pages/owner/ManageTransport.jsx
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react'; // Added useMemo
 import { toast } from 'react-toastify';
 import {
   Edit,
@@ -59,9 +59,11 @@ const ManageTransport = () => {
       // Fetch using DataService directly
       const data = await DataService.fetchAllTransportAdmin({ archived: viewArchived });
       if (data.success) {
-        setServices(data.services);
+        // The API returns data in the 'data' field
+        setServices(data.data || []); // Use data.data and default to empty array
+        setError(null); // Clear previous errors on success
       } else {
-        throw new Error(data.message);
+        throw new Error(data.message || 'Unknown error fetching data');
       }
     } catch (err) {
       setError(err.message || 'Failed to fetch transport services');
@@ -69,17 +71,18 @@ const ManageTransport = () => {
     } finally {
       setLoading(false);
     }
-  }, [viewArchived]); // Removed 'api' from dependency array
+  }, [viewArchived]); // Dependency is viewArchived
 
   useEffect(() => {
     fetchServices();
-  }, [fetchServices, viewArchived]);
+  }, [fetchServices]); // useEffect depends on the fetchServices callback
 
   const openModal = (service = null) => {
     if (service) {
+      // Correctly map image URLs to the format ImageUpload expects
       const imageObjects =
         service.images?.map((url) => ({
-          url: url,
+          url: url, // Assuming URL is the Cloudinary path/URL
           serverId: url,
           name: 'Existing Image',
         })) || [];
@@ -90,7 +93,7 @@ const ManageTransport = () => {
         capacity: service.capacity || '',
         amenities: service.amenities || [],
         description: service.description || '',
-        images: imageObjects, 
+        images: imageObjects, // Use the processed image objects
         downpaymentRate: service.downpaymentRate || 0,
         requiresDownpayment: service.requiresDownpayment !== false,
         isAvailable: service.isAvailable !== false,
@@ -100,7 +103,7 @@ const ManageTransport = () => {
       setEditingId(service._id);
     } else {
       setFormData(initialFormState);
-      setEditingId(null);
+      setEditingId(null); // Ensure editingId is null for new service
     }
     setNewPriceRow(initialNewPriceRow);
     setIsModalOpen(true);
@@ -148,6 +151,7 @@ const ManageTransport = () => {
     }));
   };
 
+  // This function receives the array of image objects from ImageUpload
   const handleImagesChange = (images) => {
     setFormData((prev) => ({
       ...prev,
@@ -184,6 +188,7 @@ const ManageTransport = () => {
     setNewPriceRow(initialNewPriceRow);
   };
 
+  // Remove price row logic remains the same
   const removePriceRow = (index) => {
     if (
       window.confirm(
@@ -202,21 +207,23 @@ const ManageTransport = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    // Extract just the URLs for the API payload
     const imagesForApi = formData.images.map((img) => img.url);
 
     try {
+      // Create the data payload for the API
       const dataToSend = { ...formData, images: imagesForApi };
 
       let response;
       if (editingId) {
         // Use DataService to update
         response = await DataService.updateTransport(editingId, dataToSend);
-        if (!response.success) throw new Error(response.message);
+        if (!response.success) throw new Error(response.message || 'Update failed');
         toast.success(response.message || 'Transport service updated!');
       } else {
         // Use DataService to create
         response = await DataService.createTransport(dataToSend);
-        if (!response.success) throw new Error(response.message);
+        if (!response.success) throw new Error(response.message || 'Creation failed');
         toast.success(response.message || 'Transport service created!');
       }
       fetchServices();
@@ -242,10 +249,10 @@ const ManageTransport = () => {
         } else {
           response = await DataService.archiveTransport(service._id);
         }
-        if (!response.success) throw new Error(response.message);
+        if (!response.success) throw new Error(response.message || `Failed to ${action}`);
         
         toast.success(response.message || `Service ${action}d!`);
-        fetchServices();
+        fetchServices(); // Refetch the list
       } catch (err) {
         toast.error(err.message || `Failed to ${action} service`);
       }
@@ -254,9 +261,10 @@ const ManageTransport = () => {
   
   // --- End of Fix ---
 
-  const filteredServices = services.filter(
+  // Use useMemo for filtering if needed, though API might handle it
+  const filteredServices = useMemo(() => services.filter(
     (service) => service.archived === viewArchived
-  );
+  ), [services, viewArchived]);
 
   if (loading) return <div>Loading...</div>;
   if (error) return <div className="text-red-500">{error}</div>;
@@ -268,16 +276,16 @@ const ManageTransport = () => {
         <div>
           <button
             onClick={() => setViewArchived(!viewArchived)}
-            className="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg mr-4"
+            className="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg mr-4 flex items-center gap-2" // Added flex items-center gap-2
           >
-            {viewArchived ? <Eye className="w-5 h-5" /> : <Archive className="w-5 h-5" />}
+            {viewArchived ? <Eye size={18} /> : <Archive size={18} />}
             {viewArchived ? ' View Active' : ' View Archived'}
           </button>
           <button
             onClick={() => openModal()}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg"
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg inline-flex items-center gap-2" // Use inline-flex
           >
-            <PlusCircle className="w-5 h-5 inline-block mr-2" />
+            <PlusCircle className="w-5 h-5" />
             Add Transport
           </button>
         </div>
@@ -340,11 +348,11 @@ const ManageTransport = () => {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <button
                       onClick={() => openModal(service)}
-                      className="text-indigo-600 hover:text-indigo-900 mr-4"
+                      className="text-indigo-600 hover:text-indigo-900 mr-4 inline-flex items-center" // Use inline-flex
                     >
                       <Edit className="w-5 h-5" />
                     </button>
-                    <button
+                    <button // Button styles remain the same for toggle
                       onClick={() => handleToggleArchive(service)}
                       className={
                         service.archived
@@ -382,7 +390,7 @@ const ManageTransport = () => {
             <h2 className="text-2xl font-bold mb-6">
               {editingId ? 'Edit Transport Service' : 'Add Transport Service'}
             </h2>
-            <form id="transportForm" onSubmit={handleSubmit}>
+            <form id="transportForm" onSubmit={handleSubmit} className="space-y-6"> {/* Added space-y-6 */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Vehicle Type */}
                 <div>
@@ -626,13 +634,13 @@ const ManageTransport = () => {
 
               <div className="flex justify-end mt-6">
                 <button
-                  type="button"
+                  type="button" // Important to prevent form submission
                   onClick={closeModal}
                   className="mr-3 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg"
                 >
                   Cancel
                 </button>
-                <button
+                <button // Submit button remains the same
                   type="submit"
                   form="transportForm"
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg"

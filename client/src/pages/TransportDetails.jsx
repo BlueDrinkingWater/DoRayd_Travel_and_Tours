@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import useApi from '../hooks/useApi';
-import DataService from '../components/services/DataService'; // Import DataService
+import DataService, { getImageUrl } from '../components/services/DataService'; // Import DataService and getImageUrl
 import BookingModal from '../components/BookingModal';
 import { toast } from 'react-toastify';
 import { ChevronLeft, ChevronRight, CheckCircle } from 'lucide-react';
@@ -20,7 +20,7 @@ const TransportDetails = () => {
     loading,
     error: hookError, // This catches JS/network errors
     execute: fetchService,
-  } = useApi(DataService.fetchTransportById, [], { immediate: false });
+  } = useApi(() => DataService.fetchTransportById(id), [], { immediate: false }); // Pass ID via closure
 
   // 2. Use useEffect to call execute once the 'id' is available.
   useEffect(() => {
@@ -31,7 +31,7 @@ const TransportDetails = () => {
   }, [id, fetchService]);
 
   // 3. Get the actual service object and the *real* error
-  const service = serviceData?.service;
+  const service = serviceData?.data; // Correctly access the service object
   // The real error is EITHER an error from the hook OR a { success: false } response
   const realError = hookError || (serviceData?.success === false ? serviceData.message : null);
 
@@ -73,7 +73,7 @@ const TransportDetails = () => {
 
   // Now we check for the realError
   if (realError)
-    return <div className="container mx-auto p-4 pt-24 text-red-500">Error: {realError.message || String(realError)}</div>;
+    return <div className="container mx-auto p-4 pt-24 text-red-500">Error: {String(realError)}</div>;
 
   // This check is still valid, in case loading is done but data is missing
   if (!service) return <div className="container mx-auto p-4 pt-24 text-center">Service not found.</div>;
@@ -81,7 +81,7 @@ const TransportDetails = () => {
 
   const mainImage =
     service.images && service.images.length > 0
-      ? service.images[currentImageIndex]
+      ? getImageUrl(service.images[currentImageIndex]) // Use getImageUrl
       : 'https://via.placeholder.com/800x600.png?text=No+Image+Available';
 
   return (

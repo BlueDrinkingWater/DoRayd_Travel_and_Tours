@@ -1,7 +1,8 @@
+// client/src/pages/employee/EmployeeDashboard.jsx
 import React, { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import {
-    LayoutDashboard, Car, MapPin, Calendar, MessageSquare, LogOut, Menu, X, FileText, Settings, Star, Users, HelpCircle, Tag, Award, Heart, Clock, Bell
+    LayoutDashboard, Car, MapPin, Calendar, MessageSquare, LogOut, Menu, X, FileText, Settings, Star, Users, HelpCircle, Tag, Award, Heart, Clock, Bell, Bus // <-- Imported Bus
 } from 'lucide-react';
 import { useAuth } from '../../components/Login.jsx';
 import DataService from '../../components/services/DataService.jsx';
@@ -55,6 +56,7 @@ const EmployeeDashboard = () => {
     { name: 'Dashboard', href: '/employee/dashboard', icon: LayoutDashboard, permission: 'dashboard' },
     { name: 'Manage Cars', href: '/employee/manage-cars', icon: Car, permission: 'cars' },
     { name: 'Manage Tours', href: '/employee/manage-tours', icon: MapPin, permission: 'tours' },
+    { name: 'Manage Transport', href: '/employee/manage-transport', icon: Bus, permission: 'transport' }, // <-- ADDED
     { name: 'Manage Bookings', href: '/employee/manage-bookings', icon: Calendar, permission: 'bookings' },
     { name: 'Manage Reviews', href: '/employee/manage-reviews', icon: Star, permission: 'reviews' },
     { name: 'Manage Feedback', href: '/employee/manage-feedback', icon: Heart, permission: 'feedback' },
@@ -69,8 +71,10 @@ const EmployeeDashboard = () => {
 
   const hasPermission = (permission) => {
     if (!user || !user.permissions) return false;
+    // Allow dashboard access for all employees
     if (permission === 'dashboard') return true;
-    return user.permissions.some(p => p.module === permission);
+    // Check if the user has at least 'read' access for the module
+    return user.permissions.some(p => p.module === permission && ['read', 'write', 'full'].includes(p.access));
   };
 
   const navigation = allNavItems.filter(item => hasPermission(item.permission));

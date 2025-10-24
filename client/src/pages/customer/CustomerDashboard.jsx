@@ -1,7 +1,7 @@
 // client/src/pages/customer/CustomerDashboard.jsx
 import React, { useState, useEffect, useMemo } from 'react';
 import {
-    Calendar, Clock, Car, MapPin, Star, MessageSquare, Settings, User, Heart, Award, Upload, Menu, X, ChevronRight, Eye, Check, FileText, Link as LinkIcon, Hash, Package, DollarSign, ImageIcon, Paperclip, AlertTriangle, Info, CreditCard
+    Calendar, Clock, Car, MapPin, Star, MessageSquare, Settings, User, Heart, Award, Upload, Menu, X, ChevronRight, Eye, Check, FileText, Link as LinkIcon, Hash, Package, DollarSign, ImageIcon, Paperclip, AlertTriangle, Info, CreditCard, Bus // <-- Imported Bus
 } from 'lucide-react';
 import { useAuth } from '@/components/Login.jsx';
 import { useApi } from '@/hooks/useApi.jsx';
@@ -139,14 +139,16 @@ const BookingDetailModal = ({ booking, onClose }) => {
                                 <InfoRow label="Address" value={booking.address} />
                             </InfoBlock>
                             <InfoBlock title="Booking Details" icon={Calendar}>
-                                <InfoRow label="Service Type" value={booking.itemType} icon={booking.itemType === 'car' ? Car : Package} />
+                                {/* <-- UPDATED ICON --> */}
+                                <InfoRow label="Service Type" value={booking.itemType} icon={booking.itemType === 'car' ? Car : booking.itemType === 'tour' ? Package : Bus} />
                                 <InfoRow label="Service Name" value={booking.itemName} />
                                 <InfoRow label="Pickup/Start" value={formatDateTime(booking.startDate)} icon={Clock} />
                                 {booking.endDate && <InfoRow label="Return Date" value={formatDate(booking.endDate)} />}
+                                {/* <-- UPDATED DETAILS LOGIC --> */}
                                 {booking.itemType === 'car' && <InfoRow label="Delivery Method" value={booking.deliveryMethod} />}
                                 {booking.itemType === 'car' && booking.deliveryMethod === 'pickup' && <InfoRow label="Pickup Location" value={booking.pickupLocation} />}
                                 {booking.itemType === 'car' && booking.deliveryMethod === 'dropoff' && <InfoRow label="Dropoff Location" value={booking.dropoffLocation} />}
-                                {booking.itemType === 'tour' && <InfoRow label="Guests" value={booking.numberOfGuests} />}
+                                {booking.itemType === 'tour' || booking.itemType === 'transport' ? <InfoRow label="Guests/Passengers" value={booking.numberOfGuests} /> : null }
                                 <InfoRow label="Special Requests" value={booking.specialRequests} />
                             </InfoBlock>
                         </div>
@@ -351,7 +353,7 @@ const AddPaymentModal = ({ booking, onClose, onPaymentSuccess }) => {
                 </form>
 
                 <div className="p-6 border-t sticky bottom-0 bg-white z-10">
-                     <div className="flex justify-end gap-3">
+                    <div className="flex justify-end gap-3">
                         <button type="button" onClick={onClose} className="px-6 py-2 bg-gray-200 rounded-lg text-gray-700 hover:bg-gray-300 transition-colors font-medium">Cancel</button>
                         <button type="submit" form="paymentForm" disabled={submitting} className="px-6 py-2 bg-blue-600 text-white rounded-lg disabled:opacity-50 flex items-center gap-2 font-medium hover:bg-blue-700 transition-colors">
                             {submitting ? 'Submitting...' : 'Submit Payment'}
@@ -443,12 +445,12 @@ const OverviewTab = ({ bookings, onBookingSelect }) => {
                                 </div>
                                 {getStatusBadge(booking.status)}
                             </div>
-                              <button
-                                  onClick={() => onBookingSelect(booking)}
-                                  className="text-xs text-blue-600 hover:underline mt-2 flex items-center gap-1"
-                              >
-                                  <Eye size={12} /> View Details
-                              </button>
+                             <button
+                                 onClick={() => onBookingSelect(booking)}
+                                 className="text-xs text-blue-600 hover:underline mt-2 flex items-center gap-1"
+                             >
+                                 <Eye size={12} /> View Details
+                             </button>
                         </div>
                     ))}
                     {bookings.length === 0 && (
@@ -472,10 +474,11 @@ const BookingsTab = ({ bookings, onBookingSelect, onAddPayment }) => {
                 <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-4">
                     <div className="flex items-start gap-4">
                         <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-3 rounded-lg shadow-md flex-shrink-0 mt-1">
-                            {booking.itemType === 'car' ?
-                                <Car className="w-6 h-6 text-white" /> :
-                                <MapPin className="w-6 h-6 text-white" />
-                            }
+                             {/* <-- UPDATED ICON --> */}
+                             {booking.itemType === 'car' ? <Car className="w-6 h-6 text-white" /> :
+                              booking.itemType === 'tour' ? <MapPin className="w-6 h-6 text-white" /> :
+                              <Bus className="w-6 h-6 text-white" />
+                             }
                         </div>
                         <div className="flex-grow">
                             <h3 className="font-semibold text-lg text-gray-900">{booking.itemName}</h3>
@@ -519,6 +522,8 @@ const BookingsTab = ({ bookings, onBookingSelect, onAddPayment }) => {
                 <p className="text-gray-500 text-lg">You have no bookings yet.</p>
                 <Link to="/cars" className="mt-4 inline-block bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors">Book a Car</Link>
                 <Link to="/tours" className="mt-4 ml-2 inline-block bg-purple-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-purple-700 transition-colors">Book a Tour</Link>
+                {/* <-- ADDED TRANSPORT LINK --> */}
+                <Link to="/transport" className="mt-4 ml-2 inline-block bg-indigo-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-indigo-700 transition-colors">Book Transport</Link>
             </div>
         )}
     </div>
@@ -533,12 +538,15 @@ const MyReviewsTab = ({ reviews }) => {
                 <div key={review._id} className="bg-white/80 backdrop-blur-md p-6 border border-white/20 rounded-xl">
                     <div className="flex justify-between items-start">
                         <div>
-                            <h3 className="font-semibold text-lg text-gray-900">{review.item?.title || (review.item ? `${review.item.brand} ${review.item.model}` : 'Service')}</h3>
+                            {/* Correctly display item name based on populated 'item' field */}
+                            <h3 className="font-semibold text-lg text-gray-900">
+                              {review.item ? (review.itemType === 'car' ? `${review.item.brand} ${review.item.model}` : review.item.title || review.item.vehicleType) : 'Service Name Unavailable'}
+                            </h3>
                             <p className="text-sm text-gray-500">Booking: {review.booking?.bookingReference || 'N/A'}</p>
                         </div>
-                        <div className={`text-sm px-3 py-1 rounded-full ${review.isApproved ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                         <div className={`text-sm px-3 py-1 rounded-full ${review.isApproved ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
                             {review.isApproved ? 'Approved' : 'Pending'}
-                        </div>
+                         </div>
                     </div>
                     <div className="flex items-center gap-1 mt-2">
                         {[...Array(5)].map((_, i) => (
@@ -571,7 +579,7 @@ const MyFeedbackTab = ({ feedback }) => {
                         </div>
                          <div className={`text-sm px-3 py-1 rounded-full ${fb.isPublic ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'}`}>
                             {fb.isPublic ? 'Public' : 'Private'}
-                        </div>
+                         </div>
                     </div>
                     <p className="text-gray-700 mt-3 whitespace-pre-wrap">{fb.message}</p>
                     {fb.image && (
@@ -601,7 +609,7 @@ const LeaveReviewTab = ({ bookings, reviewedBookingIds, onReviewSubmit }) => {
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
 
-    const availableBookings = bookings.filter(b => !reviewedBookingIds.has(String(b._id)));
+    const availableBookings = bookings.filter(b => b.status === 'completed' && !reviewedBookingIds.has(String(b._id)));
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -612,15 +620,15 @@ const LeaveReviewTab = ({ bookings, reviewedBookingIds, onReviewSubmit }) => {
         }
 
         const booking = bookings.find(b => b._id === selectedBookingId);
-        if (!booking) {
-            return setError('Selected booking not found.');
+        if (!booking || !booking.itemId) { // Ensure itemId exists
+            return setError('Selected booking or associated service not found.');
         }
 
         setSubmitting(true);
         try {
             const reviewData = {
-                booking: booking._id,
-                item: booking.itemId._id, // Send the item ID itself
+                bookingId: booking._id,       // Corrected field name
+                itemId: booking.itemId._id, // Send the item ID itself
                 itemType: booking.itemType,
                 rating,
                 comment,
@@ -647,9 +655,9 @@ const LeaveReviewTab = ({ bookings, reviewedBookingIds, onReviewSubmit }) => {
             <h2 className="text-2xl font-bold mb-6 text-gray-900">Leave a Review</h2>
             {availableBookings.length === 0 ? (
                  <div className="text-center py-8 text-gray-500">
-                    <Award className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                    <p>You have no completed bookings available to review.</p>
-                </div>
+                     <Award className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                     <p>You have no completed bookings available to review.</p>
+                 </div>
             ) : (
                 <form onSubmit={handleSubmit} className="space-y-6">
                     {error && <div className="bg-red-100 text-red-700 p-3 rounded-lg text-sm">{error}</div>}
@@ -666,7 +674,7 @@ const LeaveReviewTab = ({ bookings, reviewedBookingIds, onReviewSubmit }) => {
                             <option value="">-- Select a booking to review --</option>
                             {availableBookings.map(b => (
                                 <option key={b._id} value={b._id}>
-                                    {b.itemName} (Ref: {b.bookingReference}) - Completed {formatDate(b.endDate)}
+                                    {b.itemName} (Ref: {b.bookingReference}) - Completed {formatDate(b.endDate || b.startDate)}
                                 </option>
                             ))}
                         </select>
@@ -725,7 +733,7 @@ const LeaveFeedbackTab = ({ bookings, feedbackBookingIds, onFeedbackSubmit }) =>
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
 
-    const availableBookings = bookings.filter(b => !feedbackBookingIds.has(String(b._id)));
+    const availableBookings = bookings.filter(b => b.status === 'completed' && !feedbackBookingIds.has(String(b._id)));
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -743,7 +751,7 @@ const LeaveFeedbackTab = ({ bookings, feedbackBookingIds, onFeedbackSubmit }) =>
             formData.append('message', message);
             formData.append('isPublic', isPublic);
             if (bookingId) {
-                formData.append('booking', bookingId);
+                formData.append('bookingId', bookingId); // Corrected field name
             }
             if (image) {
                 formData.append('image', image);
@@ -996,13 +1004,13 @@ const CustomerDashboard = () => {
                     {sidebarOpen && (
                         <div className="p-6 border-b border-white/10">
                             <div className="flex items-center gap-3">
-                                 <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center font-bold text-lg overflow-hidden flex-shrink-0">
+                                <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center font-bold text-lg overflow-hidden flex-shrink-0">
                                      {user?.profilePicture ? (
-                                        <img src={getImageUrl(user.profilePicture)} alt="Profile" className="w-full h-full object-cover" />
+                                         <img src={getImageUrl(user.profilePicture)} alt="Profile" className="w-full h-full object-cover" />
                                      ) : (
-                                        <span>{user?.firstName?.[0]}{user?.lastName?.[0]}</span>
+                                         <span>{user?.firstName?.[0]}{user?.lastName?.[0]}</span>
                                      )}
-                                 </div>
+                                </div>
                                 <div>
                                     <p className="font-semibold">{user?.firstName} {user?.lastName}</p>
                                     <p className="text-white/70 text-sm">Customer</p>

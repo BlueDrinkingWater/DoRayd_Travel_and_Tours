@@ -1,8 +1,7 @@
 // client/src/components/shared/NavigationComponents.jsx
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Menu, X, User, LogOut, Shield, UserCheck, Phone, Mail, MapPin, Clock, LayoutDashboard, Settings } from 'lucide-react';
+import { Menu, X, User, LogOut, Shield, UserCheck, Phone, Mail, MapPin, Clock, LayoutDashboard, Settings, Bus } from 'lucide-react'; // <-- Imported Bus
 import { useAuth } from '../Login';
 import logo from '../../assets/logo.svg';
 import { useSocket } from '../../hooks/useSocket';
@@ -23,6 +22,7 @@ export const Navbar = ({ onCustomerLogin, onStaffLogin, onRegister }) => {
     { name: 'Home', href: '/' },
     { name: 'Cars', href: '/cars' },
     { name: 'Tours', href: '/tours' },
+    { name: 'Transport', href: '/transport' }, // <-- ADDED
     { name: 'About', href: '/about' },
     { name: 'Contact', href: '/contact' },
     { name: 'Feedback', href: '/feedback' },
@@ -272,6 +272,7 @@ export const Footer = () => {
               <li><Link to="/" className="text-gray-300 hover:text-white transition-colors">Home</Link></li>
               <li><Link to="/cars" className="text-gray-300 hover:text-white transition-colors">Cars</Link></li>
               <li><Link to="/tours" className="text-gray-300 hover:text-white transition-colors">Tours</Link></li>
+              <li><Link to="/transport" className="text-gray-300 hover:text-white transition-colors">Transport</Link></li> {/* <-- ADDED */}
               <li><Link to="/about" className="text-gray-300 hover:text-white transition-colors">About</Link></li>
               <li><Link to="/contact" className="text-gray-300 hover:text-white transition-colors">Contact</Link></li>
             </ul>
@@ -294,7 +295,7 @@ export const Footer = () => {
         </div>
         
         <div className="mt-8 pt-8 border-t border-gray-700 text-center text-gray-300">
-          <p>&copy; 2024 Do Rayd Travel and Tours. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} Do Rayd Travel and Tours. All rights reserved.</p> {/* Updated Year Dynamically */}
         </div>
       </div>
     </footer>

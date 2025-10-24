@@ -1,9 +1,11 @@
+// client/src/pages/owner/EmployeeManagement.jsx
 import React, { useState, useEffect } from 'react';
 import { Plus, Edit3, Trash2, Key, Shield, Briefcase } from 'lucide-react';
 import DataService from '../../components/services/DataService.jsx';
 import { useApi } from '../../hooks/useApi.jsx';
 
-const permissionModules = ['bookings', 'cars', 'tours', 'messages', 'reports', 'content', 'promotions', 'faqs', 'feedback', 'reviews'];
+// <-- ADDED 'transport' HERE
+const permissionModules = ['bookings', 'cars', 'tours', 'transport', 'messages', 'reports', 'content', 'promotions', 'faqs', 'feedback', 'reviews'];
 
 const EmployeeManagement = () => {
   const { data: employeesData, loading, refetch: fetchEmployees } = useApi(DataService.fetchAllEmployees);
@@ -133,7 +135,7 @@ const EmployeeManagement = () => {
                                 {emp.role}
                             </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">
+                        <td className="px-6 py-4 whitespace-nowGrap text-xs text-gray-500">
                           {emp.permissions?.map(p => p.module).join(', ') || 'None'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right space-x-2">

@@ -589,6 +589,80 @@ const DataService = {
     }
   },
 
+  // --- NEW: Transport Service Management ---
+  fetchAllTransportAdmin: async (params = {}) => {
+    try {
+      const response = await api.get('/api/transport/admin/all', { params });
+      return response.data;
+    } catch (error) {
+      return handleError(error, 'Failed to fetch transport services for admin.');
+    }
+  },
+
+  fetchAllTransport: async (filters = {}) => {
+    try {
+      const response = await api.get('/api/transport', { params: filters });
+      return response.data;
+    } catch (error) {
+      return handleError(error, 'Failed to fetch transport services.');
+    }
+  },
+
+  fetchTransportById: async (id) => {
+    try {
+      const response = await api.get(`/api/transport/${id}`);
+      return response.data;
+    } catch (error) {
+      return handleError(error, 'Failed to fetch transport service details.');
+    }
+  },
+
+  createTransport: async (data) => {
+    try {
+      const response = await api.post('/api/transport', data);
+      return response.data;
+    } catch (error) {
+      return handleError(error, 'Failed to create transport service.');
+    }
+  },
+
+  updateTransport: async (id, data) => {
+    try {
+      const response = await api.put(`/api/transport/${id}`, data);
+      return response.data;
+    } catch (error) {
+      return handleError(error, 'Failed to update transport service.');
+    }
+  },
+
+  archiveTransport: async (id) => {
+    try {
+      const response = await api.patch(`/api/transport/${id}/archive`);
+      return response.data;
+    } catch (error) {
+      return handleError(error, 'Failed to archive transport service.');
+    }
+  },
+
+  unarchiveTransport: async (id) => {
+    try {
+      const response = await api.patch(`/api/transport/${id}/unarchive`);
+      return response.data;
+    } catch (error) {
+      return handleError(error, 'Failed to restore transport service.');
+    }
+  },
+
+  deleteTransport: async (id) => {
+    try {
+      const response = await api.delete(`/api/transport/${id}`);
+      return response.data;
+    } catch (error) {
+      return handleError(error, 'Failed to delete transport service.');
+    }
+  },
+  // --- END: Transport Service Management ---
+
   // --- Messages (Admin/Employee) ---
   getAllMessages: async (params = {}) => { // Use getAllMessages now
     try {

@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Outlet, useLocation, useNavigate, Link } from 'react-router-dom';
 import {
     LayoutDashboard, Calendar, FileText, Settings, MessageSquare, Users,
-    Car, MapPin, LogOut, Menu, X, Bell, User, Star, HelpCircle, Tag, QrCode, Activity, Clock, Eye, Check, Link as LinkIcon, Hash, Package, DollarSign, Image as ImageIcon, Paperclip, CreditCard, Info // Added Paperclip, CreditCard, Info
+    Car, MapPin, LogOut, Menu, X, Bell, User, Star, HelpCircle, Tag, QrCode, Activity, Clock, Eye, Check, Link as LinkIcon, Hash, Package, DollarSign, Image as ImageIcon, Paperclip, CreditCard, Info, Bus // <-- Imported Bus
 } from 'lucide-react';
 import { useAuth } from '../../components/Login.jsx';
 import DataService, { getImageUrl } from '../../components/services/DataService.jsx';
@@ -385,6 +385,7 @@ const AdminDashboard = () => {
         { name: 'Dashboard', href: '/owner/dashboard', icon: LayoutDashboard },
         { name: 'Manage Cars', href: '/owner/manage-cars', icon: Car },
         { name: 'Manage Tours', href: '/owner/manage-tours', icon: MapPin },
+        { name: 'Manage Transport', href: '/owner/manage-transport', icon: Bus, permission: 'transport' }, // <-- ADDED
         { name: 'Manage Bookings', href: '/owner/manage-bookings', icon: Calendar },
         { name: 'Manage Reviews', href: '/owner/manage-reviews', icon: Star },
         { name: 'Manage Feedback', href: '/owner/manage-feedback', icon: MessageSquare },

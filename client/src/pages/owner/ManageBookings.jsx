@@ -238,7 +238,7 @@ const BookingDetailModal = ({ booking, onClose, onUpdate }) => {
                       <InfoRow label="Location" value={selectedBooking.deliveryMethod === 'pickup' ? selectedBooking.pickupLocation : selectedBooking.dropoffLocation} icon={MapPin} />
                     </>
                  ) : (
-                   <InfoRow label="Number of Guests" value={selectedBooking.numberOfGuests} icon={Users} />
+                   <InfoRow label="Number of Guests" value={selectedBooking.numberOfGuests} icon={User} />
                  )}
                 <InfoRow label="Special Requests" value={selectedBooking.specialRequests} isNote={true} />
                 <hr className="my-2"/>

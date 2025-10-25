@@ -163,8 +163,13 @@ const DataService = {
   // --- Secure Image Retrieval ---
   getSecureImageUrl: async (publicId) => {
     try {
-      const encodedId = encodeURIComponent(publicId);
-      const response = await api.get(`/api/images/secure/${encodedId}`);
+      // --- START OF FIX ---
+      // DO NOT encode the publicId here. The server route /:public_id(*)
+      // is designed to capture the slashes as part of the string.
+      // Axios will handle encoding the full path safely.
+      const response = await api.get(`/api/images/secure/${publicId}`);
+      // --- END OF FIX ---
+
       // Ensure data format is consistent
       if (response.data.success && response.data.data?.url) {
         return { success: true, data: { url: response.data.data.url } };

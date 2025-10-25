@@ -1,3 +1,5 @@
+// server/models/TransportService.js
+
 import mongoose from 'mongoose';
 const { Schema } = mongoose;
 
@@ -53,18 +55,34 @@ const transportServiceSchema = new Schema({
     type: Schema.Types.ObjectId,
     ref: 'User',
   },
-  // --- PAYMENT FIELDS (Aligned with Car model) ---
-  downpaymentRate: { 
-    type: Number, 
-    default: 0.2, // Default 20%
-    min: 0, 
-    max: 1 
+  
+  // --- MODIFIED: PAYMENT FIELDS (Aligned with Tour/ManageTransport.jsx) ---
+  paymentType: {
+    type: String,
+    enum: ['full', 'downpayment'],
+    default: 'full'
   },
-  requiresDownpayment: { 
-    type: Boolean, 
-    default: true 
+  downpaymentType: {
+    type: String,
+    enum: ['fixed', 'percentage'],
   },
+  downpaymentValue: {
+    type: Number,
+    min: 0,
+    validate: {
+        validator: function(value) {
+            // Only validate if paymentType is 'downpayment'
+            if (this.paymentType !== 'downpayment') {
+                return true;
+            }
+            // If it is 'downpayment', value must be set and positive
+            return value != null && value > 0;
+        },
+        message: 'Downpayment value is required when downpayment is enabled and must be greater than 0.'
+    }
+  }
   // --- END PAYMENT FIELDS ---
+
 }, {
   timestamps: true
 });

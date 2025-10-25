@@ -146,6 +146,9 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
         const priceRule = item.pricing.find(p => p.destination === formData.transportDestination);
         
         if (priceRule) {
+          if (newEndDate) { // Ensure newEndDate is valid before setting time
+            newEndDate.setHours(0, 0, 0, 0); // Normalize date
+          }
           switch (formData.transportServiceType) {
             case 'Day Tour':
               newPrice = priceRule.dayTourPrice || 0;
@@ -219,6 +222,21 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
         const end = new Date(start);
         end.setDate(start.getDate() + parseInt(formData.numberOfDays, 10) - 1); // Inclusive end date
 
+        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+            const dateString = d.toISOString().split('T')[0];
+            if (bookedDates.includes(dateString)) {
+                return setSubmitError(`Date ${dateString} is not available. Please choose another date range.`);
+            }
+        }
+    }
+    // --- ADDED: DATE OVERLAP VALIDATION for Transport ---
+    else if (itemType === 'transport' && formData.startDate && calculatedEndDate) {
+        const start = new Date(formData.startDate);
+        // calculatedEndDate is already set by your useEffect hook
+        const end = new Date(calculatedEndDate); 
+        end.setHours(0, 0, 0, 0); // Normalize just in case
+
+        // Loop from start date to the calculated end date
         for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
             const dateString = d.toISOString().split('T')[0];
             if (bookedDates.includes(dateString)) {
@@ -461,11 +479,16 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
                   {itemType === 'transport' && (
                     <div className="bg-gray-50 p-4 rounded-lg">
                       <h3 className="font-semibold mb-3">Booking Details</h3>
-                      <div className="space-y-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Start Date *</label>
-                          <input type="date" required value={formData.startDate} min={getTodayString()} onChange={(e) => setFormData(prev => ({...prev, startDate: e.target.value}))} className="w-full p-2 border rounded-md"/>
-                        </div>
+                      
+                      {/* --- MODIFIED: Replaced date input with Calendar --- */}
+                      <CalendarBooking
+                        serviceId={item._id}
+                        onDateSelect={handleDateSelect}
+                        initialDate={formData.startDate} // Pass initial date
+                        onBookedDatesChange={setBookedDates} // Get booked dates
+                      />
+                      
+                      <div className="space-y-4 mt-4"> {/* Added mt-4 for spacing */}
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">Number of Passengers *</label>
                           <select value={formData.numberOfGuests} onChange={(e) => setFormData({ ...formData, numberOfGuests: parseInt(e.target.value) })} className="w-full p-2 border rounded-md">
@@ -540,19 +563,36 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
                       <div className="mb-4">
                         <label className="block text-sm font-medium text-gray-700 mb-2">Payment Option</label>
                         <div className="flex gap-4">
-                          <label className={`flex-1 p-3 border rounded-lg text-center cursor-pointer ${selectedPaymentOption === 'downpayment' ? 'bg-blue-600 text-white border-blue-700' : 'bg-white'}`}>
-                            <input type="radio" name="paymentOption" value="downpayment" checked={selectedPaymentOption === 'downpayment'} onChange={(e) => setSelectedPaymentOption(e.target.value)} className="sr-only"/>
-                            Downpayment
+                          {/* --- MODIFIED: Added price to label and changed name --- */}
+                          <label className={`flex-1 p-3 border rounded-lg text-center cursor-pointer ${selectedPaymentOption === 'downpayment' ? 'bg-blue-600 text-white border-blue-700' : 'bg-white hover:bg-gray-50'}`}>
+                            <input 
+                              type="radio" 
+                              name="paymentOptionRadio" 
+                              value="downpayment" 
+                              checked={selectedPaymentOption === 'downpayment'} 
+                              onChange={(e) => setSelectedPaymentOption(e.target.value)} 
+                              className="sr-only"
+                              disabled={!user && item.paymentType === 'downpayment'}
+                            />
+                            Downpayment ({formatPrice(calculatedDownpayment)})
                           </label>
-                          <label className={`flex-1 p-3 border rounded-lg text-center cursor-pointer ${selectedPaymentOption === 'full' ? 'bg-blue-600 text-white border-blue-700' : 'bg-white'}`}>
-                            <input type="radio" name="paymentOption" value="full" checked={selectedPaymentOption === 'full'} onChange={(e) => setSelectedPaymentOption(e.target.value)} className="sr-only"/>
-                            Full Payment
+                          {/* --- MODIFIED: Added price to label and changed name --- */}
+                          <label className={`flex-1 p-3 border rounded-lg text-center cursor-pointer ${selectedPaymentOption === 'full' ? 'bg-blue-600 text-white border-blue-700' : 'bg-white hover:bg-gray-50'}`}>
+                            <input 
+                              type="radio" 
+                              name="paymentOptionRadio" 
+                              value="full" 
+                              checked={selectedPaymentOption === 'full'} 
+                              onChange={(e) => setSelectedPaymentOption(e.target.value)} 
+                              className="sr-only"
+                            />
+                            Full Payment ({formatPrice(totalPrice)})
                           </label>
                         </div>
                         {/* --- MODIFIED: Removed transport exclusion --- */}
                         {!user && selectedPaymentOption === 'downpayment' && (
-                          <div className="mt-2 text-sm text-yellow-800 bg-yellow-100 p-3 rounded-md">
-                            You must be logged in to make a downpayment. Please log in or create an account.
+                          <div className="mt-2 text-sm text-yellow-800 bg-yellow-100 p-3 rounded-md flex items-center gap-2">
+                            <Info size={14} /> You must be logged in to make a downpayment.
                           </div>
                         )}
                       </div>

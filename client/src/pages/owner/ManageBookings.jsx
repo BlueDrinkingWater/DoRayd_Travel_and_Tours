@@ -89,8 +89,6 @@ const SecureAttachmentLink = ({ attachmentPath, originalName }) => {
         </a>
     );
 };
-// --- END SECURE IMAGE COMPONENTS ---
-
 
 // --- Sub-Components (InfoBlock, InfoRow) ---
 const InfoBlock = ({ title, icon: Icon, children }) => (
@@ -374,8 +372,6 @@ const BookingDetailModal = ({ booking, onClose, onUpdate }) => {
     </div>
   );
 };
-// --- END BOOKING DETAIL MODAL ---
-
 
 // --- MAIN COMPONENT ---
 const ManageBookings = () => {

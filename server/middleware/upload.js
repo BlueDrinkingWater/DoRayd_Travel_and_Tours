@@ -22,7 +22,7 @@ const createStorage = (folder) => {
       transformation: [{ width: 1024, height: 1024, crop: 'limit' }], // Resize large images
       
       // Apply authenticated access for sensitive folders, public for all others
-      access_mode: isSensitive ? 'authenticated' : 'public', 
+      access_mode: isSensitive ? 'authenticated' : 'public',
     },
   });
 };

@@ -35,13 +35,6 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
 
   useEffect(() => {
     if (isOpen) {
-        // Set default payment option based on item config
-        if (item?.paymentType === 'downpayment' && item?.downpaymentValue > 0) {
-            setSelectedPaymentOption('downpayment');
-        } else {
-            setSelectedPaymentOption('full');
-        }
-
       const fetchContent = async () => {
         // --- MODIFIED: Fetch QR Code for ALL item types (including transport) ---
         try {
@@ -69,7 +62,7 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
       };
       fetchContent();
     }
-  }, [isOpen, item, itemType]); // itemType dependency was already here, which is good.
+  }, [isOpen]); // itemType dependency was already here, which is good.
 
   const [formData, setFormData] = useState({
     firstName: '', lastName: '', email: '', phone: '', address: '',
@@ -89,6 +82,14 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
 
   useEffect(() => {
     if (isOpen) {
+      // Default to 'downpayment' ONLY if the user is logged in AND the item allows it.
+      // Otherwise, default to 'full'.
+      if (user && item?.paymentType === 'downpayment' && item?.downpaymentValue > 0) {
+          setSelectedPaymentOption('downpayment');
+      } else {
+          setSelectedPaymentOption('full');
+      }
+        
       const todayStr = getTodayString();
       const initialState = {
           firstName: user?.firstName || '', lastName: user?.lastName || '',
@@ -572,7 +573,9 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
                               checked={selectedPaymentOption === 'downpayment'} 
                               onChange={(e) => setSelectedPaymentOption(e.target.value)} 
                               className="sr-only"
-                              disabled={!user && item.paymentType === 'downpayment'}
+                              // --- *** THIS IS THE FIX *** ---
+                              // The 'disabled' attribute has been REMOVED from here.
+                              // --- *** END OF FIX *** ---
                             />
                             Downpayment ({formatPrice(calculatedDownpayment)})
                           </label>
@@ -589,7 +592,8 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
                             Full Payment ({formatPrice(totalPrice)})
                           </label>
                         </div>
-                        {/* --- MODIFIED: Removed transport exclusion --- */}
+                        {/* --- THIS IS THE WARNING MESSAGE YOU WANTED --- */}
+                        {/* It will now appear when a non-logged-in user *selects* downpayment */}
                         {!user && selectedPaymentOption === 'downpayment' && (
                           <div className="mt-2 text-sm text-yellow-800 bg-yellow-100 p-3 rounded-md flex items-center gap-2">
                             <Info size={14} /> You must be logged in to make a downpayment.
@@ -715,7 +719,8 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
               </div>
               <div className="flex justify-end gap-3 pt-6 border-t mt-6">
                 <button type="button" onClick={onClose} className="px-6 py-2 bg-gray-200 rounded-lg text-gray-700 hover:bg-gray-300">Cancel</button>
-                {/* --- MODIFIED: Submit Button Text & Disable Logic --- */}
+                {/* --- THIS BUTTON'S LOGIC IS STILL CORRECT --- */}
+                {/* It will be disabled if user is not logged in AND downpayment is selected */}
                 <button
                   type="submit"
                   disabled={submitting || !formData.agreedToTerms || (selectedPaymentOption === 'downpayment' && !user)}

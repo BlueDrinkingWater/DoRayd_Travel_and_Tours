@@ -43,22 +43,18 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
         }
 
       const fetchContent = async () => {
-        // Fetch QR Code (only if not transport)
-        if (itemType !== 'transport') {
-          try {
-            setQrLoading(true);
-            const qrResponse = await DataService.fetchContent('paymentQR');
-            if (qrResponse.success && qrResponse.data.content) {
-              const qrContent = qrResponse.data.content;
-              setPaymentQR(qrContent.startsWith('http') ? qrContent : `${SERVER_URL}${qrContent.startsWith('/') ? '' : '/'}${qrContent}`);
-            }
-          } catch (error) {
-            console.warn('QR code not found.');
-          } finally {
-            setQrLoading(false);
+        // --- MODIFIED: Fetch QR Code for ALL item types (including transport) ---
+        try {
+          setQrLoading(true);
+          const qrResponse = await DataService.fetchContent('paymentQR');
+          if (qrResponse.success && qrResponse.data.content) {
+            const qrContent = qrResponse.data.content;
+            setPaymentQR(qrContent.startsWith('http') ? qrContent : `${SERVER_URL}${qrContent.startsWith('/') ? '' : '/'}${qrContent}`);
           }
-        } else {
-           setQrLoading(false); // No QR needed for transport
+        } catch (error) {
+          console.warn('QR code not found.');
+        } finally {
+          setQrLoading(false);
         }
         
         // Fetch Booking Disclaimer
@@ -73,7 +69,7 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
       };
       fetchContent();
     }
-  }, [isOpen, item, itemType]); // Added itemType dependency
+  }, [isOpen, item, itemType]); // itemType dependency was already here, which is good.
 
   const [formData, setFormData] = useState({
     firstName: '', lastName: '', email: '', phone: '', address: '',
@@ -81,7 +77,7 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
     specialRequests: '', agreedToTerms: false, paymentProof: null,
     pickupLocation: '', dropoffLocation: '', dropoffCoordinates: null,
     deliveryMethod: 'pickup', amountPaid: '', manualPaymentReference: '',
-    // --- ADDED for Transport ---
+    // --- Fields for Transport ---
     transportDestination: '', transportServiceType: '',
   });
 
@@ -129,7 +125,7 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
   }, [isOpen, item, itemType, user]);
 
   useEffect(() => {
-    // This effect now runs immediately after the state is initialized
+    // This effect calculates price and end date whenever relevant form data changes
     if (itemType === 'car' && formData.startDate && formData.numberOfDays > 0) {
       const startDate = new Date(formData.startDate);
       const endDate = new Date(startDate);
@@ -140,13 +136,48 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
       setTotalPrice(formData.numberOfGuests * (item?.price || 0));
       // Tours have fixed end dates from item data
       setCalculatedEndDate(item.endDate ? new Date(item.endDate) : (formData.startDate ? new Date(formData.startDate) : null));
+    
+    // --- MODIFIED: Transport Price Calculation ---
     } else if (itemType === 'transport') {
-      // --- ADDED: Transport price is 0 (quote) ---
-      setTotalPrice(0);
-      // Transport end date is usually same as start for quotes, can be adjusted later by admin
-      setCalculatedEndDate(formData.startDate ? new Date(formData.startDate) : null);
+      let newPrice = 0;
+      let newEndDate = formData.startDate ? new Date(formData.startDate) : null;
+      
+      if (item.pricing && formData.transportDestination && formData.transportServiceType) {
+        const priceRule = item.pricing.find(p => p.destination === formData.transportDestination);
+        
+        if (priceRule) {
+          switch (formData.transportServiceType) {
+            case 'Day Tour':
+              newPrice = priceRule.dayTourPrice || 0;
+              break;
+            case 'Overnight':
+              newPrice = priceRule.ovnPrice || 0;
+              if (newEndDate) newEndDate.setDate(newEndDate.getDate() + 1); // Add 1 day for OVN
+              break;
+            case '3D2N':
+              newPrice = priceRule.threeDayTwoNightPrice || 0;
+              if (newEndDate) newEndDate.setDate(newEndDate.getDate() + 2); // Add 2 days for 3D2N
+              break;
+            case 'Drop & Pick':
+              newPrice = priceRule.dropAndPickPrice || 0;
+              break;
+            default:
+              newPrice = 0;
+          }
+        }
+      }
+      setTotalPrice(newPrice);
+      setCalculatedEndDate(newEndDate);
     }
-  }, [formData.startDate, formData.numberOfDays, formData.numberOfGuests, item, itemType]); // Use item directly instead of specific item props
+  }, [
+    formData.startDate, 
+    formData.numberOfDays, 
+    formData.numberOfGuests, 
+    item, 
+    itemType, 
+    formData.transportDestination, // ADDED dependency
+    formData.transportServiceType  // ADDED dependency
+  ]);
   
   const handleFileChange = (e) => setFormData(prev => ({ ...prev, paymentProof: e.target.files[0] }));
   const handleLocationSelect = useCallback((location) => setFormData(prev => ({ ...prev, dropoffLocation: location.address, dropoffCoordinates: { lat: location.latitude, lng: location.longitude } })), []);
@@ -154,30 +185,29 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
   const combineDateAndTime = (date, time) => date && time ? new Date(`${date}T${time}`).toISOString() : '';
 
   const calculatedDownpayment = useMemo(() => {
-    if (!item || item.paymentType !== 'downpayment' || !totalPrice || itemType === 'transport') return 0; // No DP for transport
+    // --- MODIFIED: Removed transport exclusion ---
+    if (!item || item.paymentType !== 'downpayment' || !totalPrice) return 0;
     
     if (item.downpaymentType === 'percentage') {
       return (totalPrice * item.downpaymentValue) / 100;
     }
     
-    // Fixed DP calculation needs context
+    // Fixed DP calculation
     if (item.downpaymentType === 'fixed') {
-       // Assume fixed DP is per booking, not per day/guest unless specified otherwise
+       // Assume fixed DP is per booking
        return item.downpaymentValue;
-      // if (itemType === 'car') return item.downpaymentValue * formData.numberOfDays;
-      // if (itemType === 'tour') return item.downpaymentValue * formData.numberOfGuests;
     }
     
     return 0;
-  }, [item, totalPrice, formData.numberOfDays, formData.numberOfGuests, itemType]);
+  }, [item, totalPrice]); // Removed formData dependencies as fixed logic is simplified
 
   const requiredPayment = useMemo(() => {
-    if (itemType === 'transport') return 0; // No payment required for transport quote
+    // --- MODIFIED: Removed transport exclusion ---
     if (selectedPaymentOption === 'downpayment') {
       return calculatedDownpayment;
     }
     return totalPrice;
-  }, [selectedPaymentOption, calculatedDownpayment, totalPrice, itemType]);
+  }, [selectedPaymentOption, calculatedDownpayment, totalPrice, itemType]); // itemType is still here just in case, no harm
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -203,15 +233,13 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
       phone: "Phone Number", address: "Address", startDate: "Start Date", time: "Time"
     };
 
-    // Fields required only if NOT transport
+    // Fields required for payment
     const requiredPaymentFields = {
       paymentProof: "Payment Proof", amountPaid: "Amount Paid"
     };
 
-    let fieldsToCheck = {...requiredBaseFields};
-    if (itemType !== 'transport') {
-      fieldsToCheck = {...fieldsToCheck, ...requiredPaymentFields};
-    }
+    // --- MODIFIED: Payment fields are now required for ALL types ---
+    let fieldsToCheck = {...requiredBaseFields, ...requiredPaymentFields};
 
     for (const field in fieldsToCheck) {
       if (!formData[field]) {
@@ -220,26 +248,28 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
     }
     
     // Specific validations
-    if (!formData.manualPaymentReference && !paymentReferenceCode && itemType !== 'transport') {
+    if (!formData.manualPaymentReference && !paymentReferenceCode) {
         return setSubmitError("A payment reference (either generated or manual) is required.");
     }
     if (itemType === 'car') {
       if (formData.deliveryMethod === 'pickup' && !formData.pickupLocation) return setSubmitError("Pickup location is required.");
       if (formData.deliveryMethod === 'dropoff' && !formData.dropoffLocation) return setSubmitError("Dropoff location is required.");
     }
-    // --- ADDED: Transport Validation ---
     if (itemType === 'transport') {
         if (!formData.transportDestination) return setSubmitError("Destination is required for transport.");
         if (!formData.transportServiceType) return setSubmitError("Service Type is required for transport.");
+        // --- ADDED: Price validation for transport ---
+        if (totalPrice <= 0) return setSubmitError("Please select a valid Destination and Service Type to calculate the price.");
     }
     if (!formData.agreedToTerms) return setSubmitError('You must agree to the terms to proceed.');
     
-    // Payment amount check (only if not transport)
-    if (itemType !== 'transport' && parseFloat(formData.amountPaid) !== requiredPayment) {
+    // --- MODIFIED: Payment amount check for ALL types ---
+    if (parseFloat(formData.amountPaid) !== requiredPayment) {
       return setSubmitError(`The amount paid must be exactly ${formatPrice(requiredPayment)}.`);
     }
     
-    if (selectedPaymentOption === 'downpayment' && !user && itemType !== 'transport') {
+    // --- MODIFIED: Login check for downpayment for ALL types ---
+    if (selectedPaymentOption === 'downpayment' && !user) {
         setSubmitError("You must be logged in to choose the downpayment option. Please log in or create an account.");
         return;
     }
@@ -255,9 +285,10 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
          }
        });
       
-      // --- MODIFIED: Adjust end date logic ---
+      // --- MODIFIED: Adjust end date logic for Transport ---
       const fullStartDate = combineDateAndTime(formData.startDate, formData.time);
       let fullEndDate = fullStartDate; // Default end date
+      
       if (itemType === 'car' && calculatedEndDate) {
           // For cars, end date is calculated based on numberOfDays
           const carEndDate = new Date(formData.startDate);
@@ -266,8 +297,12 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
       } else if (itemType === 'tour' && item.endDate) {
           // For tours, end date comes from item data
           fullEndDate = combineDateAndTime(new Date(item.endDate).toISOString().split('T')[0], formData.time); // Use same time
+      } else if (itemType === 'transport' && calculatedEndDate) {
+          // --- ADDED: Use calculatedEndDate for transport (OVN, 3D2N) ---
+          fullEndDate = combineDateAndTime(calculatedEndDate.toISOString().split('T')[0], formData.time);
       }
-      // For transport, fullEndDate remains same as fullStartDate (single day event initially)
+      // For transport 'Day Tour' or 'Drop & Pick', fullEndDate remains same as fullStartDate (which is correct)
+
 
       // Set references, dates, price, item details
       bookingData.set('paymentReference', paymentReferenceCode);
@@ -276,25 +311,16 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
       }
       bookingData.set('startDate', fullStartDate);
       bookingData.set('endDate', fullEndDate);
-      bookingData.set('totalPrice', totalPrice); // Send 0 for transport
+      bookingData.set('totalPrice', totalPrice); // Send CALCULATED price for transport
       bookingData.set('itemName', itemType === 'car' ? `${item.brand} ${item.model}` : (itemType === 'tour' ? item.title : `${item.vehicleType} ${item.name || ''}`));
       bookingData.set('itemId', item._id);
       bookingData.set('itemType', itemType);
       bookingData.set('paymentOption', selectedPaymentOption); // Send selected payment option
 
-      // --- ADDED: Handle transport amountPaid and proof ---
-      if (itemType === 'transport') {
-          bookingData.set('amountPaid', '0');
-          if (bookingData.has('paymentProof')) {
-              bookingData.delete('paymentProof'); // Ensure no proof is sent
-          }
-           if (bookingData.has('amountPaid')) {
-              bookingData.delete('amountPaid'); // Let backend handle default 0
-           }
-      } else {
-           // For car/tour, ensure amountPaid matches required payment
-           bookingData.set('amountPaid', requiredPayment.toString());
-      }
+      // --- MODIFIED: REMOVED transport-specific payment exclusion ---
+      // For car/tour/transport, ensure amountPaid matches required payment
+      bookingData.set('amountPaid', requiredPayment.toString());
+      
 
       const result = await DataService.createBooking(bookingData);
       if (result.success) {
@@ -337,8 +363,8 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
         <div className="p-6">
           <div className="flex items-start justify-between mb-4">
             <div>
-              {/* --- MODIFIED: Title based on itemType --- */}
-              <h2 className="text-2xl font-bold">{itemType === 'transport' ? 'Request Transport Quote' : 'Book Your Trip'}</h2>
+              {/* --- MODIFIED: Title --- */}
+              <h2 className="text-2xl font-bold">Book Your Trip</h2>
               <p className="text-gray-600">
                 {itemType === 'car' ? `${item.brand} ${item.model}` : (itemType === 'tour' ? item.title : `${item.vehicleType} ${item.name || ''}`)}
               </p>
@@ -349,10 +375,10 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
           {submitSuccess ? (
             <div className="text-center p-8">
               <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-              {/* --- MODIFIED: Success Message based on itemType --- */}
-              <h3 className="text-2xl font-bold">{itemType === 'transport' ? 'Quote Request Submitted!' : 'Booking Submitted!'}</h3>
+              {/* --- MODIFIED: Success Message --- */}
+              <h3 className="text-2xl font-bold">Booking Submitted!</h3>
               <p className="text-gray-600 mt-2">
-                {itemType === 'transport' ? 'Our team will review your request and contact you shortly.' : 'You will receive a confirmation email shortly.'}
+                You will receive a confirmation email shortly.
               </p>
             </div>
           ) : (
@@ -431,10 +457,10 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
                     </>
                   )}
 
-                  {/* --- ADDED: Transport Details Block --- */}
+                  {/* --- MODIFIED: Transport Details Block --- */}
                   {itemType === 'transport' && (
                     <div className="bg-gray-50 p-4 rounded-lg">
-                      <h3 className="font-semibold mb-3">Quote Details</h3>
+                      <h3 className="font-semibold mb-3">Booking Details</h3>
                       <div className="space-y-4">
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">Start Date *</label>
@@ -448,17 +474,31 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">Destination *</label>
-                          <input type="text" name="transportDestination" required value={formData.transportDestination} onChange={(e) => setFormData({ ...formData, transportDestination: e.target.value })} className="w-full p-2 border rounded-md" placeholder="e.g., Baguio City, Vigan"/>
+                          {/* --- MODIFIED: Changed from text input to select --- */}
+                          <select 
+                            name="transportDestination" 
+                            required 
+                            value={formData.transportDestination} 
+                            onChange={(e) => setFormData({ ...formData, transportDestination: e.target.value })} 
+                            className="w-full p-2 border rounded-md"
+                          >
+                            <option value="">Select a destination...</option>
+                            {item.pricing && item.pricing.map((priceRow, index) => (
+                              <option key={index} value={priceRow.destination}>
+                                {priceRow.destination} {priceRow.region ? `(${priceRow.region})` : ''}
+                              </option>
+                            ))}
+                          </select>
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">Service Type *</label>
+                          {/* --- MODIFIED: Removed "Other" --- */}
                           <select name="transportServiceType" required value={formData.transportServiceType} onChange={(e) => setFormData({ ...formData, transportServiceType: e.target.value })} className="w-full p-2 border rounded-md">
                             <option value="">Select service type...</option>
                             <option value="Day Tour">Day Tour</option>
                             <option value="Overnight">Overnight</option>
                             <option value="3D2N">3 Days, 2 Nights</option>
                             <option value="Drop & Pick">Drop & Pick</option>
-                            <option value="Other">Other</option>
                           </select>
                         </div>
                          <div>
@@ -478,84 +518,74 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
                 </div>
 
                 <div className="space-y-6">
-                  {/* --- MODIFIED: Conditional Payment Block --- */}
-                  {itemType !== 'transport' ? (
-                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                      <h3 className="font-semibold mb-3 text-blue-800">Payment Details</h3>
-                      
-                      {bookingDisclaimer && (
-                        <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-4 rounded-md mb-4">
-                          <div className="flex">
-                            <div className="flex-shrink-0"><Info className="h-5 w-5" /></div>
-                            <div className="ml-3">
-                              <h3 className="text-sm font-bold">Important Note</h3>
-                              <p className="text-xs mt-1 whitespace-pre-wrap">{bookingDisclaimer}</p>
-                            </div>
+                  {/* --- MODIFIED: Conditional Payment Block REMOVED --- */}
+                  {/* This block will now show for car, tour, AND transport */}
+                  <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                    <h3 className="font-semibold mb-3 text-blue-800">Payment Details</h3>
+                    
+                    {bookingDisclaimer && (
+                      <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-4 rounded-md mb-4">
+                        <div className="flex">
+                          <div className="flex-shrink-0"><Info className="h-5 w-5" /></div>
+                          <div className="ml-3">
+                            <h3 className="text-sm font-bold">Important Note</h3>
+                            <p className="text-xs mt-1 whitespace-pre-wrap">{bookingDisclaimer}</p>
                           </div>
                         </div>
-                      )}
-
-                      {/* Payment Option Selection */}
-                      {item.paymentType === 'downpayment' && item.downpaymentValue > 0 && (
-                        <div className="mb-4">
-                          <label className="block text-sm font-medium text-gray-700 mb-2">Payment Option</label>
-                          <div className="flex gap-4">
-                            <label className={`flex-1 p-3 border rounded-lg text-center cursor-pointer ${selectedPaymentOption === 'downpayment' ? 'bg-blue-600 text-white border-blue-700' : 'bg-white'}`}>
-                              <input type="radio" name="paymentOption" value="downpayment" checked={selectedPaymentOption === 'downpayment'} onChange={(e) => setSelectedPaymentOption(e.target.value)} className="sr-only"/>
-                              Downpayment
-                            </label>
-                            <label className={`flex-1 p-3 border rounded-lg text-center cursor-pointer ${selectedPaymentOption === 'full' ? 'bg-blue-600 text-white border-blue-700' : 'bg-white'}`}>
-                              <input type="radio" name="paymentOption" value="full" checked={selectedPaymentOption === 'full'} onChange={(e) => setSelectedPaymentOption(e.target.value)} className="sr-only"/>
-                              Full Payment
-                            </label>
-                          </div>
-                          {!user && selectedPaymentOption === 'downpayment' && (
-                            <div className="mt-2 text-sm text-yellow-800 bg-yellow-100 p-3 rounded-md">
-                              You must be logged in to make a downpayment. Please log in or create an account.
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* QR Code and Payment Inputs */}
-                      <div className="flex flex-col items-center">
-                          {qrLoading ? <p>Loading QR...</p> : paymentQR ? <img src={paymentQR} alt="Payment QR Code" className="w-48 h-48 object-contain mb-4 border rounded-md" /> : <p className="text-sm text-gray-500 mb-4">QR code not available.</p>}
-                          <div className="w-full space-y-4">
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">Your Payment Reference Code *</label>
-                              <input type="text" readOnly value={paymentReferenceCode} className="w-full p-2 border rounded-md bg-gray-100 font-bold text-center text-lg tracking-wider" />
-                            </div>
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">Or Enter Your Bank Reference Number</label>
-                              <input type="text" name="manualPaymentReference" value={formData.manualPaymentReference} onChange={(e) => setFormData({ ...formData, manualPaymentReference: e.target.value })} className="w-full p-2 border rounded-md" placeholder="e.g., from your bank receipt"/>
-                            </div>
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">Amount to Pay *</label>
-                              <input type="number" step="0.01" placeholder={formatPrice(requiredPayment)} name="amountPaid" required value={formData.amountPaid} onChange={(e) => setFormData({ ...formData, amountPaid: e.target.value })} className="w-full p-2 border rounded-md"/>
-                              <p className="text-xs text-gray-500 mt-1">Please enter the exact amount: {formatPrice(requiredPayment)}</p>
-                            </div>
-                            <div className="flex justify-center">
-                              <label htmlFor="paymentProof" className="w-3/4 text-center cursor-pointer bg-white border-2 border-dashed rounded-lg p-4 hover:bg-gray-50">
-                                  <Upload className="w-8 h-8 mx-auto text-gray-400 mb-2"/>
-                                  <span className="text-sm font-medium text-gray-700">{formData.paymentProof ? formData.paymentProof.name : 'Upload Payment Proof *'}</span>
-                                  <input id="paymentProof" type="file" name="paymentProof" required onChange={handleFileChange} accept="image/*" className="hidden"/> {/* Added accept */}
-                              </label>
-                            </div>
-                          </div>
                       </div>
+                    )}
+
+                    {/* Payment Option Selection */}
+                    {item.paymentType === 'downpayment' && item.downpaymentValue > 0 && (
+                      <div className="mb-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Payment Option</label>
+                        <div className="flex gap-4">
+                          <label className={`flex-1 p-3 border rounded-lg text-center cursor-pointer ${selectedPaymentOption === 'downpayment' ? 'bg-blue-600 text-white border-blue-700' : 'bg-white'}`}>
+                            <input type="radio" name="paymentOption" value="downpayment" checked={selectedPaymentOption === 'downpayment'} onChange={(e) => setSelectedPaymentOption(e.target.value)} className="sr-only"/>
+                            Downpayment
+                          </label>
+                          <label className={`flex-1 p-3 border rounded-lg text-center cursor-pointer ${selectedPaymentOption === 'full' ? 'bg-blue-600 text-white border-blue-700' : 'bg-white'}`}>
+                            <input type="radio" name="paymentOption" value="full" checked={selectedPaymentOption === 'full'} onChange={(e) => setSelectedPaymentOption(e.target.value)} className="sr-only"/>
+                            Full Payment
+                          </label>
+                        </div>
+                        {/* --- MODIFIED: Removed transport exclusion --- */}
+                        {!user && selectedPaymentOption === 'downpayment' && (
+                          <div className="mt-2 text-sm text-yellow-800 bg-yellow-100 p-3 rounded-md">
+                            You must be logged in to make a downpayment. Please log in or create an account.
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* QR Code and Payment Inputs */}
+                    <div className="flex flex-col items-center">
+                        {qrLoading ? <p>Loading QR...</p> : paymentQR ? <img src={paymentQR} alt="Payment QR Code" className="w-48 h-48 object-contain mb-4 border rounded-md" /> : <p className="text-sm text-gray-500 mb-4">QR code not available.</p>}
+                        <div className="w-full space-y-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Your Payment Reference Code *</label>
+                            <input type="text" readOnly value={paymentReferenceCode} className="w-full p-2 border rounded-md bg-gray-100 font-bold text-center text-lg tracking-wider" />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Or Enter Your Bank Reference Number</label>
+                            <input type="text" name="manualPaymentReference" value={formData.manualPaymentReference} onChange={(e) => setFormData({ ...formData, manualPaymentReference: e.target.value })} className="w-full p-2 border rounded-md" placeholder="e.g., from your bank receipt"/>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Amount to Pay *</label>
+                            <input type="number" step="0.01" placeholder={formatPrice(requiredPayment)} name="amountPaid" required value={formData.amountPaid} onChange={(e) => setFormData({ ...formData, amountPaid: e.target.value })} className="w-full p-2 border rounded-md"/>
+                            <p className="text-xs text-gray-500 mt-1">Please enter the exact amount: {formatPrice(requiredPayment)}</p>
+                          </div>
+                          <div className="flex justify-center">
+                            <label htmlFor="paymentProof" className="w-3/4 text-center cursor-pointer bg-white border-2 border-dashed rounded-lg p-4 hover:bg-gray-50">
+                                <Upload className="w-8 h-8 mx-auto text-gray-400 mb-2"/>
+                                <span className="text-sm font-medium text-gray-700">{formData.paymentProof ? formData.paymentProof.name : 'Upload Payment Proof *'}</span>
+                                <input id="paymentProof" type="file" name="paymentProof" required onChange={handleFileChange} accept="image/*" className="hidden"/> {/* Added accept */}
+                            </label>
+                          </div>
+                        </div>
                     </div>
-                  ) : (
-                    // --- ADDED: Quote Info Block for Transport ---
-                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 text-center">
-                        <Info className="w-10 h-10 text-blue-500 mx-auto mb-3" />
-                        <h5 className="font-semibold text-blue-800 mb-2">Quote Request</h5>
-                        <p className="text-sm text-blue-700">
-                            The price for this service is quote-based. Payment is not required at this time.
-                            <br/><br/>
-                            Please submit your request, and our team will contact you with the total price and payment instructions if applicable.
-                        </p>
-                    </div>
-                  )}
+                  </div>
+                  {/* --- MODIFIED: REMOVED the 'else' block for transport quote info --- */}
                   
                   {/* Summary */}
                   <div className="bg-gray-50 p-4 rounded-lg">
@@ -571,8 +601,10 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
 
                       {/* Booking Details */}
                       <div className="flex justify-between"><span className="text-gray-600">From:</span><span className="font-medium text-right">{formatDate(formData.startDate)}</span></div>
-                      {/* --- MODIFIED: Show 'To' date conditionally --- */}
-                      {(itemType === 'car' || itemType === 'tour') && <div className="flex justify-between"><span className="text-gray-600">To:</span><span className="font-medium text-right">{formatDate(calculatedEndDate)}</span></div>}
+                      {/* --- MODIFIED: Show 'To' date conditionally for transport too --- */}
+                      {(itemType === 'car' || itemType === 'tour' || (itemType === 'transport' && formData.transportServiceType !== 'Day Tour' && formData.transportServiceType !== 'Drop & Pick')) && (
+                        <div className="flex justify-between"><span className="text-gray-600">To:</span><span className="font-medium text-right">{formatDate(calculatedEndDate)}</span></div>
+                      )}
                       <div className="flex justify-between"><span className="text-gray-600">Time:</span><span className="font-medium text-right">{formatTime(formData.time)}</span></div>
                       {itemType === 'car' && (
                         <div className="flex justify-between"><span className="text-gray-600">Delivery:</span><span className="font-medium capitalize text-right">{formData.deliveryMethod === 'pickup' ? formData.pickupLocation : formData.dropoffLocation}</span></div>
@@ -580,7 +612,7 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
                       {(itemType === 'tour' || itemType === 'transport') && ( // Show guests/passengers
                         <div className="flex justify-between"><span className="text-gray-600">{itemType === 'tour' ? 'Guests:' : 'Passengers:'}</span><span className="font-medium text-right">{formData.numberOfGuests}</span></div>
                       )}
-                       {/* --- ADDED: Transport specific summary --- */}
+                       {/* --- Transport specific summary (unchanged) --- */}
                       {itemType === 'transport' && (
                          <>
                             <div className="flex justify-between"><span className="text-gray-600">Destination:</span><span className="font-medium text-right">{formData.transportDestination}</span></div>
@@ -589,37 +621,33 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
                       )}
                       
                       {/* --- MODIFIED: Conditional Payment Info --- */}
-                      {itemType !== 'transport' && (
-                        <>
-                            <hr className="my-2"/>
-                            <div className="flex justify-between"><span className="text-gray-600">Payment Ref:</span><span className="font-medium text-right">{paymentReferenceCode}</span></div>
-                            <div className="flex justify-between"><span className="text-gray-600">Bank Ref:</span><span className="font-medium text-right">{formData.manualPaymentReference || 'N/A'}</span></div>
-                            <div className="flex justify-between"><span className="text-gray-600">Payment Option:</span><span className="font-medium capitalize text-right">{selectedPaymentOption}</span></div>
-                        </>
-                      )}
+                      <>
+                          <hr className="my-2"/>
+                          <div className="flex justify-between"><span className="text-gray-600">Payment Ref:</span><span className="font-medium text-right">{paymentReferenceCode}</span></div>
+                          <div className="flex justify-between"><span className="text-gray-600">Bank Ref:</span><span className="font-medium text-right">{formData.manualPaymentReference || 'N/A'}</span></div>
+                          <div className="flex justify-between"><span className="text-gray-600">Payment Option:</span><span className="font-medium capitalize text-right">{selectedPaymentOption}</span></div>
+                      </>
                       
                       <div className="flex justify-between items-center mt-4 pt-2 border-t">
                         <span className="font-semibold text-gray-900">Total Amount:</span>
                         {/* --- MODIFIED: Handle transport price display --- */}
-                        <span className={`font-bold text-lg ${itemType === 'transport' ? 'text-gray-700' : 'text-blue-600'}`}>{itemType === 'transport' ? 'Quote Pending' : formatPrice(totalPrice)}</span>
+                        <span className="font-bold text-lg text-blue-600">{formatPrice(totalPrice)}</span>
                       </div>
 
                       {/* --- MODIFIED: Conditional Payment Due Display --- */}
-                      {itemType !== 'transport' && selectedPaymentOption === 'downpayment' && (
+                      {selectedPaymentOption === 'downpayment' && (
                         <div className="flex justify-between">
                           <span className="font-semibold text-gray-900">Downpayment Due:</span>
                           <span className="font-bold text-lg">{formatPrice(calculatedDownpayment)}</span>
                         </div>
                       )}
 
-                      {itemType !== 'transport' && (
-                        <div className="flex justify-between items-center text-red-600">
-                          <span className="text-lg font-semibold">Amount to Pay Now:</span>
-                          <span className="text-2xl font-bold">{formatPrice(requiredPayment)}</span>
-                        </div>
-                      )}
+                      <div className="flex justify-between items-center text-red-600">
+                        <span className="text-lg font-semibold">Amount to Pay Now:</span>
+                        <span className="text-2xl font-bold">{formatPrice(requiredPayment)}</span>
+                      </div>
                       
-                      {itemType !== 'transport' && selectedPaymentOption === 'downpayment' && (
+                      {selectedPaymentOption === 'downpayment' && (
                         <p className="text-xs text-gray-500 text-center pt-2">
                           The remaining balance of {formatPrice(totalPrice - requiredPayment)} will be due upon service.
                         </p>
@@ -650,10 +678,10 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
                 {/* --- MODIFIED: Submit Button Text & Disable Logic --- */}
                 <button
                   type="submit"
-                  disabled={submitting || !formData.agreedToTerms || (selectedPaymentOption === 'downpayment' && !user && itemType !== 'transport')}
+                  disabled={submitting || !formData.agreedToTerms || (selectedPaymentOption === 'downpayment' && !user)}
                   className="px-6 py-2 bg-blue-600 text-white rounded-lg disabled:opacity-50 flex items-center gap-2"
                 >
-                  {submitting ? 'Submitting...' : (itemType === 'transport' ? 'Submit Quote Request' : 'Submit Booking')}
+                  {submitting ? 'Submitting...' : 'Submit Booking'}
                 </button>
               </div>
             </form>

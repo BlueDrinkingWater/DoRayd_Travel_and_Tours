@@ -35,6 +35,8 @@ import transportRoutes from './routes/transportRoutes.js'; // <-- IMPORT NEW ROU
 // Error Handler
 import { errorHandler } from './middleware/errorHandler.js';
 import Booking from './models/Booking.js';
+// *** ADDED: Import createNotification to be used in background job ***
+import { createNotification } from './controllers/notificationController.js'; 
 
 dotenv.config();
 
@@ -148,16 +150,17 @@ mongoose
     server.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
 
-      // Background job for expired bookings (remains the same)
+      // *** MODIFIED: Background job for expired bookings ***
       console.log('⏰ Starting background job to handle expired bookings...');
       setInterval(async () => {
         const now = new Date();
         try {
-          // Find pending bookings past expiration OR confirmed downpayments past due date
+          // *** MODIFIED: Find pending bookings past expiration, confirmed downpayments past due, OR pending transport past admin confirmation ***
           const expiredBookings = await Booking.find({
             $or: [
-              { status: 'pending', pendingExpiresAt: { $lt: now } },
-              { status: 'confirmed', paymentOption: 'downpayment', paymentDueDate: { $lt: now } }
+              { status: 'pending', itemType: { $in: ['car', 'tour'] }, pendingExpiresAt: { $lt: now } },
+              { status: 'confirmed', paymentOption: 'downpayment', paymentDueDate: { $lt: now } },
+              { status: 'pending', itemType: 'transport', adminConfirmationDueDate: { $lt: now } }
             ]
           });
 
@@ -174,7 +177,8 @@ mongoose
                     date: new Date()
                   },
                   pendingExpiresAt: undefined, // Clear timers
-                  paymentDueDate: undefined
+                  paymentDueDate: undefined,
+                  adminConfirmationDueDate: undefined // *** ADDED: Clear this timer too ***
                 }
               }
             );
@@ -186,13 +190,28 @@ mongoose
 
               for (const booking of expiredBookings) {
                  if (booking.user) {
-                     const customerMessage = `Your booking ${booking.bookingReference} was automatically cancelled due to expiration or missed payment deadline.`;
-                     await createNotification(
-                        io,
-                        { user: booking.user },
-                        customerMessage,
-                        '/my-bookings'
-                     );
+                     // Determine the correct message for the user
+                     let customerMessage = `Your booking ${booking.bookingReference} was automatically cancelled.`;
+                     if (booking.adminConfirmationDueDate && booking.itemType === 'transport') {
+                         customerMessage = `Your booking ${booking.bookingReference} was cancelled as it was not confirmed by an admin within the 24-hour window.`;
+                     } else if (booking.paymentDueDate) {
+                         customerMessage = `Your booking ${booking.bookingReference} was automatically cancelled due to a missed payment deadline.`;
+                     } else if (booking.pendingExpiresAt) {
+                         customerMessage = `Your booking ${booking.bookingReference} was automatically cancelled because the initial payment was not completed in time.`;
+                     }
+                     
+                     // Use the createNotification function
+                     try {
+                         await createNotification(
+                            io,
+                            { user: booking.user },
+                            customerMessage,
+                            '/my-bookings'
+                         );
+                     } catch (notificationError) {
+                         console.error('Failed to create auto-cancellation notification:', notificationError);
+                     }
+                     
                      // Optionally send email
                      // EmailService.sendBookingCancellation(booking, 'automatic cancellation').catch(console.error);
                  }

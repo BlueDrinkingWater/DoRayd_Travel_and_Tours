@@ -128,15 +128,17 @@ export const createBooking = async (req, res) => {
             firstName, lastName, email, phone, address,
             numberOfGuests, specialRequests, agreedToTerms, deliveryMethod,
             pickupLocation, dropoffLocation, totalPrice,
-            originalPrice, discountApplied, promotionTitle
+            originalPrice, discountApplied, promotionTitle,
+            // *** ADDED: Receive transport fields directly ***
+            transportDestination, transportServiceType
         } = req.body;
 
         // --- Basic Validations ---
         if (!itemType || !itemId || !startDate || !time || !paymentOption || !agreedToTerms) {
             return res.status(400).json({ success: false, message: 'Missing required booking details.' });
         }
-        // Client-sent totalPrice is now validated on the server, but we still check if it exists for non-transport
-        if (itemType !== 'transport' && (totalPrice === undefined || totalPrice === null)) {
+        // Client-sent totalPrice is now required for ALL bookings
+        if (totalPrice === undefined || totalPrice === null) {
             return res.status(400).json({ success: false, message: 'Total price is required.' });
         }
         if (agreedToTerms !== 'true' && agreedToTerms !== true) {
@@ -145,8 +147,8 @@ export const createBooking = async (req, res) => {
         if (!firstName || !lastName || !email || !phone || !address) {
              return res.status(400).json({ success: false, message: 'Missing required personal information.' });
         }
-        // Payment validation only if it's not a transport booking (which has totalPrice 0 initially)
-        if (itemType !== 'transport' && (!amountPaid || !req.file || !(manualPaymentReference || paymentReference))) {
+        // *** MODIFIED: Payment validation now applies to ALL item types ***
+        if (!amountPaid || !req.file || !(manualPaymentReference || paymentReference)) {
              return res.status(400).json({ success: false, message: 'Missing required payment details (amount, proof, reference).' });
         }
         if (paymentOption === 'downpayment' && !isUserLoggedIn) {
@@ -156,6 +158,11 @@ export const createBooking = async (req, res) => {
         if ((itemType === 'tour' || itemType === 'transport') && (!numberOfGuests || Number(numberOfGuests) < 1)) {
             return res.status(400).json({ success: false, message: 'Number of guests/passengers is required.' });
         }
+        // *** ADDED: Transport field validation ***
+        if (itemType === 'transport' && (!transportDestination || !transportServiceType)) {
+             return res.status(400).json({ success: false, message: 'Destination and Service Type are required for transport.' });
+        }
+
 
         // --- Fetch Item and Check Availability ---
         let item;
@@ -193,10 +200,9 @@ export const createBooking = async (req, res) => {
            return res.status(400).json({ success: false, message: 'Selected dates conflict with an existing booking. Please choose different dates.' });
          }
          
-        // *** ADDED: SERVER-SIDE PRICE CALCULATION & VALIDATION (Security Fix) ***
+        // *** MODIFIED: SERVER-SIDE PRICE CALCULATION & VALIDATION (Security Fix) ***
         let serverCalculatedPrice = 0;
         let serverNumberOfDays = 0;
-        let finalPrice = 0;
 
         if (itemType === 'car') {
             const start = new Date(newStartDate);
@@ -213,12 +219,29 @@ export const createBooking = async (req, res) => {
             // Use price from the fetched item
             serverCalculatedPrice = item.price * (Number(numberOfGuests) || 1);
         } else if (itemType === 'transport') {
-            serverCalculatedPrice = 0; // Stays 0 for quote
+            // *** ADDED: Server-side price calculation for transport ***
+            if (item.pricing && transportDestination && transportServiceType) {
+                const priceRule = item.pricing.find(p => p.destination === transportDestination);
+                if (priceRule) {
+                    switch (transportServiceType) {
+                        case 'Day Tour': serverCalculatedPrice = priceRule.dayTourPrice || 0; break;
+                        case 'Overnight': serverCalculatedPrice = priceRule.ovnPrice || 0; break;
+                        case '3D2N': serverCalculatedPrice = priceRule.threeDayTwoNightPrice || 0; break;
+                        case 'Drop & Pick': serverCalculatedPrice = priceRule.dropAndPickPrice || 0; break;
+                        default: serverCalculatedPrice = 0;
+                    }
+                }
+            }
+            if (serverCalculatedPrice <= 0) {
+                 return res.status(400).json({ success: false, message: 'Could not determine price. Invalid destination or service type.' });
+            }
+            // *** END OF ADDED transport price logic ***
         }
 
-        if (itemType === 'transport') {
-            finalPrice = 0;
-        } else if (promotionTitle && originalPrice !== undefined && discountApplied !== undefined) {
+        // *** MODIFIED: Price Validation (applies to ALL types) ***
+        let finalPrice = 0;
+
+        if (promotionTitle && originalPrice !== undefined && discountApplied !== undefined) {
             // A promotion is being applied by the client
             const clientOriginalPrice = Number(originalPrice);
             const clientDiscount = Number(discountApplied);
@@ -253,30 +276,7 @@ export const createBooking = async (req, res) => {
         }
         // *** END OF SERVER-SIDE PRICE CALCULATION ***
 
-        // *** ADDED: Parse specialRequests for transport data (Data Structure Fix) ***
-        let transportDestination = null;
-        let transportServiceType = null;
-        let finalSpecialRequests = specialRequests; // Use the original unless we parse it
-
-        if (itemType === 'transport' && specialRequests) {
-            const destMatch = specialRequests.match(/Destination: (.*?)(, Service:|$)/);
-            const serviceMatch = specialRequests.match(/Service: (.*?)(. Notes:|$)/);
-            const notesMatch = specialRequests.match(/. Notes: (.*)/);
-
-            if (destMatch && destMatch[1]) {
-                transportDestination = destMatch[1].trim();
-            }
-            if (serviceMatch && serviceMatch[1]) {
-                transportServiceType = serviceMatch[1].trim();
-            }
-            if (notesMatch && notesMatch[1]) {
-                finalSpecialRequests = notesMatch[1].trim(); // Only the notes part remains
-            } else if (destMatch || serviceMatch) {
-                // If we parsed fields but there are no "Notes:", the special request is just the parsed data
-                finalSpecialRequests = ''; 
-            }
-        }
-        // *** END OF PARSING logic ***
+        // *** REMOVED: Parsing logic for specialRequests. Data now comes directly. ***
 
         // --- Prepare Booking Data ---
         let coords = null;
@@ -308,17 +308,17 @@ export const createBooking = async (req, res) => {
             phone: finalPhone,
             address: finalAddress,
             numberOfGuests: (itemType === 'tour' || itemType === 'transport') ? Number(numberOfGuests) : undefined,
-            specialRequests: finalSpecialRequests, // Use the cleaned-up notes
+            specialRequests: specialRequests, // Use the original specialRequests
             agreedToTerms: true,
             deliveryMethod: itemType === 'car' ? deliveryMethod : undefined,
             pickupLocation: itemType === 'car' && deliveryMethod === 'pickup' ? pickupLocation : undefined,
             dropoffLocation: itemType === 'car' && deliveryMethod === 'dropoff' ? dropoffLocation : undefined,
             
-            // *** MODIFIED: Use server-validated price and data ***
+            // *** MODIFIED: Use server-validated price and direct transport data ***
             totalPrice: finalPrice, 
             numberOfDays: itemType === 'car' ? serverNumberOfDays : undefined,
-            transportDestination: transportDestination,
-            transportServiceType: transportServiceType,
+            transportDestination: itemType === 'transport' ? transportDestination : undefined,
+            transportServiceType: itemType === 'transport' ? transportServiceType : undefined,
             // *** END OF MODIFIED fields ***
 
             originalPrice: Number(originalPrice) || null,
@@ -326,7 +326,7 @@ export const createBooking = async (req, res) => {
             promotionTitle: promotionTitle || null,
         });
 
-        // Add initial payment only if amountPaid is positive and proof is provided
+        // Add initial payment (now applies to all types)
         if (Number(amountPaid) > 0 && req.file && (manualPaymentReference || paymentReference)) {
             const paymentData = {
                 amount: Number(amountPaid),
@@ -337,12 +337,16 @@ export const createBooking = async (req, res) => {
             newBooking.payments.push(paymentData);
             newBooking.amountPaid = newBooking.payments.reduce((acc, payment) => acc + payment.amount, 0);
         } else {
+             // This case should be blocked by validation, but as a fallback:
              newBooking.amountPaid = 0;
+             if (itemType !== 'transport') { // Keep transport quote logic as fallback? No, validation blocks it.
+                console.warn("Booking created with 0 amountPaid, but was not a transport quote. This shouldn't happen.");
+             }
         }
 
 
         // --- Save Booking and Update User ---
-        // Note: The pre-save hook in Booking.js now handles the pendingExpiresAt logic
+        // Note: The pre-save hook in Booking.js now handles all timer logic
         await newBooking.save();
 
         if(userId) {
@@ -454,8 +458,8 @@ export const addPayment = async (req, res) => {
 // Update booking status (Admin/Employee action)
 export const updateBookingStatus = async (req, res) => {
   try {
-    // *** MODIFIED: Added newTotalPrice to destructure from req.body ***
-    const { status, adminNotes, paymentDueDuration, paymentDueUnit, newTotalPrice } = req.body;
+    // *** MODIFIED: Removed newTotalPrice from destructuring ***
+    const { status, adminNotes, paymentDueDuration, paymentDueUnit } = req.body;
     const booking = await Booking.findById(req.params.id);
 
     if (!booking) {
@@ -464,44 +468,32 @@ export const updateBookingStatus = async (req, res) => {
 
     const previousStatus = booking.status;
 
-    // *** ADDED: Logic to update transport price (Workflow Fix) ***
-    if (newTotalPrice !== undefined && (req.user.role === 'admin' || req.user.role === 'employee')) {
-        if (booking.itemType !== 'transport') {
-            return res.status(400).json({ success: false, message: 'Price can only be set for transport bookings.' });
-        }
-        const price = Number(newTotalPrice);
-        if (isNaN(price) || price < 0) {
-            return res.status(400).json({ success: false, message: 'Invalid total price specified.' });
-        }
-        
-        // Only set the price if it's changing
-        if (booking.totalPrice !== price) {
-            booking.totalPrice = price;
-        }
-    }
-    // *** END OF ADDED price logic ***
-
+    // *** REMOVED: Logic to update transport price. Price is now set on creation. ***
+    // The admin's job is to confirm the payment, not set the price.
 
     // Handle payment due date setting
-    if (status === 'confirmed' && booking.paymentOption === 'downpayment') {
-      if (paymentDueDuration && paymentDueUnit) {
-          const duration = parseInt(paymentDueDuration, 10);
-          if (!isNaN(duration) && duration > 0) {
-              const now = new Date();
-              if (paymentDueUnit === 'days') {
-                  now.setDate(now.getDate() + duration);
-              } else {
-                  now.setHours(now.getHours() + duration);
-              }
-              booking.paymentDueDate = now;
-              console.log(`Payment due date set for booking ${booking.bookingReference}: ${booking.paymentDueDate}`);
-          } else {
-             console.warn(`Invalid payment due duration received: ${paymentDueDuration} ${paymentDueUnit} for booking ${booking.bookingReference}`);
-          }
-      } else {
-        console.warn(`Missing payment due duration/unit for confirming downpayment booking ${booking.bookingReference}`);
+    if (status === 'confirmed') {
+      if (booking.paymentOption === 'downpayment') {
+        if (paymentDueDuration && paymentDueUnit) {
+            const duration = parseInt(paymentDueDuration, 10);
+            if (!isNaN(duration) && duration > 0) {
+                const now = new Date();
+                if (paymentDueUnit === 'days') {
+                    now.setDate(now.getDate() + duration);
+                } else {
+                    now.setHours(now.getHours() + duration);
+                }
+                booking.paymentDueDate = now;
+                console.log(`Payment due date set for booking ${booking.bookingReference}: ${booking.paymentDueDate}`);
+            } else {
+               console.warn(`Invalid payment due duration received: ${paymentDueDuration} ${paymentDueUnit} for booking ${booking.bookingReference}`);
+            }
+        } else {
+          console.warn(`Missing payment due duration/unit for confirming downpayment booking ${booking.bookingReference}`);
+        }
       }
        booking.pendingExpiresAt = undefined; // Remove pending expiration
+       booking.adminConfirmationDueDate = undefined; // *** ADDED: Clear admin timer on confirmation ***
     }
 
     // Clear paymentDueDate if status changes from confirmed or moves to final states
@@ -511,6 +503,7 @@ export const updateBookingStatus = async (req, res) => {
     if (status === 'fully_paid' || status === 'completed' || status === 'cancelled' || status === 'rejected') {
         booking.paymentDueDate = undefined;
         booking.pendingExpiresAt = undefined;
+        booking.adminConfirmationDueDate = undefined; // *** ADDED: Clear admin timer on final states ***
     }
 
     booking.status = status;
@@ -559,13 +552,9 @@ export const updateBookingStatus = async (req, res) => {
 
     try {
         if (['confirmed', 'rejected', 'completed', 'cancelled', 'fully_paid'].includes(status)) {
-            // Also send an email if a transport price was just set and it's confirmed
-            const priceWasJustSet = newTotalPrice !== undefined && Number(newTotalPrice) > 0;
-            if (status === 'confirmed' && booking.itemType === 'transport' && priceWasJustSet) {
-                 await EmailService.sendTransportQuote(populatedBooking);
-            } else {
-                 await EmailService.sendStatusUpdate(populatedBooking);
-            }
+            // *** MODIFIED: Email logic ***
+            // We no longer send a "Quote" email. All bookings get a status update.
+            await EmailService.sendStatusUpdate(populatedBooking);
         }
     } catch (emailError) {
         console.error(`Failed to send status update email for booking ${populatedBooking.bookingReference}:`, emailError.message);
@@ -591,6 +580,7 @@ export const cancelBooking = async (req, res) => {
     booking.status = 'cancelled';
     booking.paymentDueDate = undefined;
     booking.pendingExpiresAt = undefined;
+    booking.adminConfirmationDueDate = undefined; // *** ADDED: Clear admin timer on cancellation ***
 
     const noteText = adminNotes ? `Cancellation reason: ${adminNotes.trim()}` : 'Booking cancelled by staff.';
     const newNote = {

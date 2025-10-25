@@ -112,6 +112,12 @@ const bookingSchema = new mongoose.Schema(
         type: Date,
         index: true // Index for efficient querying by the background job
     },
+    // *** ADDED: New field for admin confirmation timer ***
+    adminConfirmationDueDate: {
+        type: Date,
+        index: true
+    },
+    // *** END OF ADDED field ***
     agreedToTerms: { type: Boolean, required: true, default: false } // Added this field
 
   },
@@ -151,17 +157,24 @@ bookingSchema.pre('save', function (next) {
     }
   }
 
-  // *** ADDED: Logic to handle pendingExpiresAt for transport ***
+  // *** MODIFIED: Logic to handle timers based on itemType ***
   if (this.isNew) { // Only run this logic when the document is new
     if (this.itemType === 'transport') {
-      // Transport bookings are quotes, they should not expire in 15 mins
-      this.pendingExpiresAt = undefined;
+      // Transport bookings are now paid, they should not expire in 15 mins.
+      // They get the new admin confirmation timer instead.
+      this.pendingExpiresAt = undefined; 
+      
+      // Set the admin confirmation timer (e.g., 24 hours)
+      // This applies if it's a new, pending booking with payment.
+      if (this.status === 'pending' && (this.amountPaid > 0 || this.payments.length > 0)) {
+           this.adminConfirmationDueDate = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24-hour timer
+      }
     } else if (!this.pendingExpiresAt) {
-      // Ensure other new bookings get the default expiry
+      // Ensure other new (car/tour) bookings get the default 15-min expiry
       this.pendingExpiresAt = new Date(Date.now() + 15 * 60 * 1000);
     }
   }
-  // *** END OF ADDED logic ***
+  // *** END OF MODIFIED logic ***
 
   next();
 });

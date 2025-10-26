@@ -75,11 +75,23 @@ export const getSecureImageUrl = async (req, res) => {
 
     if (deliveryType === 'authenticated') {
       urlOptions.sign_url = true;
-      // Optional time-bound expiry:
-      // urlOptions.expires_at = Math.round((Date.now() + 3600_000) / 1000);
+      // Set expiration to 1 hour from now (required for signed URLs to work with Cloudinary)
+      // Use expires_in instead of expires_at - expires_in is the duration in seconds from now
+      urlOptions.expires_in = 3600;
     }
 
     const url = cloudinary.url(decodedPublicId, urlOptions);
+    
+    // Debug logging - REMOVE in production
+    console.log('Generated secure URL:', {
+      publicId: decodedPublicId,
+      deliveryType,
+      accessMode,
+      signUrl: urlOptions.sign_url,
+      expiresIn: urlOptions.expires_in,
+      generatedUrl: url
+    });
+
     return res.json({ success: true, data: { url } });
   } catch (error) {
     console.error('Secure Image Retrieval Error:', error);

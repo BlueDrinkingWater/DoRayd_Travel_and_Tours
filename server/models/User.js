@@ -6,7 +6,8 @@ const permissionSchema = new mongoose.Schema({
   module: {
     type: String,
     required: true,
-    enum: ['bookings', 'cars', 'tours', 'promotions', 'content', 'employees', 'customers', 'reports', 'messages', 'faqs', 'feedback', 'reviews']
+    // *** ADDED 'transport' to the enum ***
+    enum: ['bookings', 'cars', 'tours', 'transport', 'promotions', 'content', 'employees', 'customers', 'reports', 'messages', 'faqs', 'feedback', 'reviews']
   },
   access: {
     type: String,
@@ -26,8 +27,12 @@ const userSchema = new mongoose.Schema({
     select: false
   },
   phone: { type: String, trim: true },
-  profilePicture: { type: String },
-  // --- ADDED ADDRESS FIELD ---
+  // --- ADDED: profilePicture field ---
+  profilePicture: {
+    type: String, // Store the Cloudinary public_id (e.g., "dorayd/profiles/xyz123")
+    trim: true
+  },
+  // --- END ADDED ---
   address: { type: String, trim: true, maxlength: 500 },
   role: {
     type: String,
@@ -56,13 +61,14 @@ const userSchema = new mongoose.Schema({
 
 // Hash password before saving only for local auth
 userSchema.pre('save', async function(next) {
-  if (!this.isModified('password') || this.authProvider !== 'local') return next();
+  if (!this.isModified('password') || this.authProvider !== 'local' || !this.password) return next(); // Added check for password existence
   this.password = await bcrypt.hash(this.password, 12);
   next();
 });
 
 // Method to compare passwords
 userSchema.methods.correctPassword = async function(candidatePassword, userPassword) {
+   if (!userPassword) return false; // Handle cases where password might not be selected
   return await bcrypt.compare(candidatePassword, userPassword);
 };
 

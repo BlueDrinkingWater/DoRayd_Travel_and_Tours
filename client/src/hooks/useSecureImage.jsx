@@ -53,10 +53,15 @@ export const useSecureImage = (serverPath) => {
         if (dIdx !== -1) publicId = serverPath.substring(dIdx);
       }
 
-      // Remove any file extension if present; Cloudinary public_ids don't include extensions
-      if (publicId) {
+      // --- START OF FIX ---
+      // DO NOT remove the file extension. The server's imageController
+      // needs the full public_id (e.g., ".../image.jpg") to find the resource
+      // and generate a correct URL.
+      /* if (publicId) {
         publicId = publicId.replace(/\.(jpg|jpeg|png|webp|gif|pdf)$/i, '');
       }
+      */
+      // --- END OF FIX ---
 
       // Debug
       console.log('useSecureImage - serverPath:', serverPath);
@@ -74,20 +79,34 @@ export const useSecureImage = (serverPath) => {
         console.log('useSecureImage - API response:', response);
 
         if (response.success && response.data?.url) {
-          // Proactively test the returned URL to avoid broken <img>
-          const testImage = new Image();
-          testImage.onload = () => {
+          
+          // Check if the path is an attachment (PDF/raw file).
+          // We use publicId as it's the clean path.
+          const isAttachment = publicId.startsWith('dorayd/attachments');
+
+          if (isAttachment) {
+            // It's a PDF/raw file. Skip the Image() preload check, as it will fail.
+            // Trust the URL and set it directly for use in <a href> etc.
             setSecureUrl(response.data.url);
             setError(null);
             setLoading(false);
-          };
-          testImage.onerror = () => {
-            console.error('useSecureImage - Image does not exist on Cloudinary:', response.data.url);
-            setError('Image not found on server');
-            setSecureUrl('https://placehold.co/400x300/fecaca/991b1b?text=Image+Not+Found');
-            setLoading(false);
-          };
-          testImage.src = response.data.url;
+          } else {
+            // It's an image. Proactively test the URL to avoid broken <img>
+            const testImage = new Image();
+            testImage.onload = () => {
+              setSecureUrl(response.data.url);
+              setError(null);
+              setLoading(false);
+            };
+            testImage.onerror = () => {
+              console.error('useSecureImage - Image does not exist on Cloudinary:', response.data.url);
+              setError('Image not found on server');
+              setSecureUrl('https://placehold.co/400x300/fecaca/991b1b?text=Image+Not+Found');
+              setLoading(false);
+            };
+            testImage.src = response.data.url;
+          }
+
         } else {
           setError(response.message || 'Authentication failed');
           setSecureUrl('https://placehold.co/100x100/fecaca/991b1b?text=Auth+Error');

@@ -7,12 +7,21 @@ import { CloudinaryStorage } from 'multer-storage-cloudinary';
 
 const router = express.Router();
 
-// This uploader is for generic images (e.g., from content management)
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+// This uploader is for generic images
+// Note: access_mode will be set in the controller AFTER upload for sensitive folders
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
     folder: (req) => `dorayd/${req.body.category || 'general'}`,
-    allowed_formats: ['jpg', 'png', 'jpeg', 'webp'],
+    allowed_formats: ['jpg', 'png', 'jpeg', 'webp', 'pdf', 'txt'],
+    transformation: [{ width: 1024, height: 1024, crop: 'limit' }],
   },
 });
 

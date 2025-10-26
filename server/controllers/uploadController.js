@@ -2,19 +2,42 @@ import { v2 as cloudinary } from 'cloudinary';
 
 // Cloudinary is configured in the middleware, so we can just use it here.
 
-export const uploadSingleImage = (req, res) => {
+export const uploadSingleImage = async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ success: false, message: 'No file uploaded' });
     }
     
     // The 'multer-storage-cloudinary' middleware provides the Cloudinary URL and public_id
+    const publicId = req.file.filename;
+    const url = req.file.path;
+
+    // Check if this is a sensitive upload that needs authenticated access
+    const sensitiveCategories = ['payment_proofs', 'profiles', 'attachments'];
+    const category = req.body.category || 'general';
+    const isSensitive = sensitiveCategories.includes(category);
+
+    // If sensitive, update the resource to use authenticated access mode
+    if (isSensitive) {
+      try {
+        await cloudinary.api.update(publicId, {
+          access_mode: 'authenticated',
+          type: 'authenticated',
+          resource_type: 'image',
+        });
+        console.log(`Image ${publicId} set to authenticated access mode`);
+      } catch (error) {
+        console.error(`Error setting authenticated access for ${publicId}:`, error);
+        // Continue anyway - the image is uploaded, just not with restricted access
+      }
+    }
+
     res.json({ 
       success: true, 
       message: 'Image uploaded successfully to Cloudinary', 
       data: { 
-        url: req.file.path,      // This is the full HTTPS URL from Cloudinary
-        id: req.file.filename, // This is the public_id from Cloudinary (e.g., dorayd/general/image-12345)
+        url: url,
+        id: publicId,
       } 
     });
   } catch (error) {

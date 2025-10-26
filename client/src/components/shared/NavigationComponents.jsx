@@ -18,9 +18,7 @@ export const Navbar = ({ onCustomerLogin, onStaffLogin, onRegister }) => {
   const location = useLocation();
   const userMenuRef = useRef(null);
 
-  // --- ADD: Use useSecureImage for profile picture ---
-  const { secureUrl: profilePicUrl, loading: profilePicLoading } = useSecureImage(user?.profilePicture);
-  // --- END ADD ---
+const { secureUrl: profilePicUrl, loading: profilePicLoading } = useSecureImage(user?.profilePicture);
 
   const navigation = [
     // ... existing navigation items ...

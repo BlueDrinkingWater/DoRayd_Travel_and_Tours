@@ -31,10 +31,7 @@ const AccountSettings = () => {
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [deleteConfirmation, setDeleteConfirmation] = useState('');
 
-    // --- MODIFICATION: Use the useSecureImage hook ---
-    // The hook will fetch the temporary secure URL for the private profile picture
-    const { secureUrl: profilePicUrl, loading: profilePicLoading } = useSecureImage(user?.profilePicture);
-    // --- END MODIFICATION ---
+const { secureUrl: profilePicUrl, loading: profilePicLoading } = useSecureImage(user?.profilePicture);
 
     const fileInputRef = useRef(null);
 

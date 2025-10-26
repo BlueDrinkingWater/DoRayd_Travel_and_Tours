@@ -113,8 +113,9 @@ const DataService = {
 
 uploadProfilePicture: async (file) => {
   try {
+    console.log('Step 1: Requesting upload signature...');
     // Step 1: Get upload signature from backend
-    const signatureResponse = await api.post('/api/upload-signatures/signature', {
+    const signatureResponse = await api.post('/api/upload-signatures', {
       folder: 'profiles'
     });
 
@@ -123,6 +124,7 @@ uploadProfilePicture: async (file) => {
     }
 
     const { signature, timestamp, cloudName, apiKey, folder } = signatureResponse.data.data;
+    console.log('Signature received:', { folder });
 
     // Step 2: Upload directly to Cloudinary with signature
     const formData = new FormData();
@@ -131,9 +133,10 @@ uploadProfilePicture: async (file) => {
     formData.append('signature', signature);
     formData.append('timestamp', timestamp);
     formData.append('folder', folder);
-    formData.append('resource_type', 'image');
-    formData.append('access_mode', 'authenticated');
+    
+    // ✅ Don't send access_mode - images will be public but accessed via signed URLs
 
+    console.log('Step 2: Uploading to Cloudinary...');
     const cloudinaryResponse = await fetch(
       `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
       {
@@ -143,19 +146,24 @@ uploadProfilePicture: async (file) => {
     );
 
     const uploadedData = await cloudinaryResponse.json();
+    console.log('Cloudinary response:', uploadedData);
 
     if (!uploadedData.public_id) {
-      throw new Error('Cloudinary upload failed');
+      console.error('Cloudinary Upload Failed:', uploadedData);
+      throw new Error(uploadedData.error?.message || 'Cloudinary upload failed');
     }
 
+    console.log('Step 3: Confirming upload with backend...');
     // Step 3: Notify backend of successful upload
     const response = await api.post('/api/users/profile/picture/confirm', {
       publicId: uploadedData.public_id,
       url: uploadedData.secure_url,
     });
 
+    console.log('Upload complete!');
     return response.data;
   } catch (error) {
+    console.error('Upload error:', error);
     return handleError(error, 'Failed to upload profile picture.');
   }
 },

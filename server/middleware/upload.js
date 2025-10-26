@@ -11,7 +11,7 @@ cloudinary.config({
 
 // Function to create a Cloudinary storage engine for a specific folder
 const createStorage = (folder) => {
-  // CRITICAL FIX: These folders contain sensitive data and must be authenticated.
+  // CRITICAL: These folders contain sensitive data and must be authenticated.
   const isSensitive = ['payment_proofs', 'profiles', 'attachments'].includes(folder);
 
   return new CloudinaryStorage({
@@ -20,9 +20,11 @@ const createStorage = (folder) => {
       folder: `dorayd/${folder}`, // All uploads will go into a 'dorayd' folder on Cloudinary
       allowed_formats: ['jpg', 'png', 'jpeg', 'webp', 'pdf', 'txt'],
       transformation: [{ width: 1024, height: 1024, crop: 'limit' }], // Resize large images
-      
+
       // Apply authenticated access for sensitive folders, public for all others
+      // This sets the appropriate 'type' ('authenticated' or 'upload') during upload
       access_mode: isSensitive ? 'authenticated' : 'public',
+      // resource_type: 'auto' // Let Cloudinary detect file type (image, raw for pdf/txt)
     },
   });
 };
@@ -36,29 +38,37 @@ const imageFileFilter = (req, file, cb) => {
   }
 };
 
-// Uploader for Payment Proofs (now secured)
+// Uploader for Payment Proofs (secured via createStorage)
 export const upload = multer({
   storage: createStorage('payment_proofs'),
   limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB limit
   fileFilter: imageFileFilter,
 });
 
-// Uploader for Feedback Images (remains public)
+// Uploader for Feedback Images (remains public via createStorage)
 export const uploadFeedback = multer({
   storage: createStorage('feedback'),
   limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB limit
   fileFilter: imageFileFilter,
 });
 
-// Uploader for Email Attachments (now secured)
+// Uploader for Email Attachments (secured via createStorage)
 export const uploadAttachment = multer({
   storage: createStorage('attachments'),
   limits: { fileSize: 15 * 1024 * 1024 }, // 15 MB limit
+  // No file filter here to allow PDF, TXT etc.
 });
 
-// Uploader for Profile Pictures (now secured)
+// Uploader for Profile Pictures (secured via createStorage)
 export const uploadProfile = multer({
   storage: createStorage('profiles'),
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
   fileFilter: imageFileFilter,
 });
+
+// Uploader for general, car, tour, transport images (public via createStorage)
+export const uploadGeneralImage = multer({ storage: createStorage('general'), limits: { fileSize: 10 * 1024 * 1024 }, fileFilter: imageFileFilter });
+export const uploadCarImage = multer({ storage: createStorage('cars'), limits: { fileSize: 10 * 1024 * 1024 }, fileFilter: imageFileFilter });
+export const uploadTourImage = multer({ storage: createStorage('tours'), limits: { fileSize: 10 * 1024 * 1024 }, fileFilter: imageFileFilter });
+export const uploadTransportImage = multer({ storage: createStorage('transport'), limits: { fileSize: 10 * 1024 * 1024 }, fileFilter: imageFileFilter });
+export const uploadQRCodeImage = multer({ storage: createStorage('qrcodes'), limits: { fileSize: 5 * 1024 * 1024 }, fileFilter: imageFileFilter });

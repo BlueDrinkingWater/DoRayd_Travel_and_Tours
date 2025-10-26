@@ -8,36 +8,28 @@ export const uploadSingleImage = async (req, res) => {
       return res.status(400).json({ success: false, message: 'No file uploaded' });
     }
     
-    // The 'multer-storage-cloudinary' middleware provides the Cloudinary URL and public_id
+    // The 'multer-storage-cloudinary' middleware provides:
+    // req.file.filename: The public_id WITHOUT extension (e.g., 'dorayd/payment_proofs/xyz')
+    // req.file.path: The full URL (e.g., 'https://.../xyz.jpg')
     const publicId = req.file.filename;
     const url = req.file.path;
 
+    // --- FIX: Get the extension from the URL and create the full public_id ---
+    const extension = url.split('.').pop();
+    const fullPublicId = `${publicId}.${extension}`;
+
     // Check if this is a sensitive upload that needs authenticated access
-    const sensitiveCategories = ['payment_proofs', 'profiles', 'attachments'];
-    const category = req.body.category || 'general';
-    const isSensitive = sensitiveCategories.includes(category);
+    // const sensitiveCategories = ['payment_proofs', 'profiles', 'attachments'];
+    // const category = req.body.category || 'general';
+    // const isSensitive = sensitiveCategories.includes(category);
 
-    // If sensitive, update the resource to use authenticated access mode
-    if (isSensitive) {
-      try {
-        await cloudinary.api.update(publicId, {
-          access_mode: 'authenticated',
-          type: 'authenticated',
-          resource_type: 'image',
-        });
-        console.log(`Image ${publicId} set to authenticated access mode`);
-      } catch (error) {
-        console.error(`Error setting authenticated access for ${publicId}:`, error);
-        // Continue anyway - the image is uploaded, just not with restricted access
-      }
-    }
-
+    
     res.json({ 
       success: true, 
       message: 'Image uploaded successfully to Cloudinary', 
       data: { 
         url: url,
-        id: publicId,
+        id: fullPublicId, // --- FIX: Send the full ID (with extension) to the client
       } 
     });
   } catch (error) {

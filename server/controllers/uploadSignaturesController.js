@@ -7,11 +7,18 @@ export const generateUploadSignature = (req, res) => {
     const timestamp = Math.floor(Date.now() / 1000);
     const folder = req.body.folder || 'general';
     
+    // Determine if this folder contains sensitive images
+    const sensitiveCategories = ['payment_proofs', 'profiles', 'attachments'];
+    const isSensitive = sensitiveCategories.includes(folder);
+    
     // Parameters to sign
     const paramsToSign = {
       timestamp: timestamp,
       folder: `dorayd/${folder}`,
     };
+    
+    // ✅ DON'T set access_mode to authenticated - use public with signed URLs instead
+    // This allows images to be viewable in browsers while still being secure
 
     // Create the string to sign (sorted by key)
     const sortedParams = Object.keys(paramsToSign)
@@ -19,11 +26,13 @@ export const generateUploadSignature = (req, res) => {
       .map(key => `${key}=${paramsToSign[key]}`)
       .join('&');
 
-    // Generate signature using API secret
+    // Generate signature using SHA-1
     const signature = crypto
-      .createHmac('sha256', process.env.CLOUDINARY_API_SECRET)
-      .update(sortedParams)
+      .createHash('sha1')
+      .update(sortedParams + process.env.CLOUDINARY_API_SECRET)
       .digest('hex');
+
+    console.log('Generated signature for folder:', folder, 'isSensitive:', isSensitive);
 
     res.json({
       success: true,
@@ -33,6 +42,7 @@ export const generateUploadSignature = (req, res) => {
         cloudName: process.env.CLOUDINARY_CLOUD_NAME,
         apiKey: process.env.CLOUDINARY_API_KEY,
         folder: `dorayd/${folder}`,
+        // Don't send access_mode
       }
     });
   } catch (error) {

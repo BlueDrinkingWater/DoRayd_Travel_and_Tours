@@ -14,9 +14,9 @@ router.route('/profile')
     .put(auth, updateUserProfile)
     .delete(auth, deleteUserAccount);
     
-router.route('/profile/picture')
-    .post(auth, uploadProfile.single('profilePicture'), uploadProfilePicture);
-
+router.route('/profile/picture/confirm')
+    .post(auth, uploadProfilePictureConfirm);
+    
 // --- Employee Management Routes (Admin Only) ---
 router.route('/employees').get(auth, authorize('admin'), getAllEmployees).post(auth, authorize('admin'), createEmployee);
 router.route('/employees/:id').put(auth, authorize('admin'), updateEmployee).delete(auth, authorize('admin'), deleteEmployee);

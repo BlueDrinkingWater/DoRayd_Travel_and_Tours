@@ -1,6 +1,3 @@
-import { v2 as cloudinary } from 'cloudinary';
-
-// Generate a temporary URL for a Cloudinary image (authenticated or public).
 export const getSecureImageUrl = async (req, res) => {
   try {
     const { public_id } = req.params;
@@ -10,86 +7,24 @@ export const getSecureImageUrl = async (req, res) => {
 
     const decodedPublicId = decodeURIComponent(public_id);
 
-    // Private roots in your app
-    const privateRoots = ['dorayd/payment_proofs', 'dorayd/profiles', 'dorayd/attachments'];
-    const isPrivateRoot = privateRoots.some((p) => decodedPublicId.startsWith(p));
-
-    // Helper: try to find the resource under a given Cloudinary delivery type
-    const getResource = async (type) => {
-      return cloudinary.api.resource(decodedPublicId, { type, resource_type: 'image' });
-    };
-
-    let resource = null;
-    let detectedType = null; // 'authenticated' | 'upload'
-
-    // For private folders, prefer authenticated. Fall back to upload only if truly public (older data).
-    if (isPrivateRoot) {
-      try {
-        resource = await getResource('authenticated');
-        detectedType = 'authenticated';
-      } catch {
-        try {
-          resource = await getResource('upload');
-          detectedType = 'upload';
-        } catch {
-          resource = null;
-        }
-      }
-    } else {
-      // For non-private folders, prefer upload; if not, try authenticated
-      try {
-        resource = await getResource('upload');
-        detectedType = 'upload';
-      } catch {
-        try {
-          resource = await getResource('authenticated');
-          detectedType = 'authenticated';
-        } catch {
-          resource = null;
-        }
-      }
-    }
-
-    if (!resource) {
+    // Verify the resource exists
+    try {
+      await cloudinary.api.resource(decodedPublicId, { resource_type: 'image' });
+    } catch {
       return res.status(404).json({
         success: false,
         data: null,
-        message: 'Image not found on Cloudinary. The file may have been deleted or the public_id is incorrect.',
+        message: 'Image not found on Cloudinary.',
       });
     }
 
-    const version = resource.version;          // IMPORTANT: include version to avoid /v1/ 404s
-    const accessMode = resource.access_mode;   // 'authenticated' or 'public'
-
-    // Force authenticated delivery for private roots, even if the asset happens to be public,
-    // so we never accidentally expose sensitive media.
-    const deliveryType =
-      isPrivateRoot ? 'authenticated' : accessMode === 'authenticated' ? 'authenticated' : 'upload';
-
-    const urlOptions = {
-      type: deliveryType,
+    // Return the authenticated delivery URL
+    // Since images were uploaded with access_mode: authenticated,
+    // Cloudinary will require authentication headers to access them
+    const url = cloudinary.url(decodedPublicId, {
+      type: 'authenticated',
       resource_type: 'image',
       secure: true,
-      version, // ensures correct /v<version> path
-    };
-
-    if (deliveryType === 'authenticated') {
-      urlOptions.sign_url = true;
-      // Set expiration to 1 hour from now (required for signed URLs to work with Cloudinary)
-      // Use expires_in instead of expires_at - expires_in is the duration in seconds from now
-      urlOptions.expires_in = 3600;
-    }
-
-    const url = cloudinary.url(decodedPublicId, urlOptions);
-    
-    // Debug logging - REMOVE in production
-    console.log('Generated secure URL:', {
-      publicId: decodedPublicId,
-      deliveryType,
-      accessMode,
-      signUrl: urlOptions.sign_url,
-      expiresIn: urlOptions.expires_in,
-      generatedUrl: url
     });
 
     return res.json({ success: true, data: { url } });

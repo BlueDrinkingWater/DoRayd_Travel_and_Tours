@@ -24,53 +24,34 @@ export const updateUserProfile = async (req, res) => {
     }
 };
 
-export const uploadProfilePicture = async (req, res) => {
-    try {
-        if (!req.file) {
-            return res.status(400).json({ success: false, message: 'No file uploaded.' });
-        }
+export const uploadProfilePictureConfirm = async (req, res) => {
+  try {
+    const { publicId, url } = req.body;
 
-        // Verify the file was actually uploaded to Cloudinary
-        if (!req.file.filename || !req.file.path) {
-            return res.status(500).json({ success: false, message: 'Upload to cloud storage failed.' });
-        }
-
-        const publicId = req.file.filename;
-
-        // Profile pictures are sensitive - set to authenticated access mode
-        try {
-            await cloudinary.api.update(publicId, {
-                access_mode: 'authenticated',
-                type: 'authenticated',
-                resource_type: 'image',
-            });
-            console.log(`Profile picture ${publicId} set to authenticated access mode`);
-        } catch (error) {
-            console.error(`Error setting authenticated access for profile picture ${publicId}:`, error);
-            // Continue anyway - the image is uploaded, just not with restricted access
-        }
-
-        const user = await User.findById(req.user.id);
-        if (!user) {
-            return res.status(404).json({ success: false, message: 'User not found.' });
-        }
-
-        // Store only the public_id (filename) instead of the full URL with expiring signature
-        user.profilePicture = publicId;
-        await user.save({ validateBeforeSave: false });
-
-        res.json({ 
-            success: true, 
-            message: 'Profile picture uploaded successfully.', 
-            data: { 
-                profilePictureUrl: user.profilePicture,
-                cloudinaryUrl: req.file.path // Optional: for debugging
-            } 
-        });
-    } catch (error) {
-        console.error('Profile picture upload error:', error);
-        res.status(500).json({ success: false, message: 'Failed to upload profile picture.' });
+    if (!publicId) {
+      return res.status(400).json({ success: false, message: 'Public ID is required.' });
     }
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found.' });
+    }
+
+    // Store only the public_id
+    user.profilePicture = publicId;
+    await user.save({ validateBeforeSave: false });
+
+    res.json({ 
+      success: true, 
+      message: 'Profile picture uploaded successfully.', 
+      data: { 
+        profilePictureUrl: user.profilePicture,
+      } 
+    });
+  } catch (error) {
+    console.error('Profile picture confirmation error:', error);
+    res.status(500).json({ success: false, message: 'Failed to confirm profile picture.' });
+  }
 };
 
 export const deleteUserAccount = async (req, res) => {

@@ -31,6 +31,7 @@ import analyticsRoutes from './routes/analytics.js';
 import activityLogRoutes from './routes/activityLog.js';
 import imageRoutes from './routes/images.js';
 import transportRoutes from './routes/transportRoutes.js'; // <-- IMPORT NEW ROUTES
+import uploadSignatureRoutes from './routes/uploadSignatures.js';
 
 // Error Handler
 import { errorHandler } from './middleware/errorHandler.js';
@@ -138,6 +139,7 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/activity-log', activityLogRoutes);
 app.use('/api/images', imageRoutes);
 app.use('/api/transport', transportRoutes); // <-- REGISTER NEW ROUTES
+app.use('/api/upload-signatures', uploadSignatureRoutes);
 
 // Error Handling Middleware
 app.use(errorHandler);

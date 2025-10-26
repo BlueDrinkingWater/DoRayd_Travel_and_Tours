@@ -111,18 +111,54 @@ const DataService = {
     }
   },
 
-  uploadProfilePicture: async (file) => {
-    const formData = new FormData();
-    formData.append('profilePicture', file);
-    try {
-      const response = await api.post('/api/users/profile/picture', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      return response.data;
-    } catch (error) {
-      return handleError(error, 'Failed to upload profile picture.');
+uploadProfilePicture: async (file) => {
+  try {
+    // Step 1: Get upload signature from backend
+    const signatureResponse = await api.post('/api/upload-signatures/signature', {
+      folder: 'profiles'
+    });
+
+    if (!signatureResponse.data.success) {
+      throw new Error('Failed to get upload signature');
     }
-  },
+
+    const { signature, timestamp, cloudName, apiKey, folder } = signatureResponse.data.data;
+
+    // Step 2: Upload directly to Cloudinary with signature
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('api_key', apiKey);
+    formData.append('signature', signature);
+    formData.append('timestamp', timestamp);
+    formData.append('folder', folder);
+    formData.append('resource_type', 'image');
+    formData.append('access_mode', 'authenticated');
+
+    const cloudinaryResponse = await fetch(
+      `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+      {
+        method: 'POST',
+        body: formData,
+      }
+    );
+
+    const uploadedData = await cloudinaryResponse.json();
+
+    if (!uploadedData.public_id) {
+      throw new Error('Cloudinary upload failed');
+    }
+
+    // Step 3: Notify backend of successful upload
+    const response = await api.post('/api/users/profile/picture/confirm', {
+      publicId: uploadedData.public_id,
+      url: uploadedData.secure_url,
+    });
+
+    return response.data;
+  } catch (error) {
+    return handleError(error, 'Failed to upload profile picture.');
+  }
+},
 
   deleteAccount: async () => {
     try {

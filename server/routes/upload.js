@@ -1,5 +1,5 @@
 import express from 'express';
-import { generateUploadSignature } from '../controllers/uploadSignatureController.js';
+import { generateUploadSignature } from '../controllers/uploadSignaturesController.js'; // Corrected: Signature -> Signatures
 import { auth, authorize } from '../middleware/auth.js';
 
 const router = express.Router();

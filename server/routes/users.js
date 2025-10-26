@@ -2,7 +2,7 @@ import express from 'express';
 import { 
     getAllEmployees, createEmployee, updateEmployee, deleteEmployee, changeEmployeePassword,
     getAllCustomers, resetCustomerPassword,
-    updateUserProfile, deleteUserAccount, uploadProfilePicture // --- ADDED new functions ---
+    updateUserProfile, deleteUserAccount, uploadProfilePictureConfirm // --- FIXED ---
 } from '../controllers/usersController.js';
 import { auth, authorize } from '../middleware/auth.js';
 import { uploadProfile } from '../middleware/upload.js';

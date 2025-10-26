@@ -30,16 +30,30 @@ export const uploadProfilePicture = async (req, res) => {
             return res.status(400).json({ success: false, message: 'No file uploaded.' });
         }
 
+        // Verify the file was actually uploaded to Cloudinary
+        if (!req.file.filename || !req.file.path) {
+            return res.status(500).json({ success: false, message: 'Upload to cloud storage failed.' });
+        }
+
         const user = await User.findById(req.user.id);
         if (!user) {
             return res.status(404).json({ success: false, message: 'User not found.' });
         }
 
-        user.profilePicture = req.file.path; // Use Cloudinary URL
+        // FIXED: Store only the public_id (filename) instead of the full URL with expiring signature
+        user.profilePicture = req.file.filename; // Changed from req.file.path
         await user.save({ validateBeforeSave: false });
 
-        res.json({ success: true, message: 'Profile picture uploaded successfully.', data: { profilePictureUrl: user.profilePicture } });
+        res.json({ 
+            success: true, 
+            message: 'Profile picture uploaded successfully.', 
+            data: { 
+                profilePictureUrl: user.profilePicture,
+                cloudinaryUrl: req.file.path // Optional: for debugging
+            } 
+        });
     } catch (error) {
+        console.error('Profile picture upload error:', error);
         res.status(500).json({ success: false, message: 'Failed to upload profile picture.' });
     }
 };

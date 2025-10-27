@@ -21,12 +21,7 @@ const About = () => {
     aboutImage: aboutImageResponse?.success ? aboutImageResponse.data : null
   }
 
-  const stats = [
-    { number: '1000+', label: 'Happy Customers' },
-    { number: '50+', label: 'Tour Destinations' },
-    { number: '25+', label: 'Premium Vehicles' },
-    { number: '5+', label: 'Years Experience' }
-  ];
+  // --- STATS ARRAY REMOVED ---
 
   const renderContentSection = (title, contentKey, defaultContent) => {
     if (loading) {
@@ -92,43 +87,35 @@ const About = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Stats Section */}
-        <section className="py-16">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            {stats.map((stat, index) => (
-              <div key={index} className="text-center transform transition-transform duration-300 hover:scale-105">
-                <div className="text-4xl md:text-5xl font-bold text-blue-600 mb-2">
-                  {stat.number}
-                </div>
-                <div className="text-gray-600 font-medium">{stat.label}</div>
-              </div>
-            ))}
-          </div>
-        </section>
+        {/* --- STATS SECTION REMOVED --- */}
 
-        {/* About Content Sections */}
-        <section className="py-16 border-t border-gray-200">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            <div className="transform transition-transform duration-500 hover:scale-105">
-              {renderContentSection(
-                'About Us', 
-                'about',
-                'DoRayd Travel & Tours is a premier travel service provider dedicated to showcasing the natural beauty and rich culture of the Philippines. Founded in 2020, we have been committed to providing exceptional travel experiences through our comprehensive car rental and tour package services. Our team of experienced professionals ensures that every journey with us becomes a memorable adventure, whether you\'re exploring bustling cities or discovering hidden tropical paradises.'
-              )}
+        {/* About Content Sections - UPDATED STYLING */}
+        <section className="py-16 bg-gray-100 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8">
+            <div className="max-w-7xl mx-auto">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+                    {/* About Us Text Card */}
+                    <div className="bg-white rounded-2xl p-8 shadow-xl hover:shadow-2xl transition-shadow duration-300 transform hover:-translate-y-1">
+                    {renderContentSection(
+                        'About Us', 
+                        'about',
+                        'DoRayd Travel & Tours is a premier travel service provider dedicated to showcasing the natural beauty and rich culture of the Philippines. Founded in 2020, we have been committed to providing exceptional travel experiences through our comprehensive car rental and tour package services. Our team of experienced professionals ensures that every journey with us becomes a memorable adventure, whether you\'re exploring bustling cities or discovering hidden tropical paradises.'
+                    )}
+                    </div>
+                    {/* About Us Image (No Card) */}
+                    <div className="relative transform transition-transform duration-500 hover:scale-105">
+                    <div className="w-full h-96 bg-gray-200 rounded-2xl overflow-hidden shadow-2xl">
+                        <img
+                        src={getImageUrl(content.aboutImage?.content) || "https://placehold.co/600x400/e2e8f0/475569?text=DoRayd+Team"}
+                        alt="DoRayd Team"
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                            e.target.src = 'https://placehold.co/600x400/e2e8f0/475569?text=Image+Unavailable';
+                        }}
+                        />
+                    </div>
+                    </div>
+                </div>
             </div>
-            <div className="relative transform transition-transform duration-500 hover:scale-105">
-              <div className="w-full h-96 bg-gray-200 rounded-2xl overflow-hidden shadow-2xl">
-                <img
-                  src={getImageUrl(content.aboutImage?.content) || "https://placehold.co/600x400/e2e8f0/475569?text=DoRayd+Team"}
-                  alt="DoRayd Team"
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    e.target.src = 'https://placehold.co/600x400/e2e8f0/475569?text=Image+Unavailable';
-                  }}
-                />
-              </div>
-            </div>
-          </div>
         </section>
 
         {/* Mission & Vision */}

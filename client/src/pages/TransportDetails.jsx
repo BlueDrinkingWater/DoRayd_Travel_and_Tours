@@ -6,7 +6,7 @@ import useApi from '../hooks/useApi';
 import DataService, { getImageUrl } from '../components/services/DataService';
 import BookingModal from '../components/BookingModal';
 import { toast } from 'react-toastify';
-import { ChevronLeft, ChevronRight, CheckCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CheckCircle, Tag } from 'lucide-react'; // Added Tag
 import { formatPrice } from '../utils/helpers';
 
 const TransportDetails = () => {
@@ -135,6 +135,28 @@ const TransportDetails = () => {
             </h1>
             <p className="text-xl text-gray-600 mb-4">{service.vehicleType}</p>
 
+            {/* --- ADDED PROMOTION INFO BOX --- */}
+            {service.promotion && (
+                <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                    <div className="flex items-center gap-2">
+                        <Tag className="w-5 h-5 text-green-600" />
+                        <span className="font-semibold text-green-700">
+                            Special Offer: {service.promotion.title}!
+                        </span>
+                    </div>
+                    <p className="text-sm text-green-600 mt-1">
+                        Get {service.promotion.discountType === 'percentage'
+                            ? `${service.promotion.discountValue}% OFF`
+                            : `₱${service.promotion.discountValue} OFF`} this service.
+                        {service.promotion.discountType === 'percentage'
+                            ? ' Prices in the table below reflect this discount.'
+                            : ' This discount will be applied to your final price in the booking modal.'
+                        }
+                    </p>
+                </div>
+            )}
+            {/* --- END OF ADDED BLOCK --- */}
+
             <div className="mb-4">
               <h3 className="text-lg font-semibold mb-2">Capacity</h3>
               <p className="text-gray-700">{service.capacity}</p>
@@ -175,7 +197,7 @@ const TransportDetails = () => {
           </div>
         </div>
 
-        {/* --- Pricing Table (No changes needed here) --- */}
+        {/* --- Pricing Table (MODIFIED) --- */}
         {service.pricing && service.pricing.length > 0 && (
           <div className="p-6 border-t border-gray-200">
             <h2 className="text-2xl font-semibold text-gray-800 mb-4">
@@ -203,37 +225,73 @@ const TransportDetails = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {service.pricing.map((priceRow, index) => (
-                    <tr key={index} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <div className="font-medium text-gray-900">
-                          {priceRow.destination}
-                        </div>
-                        {priceRow.region && (
-                          <div className="text-xs text-gray-500">
-                            {priceRow.region}
+                  {service.pricing.map((priceRow, index) => {
+                    
+                    {/* --- ADDED PRICE CALCULATION LOGIC --- */}
+                    const getDiscounted = (originalPrice) => {
+                      // Only apply PERCENTAGE discounts to the price list
+                      if (!service.promotion || service.promotion.discountType !== 'percentage' || !originalPrice) {
+                        return { price: originalPrice, original: null };
+                      }
+                      const { discountValue } = service.promotion;
+                      let discountedPrice = originalPrice - (originalPrice * (discountValue / 100));
+                      return { price: Math.max(0, discountedPrice), original: originalPrice };
+                    };
+
+                    const dayTour = getDiscounted(priceRow.dayTourPrice);
+                    const ovn = getDiscounted(priceRow.ovnPrice);
+                    const threeDay = getDiscounted(priceRow.threeDayTwoNightPrice);
+                    const dropPick = getDiscounted(priceRow.dropAndPickPrice);
+                    {/* --- END OF LOGIC --- */}
+                    
+                    return (
+                      <tr key={index} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <div className="font-medium text-gray-900">
+                            {priceRow.destination}
                           </div>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <div>{formatPrice(priceRow.dayTourPrice)}</div>
-                        {priceRow.dayTourTime && (
-                          <div className="text-xs text-gray-500">
-                            ({priceRow.dayTourTime} hrs)
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        {formatPrice(priceRow.ovnPrice)}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        {formatPrice(priceRow.threeDayTwoNightPrice)}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap"> {/* <-- FIX 1: was whitespace-nowdwrap */}
-                        {formatPrice(priceRow.dropAndPickPrice)}
-                      </td>
-                    </tr>
-                  ))}
+                          {priceRow.region && (
+                            <div className="text-xs text-gray-500">
+                              {priceRow.region}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          {/* --- MODIFIED TO SHOW DISCOUNT --- */}
+                          {dayTour.original && (
+                            <span className="text-xs text-red-500 line-through">{formatPrice(dayTour.original)}</span>
+                          )}
+                          <div>{formatPrice(dayTour.price)}</div>
+                          {priceRow.dayTourTime && (
+                            <div className="text-xs text-gray-500">
+                              ({priceRow.dayTourTime} hrs)
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          {/* --- MODIFIED TO SHOW DISCOUNT --- */}
+                          {ovn.original && (
+                            <span className="text-xs text-red-500 line-through">{formatPrice(ovn.original)}</span>
+                          )}
+                          <div>{formatPrice(ovn.price)}</div>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          {/* --- MODIFIED TO SHOW DISCOUNT --- */}
+                          {threeDay.original && (
+                            <span className="text-xs text-red-500 line-through">{formatPrice(threeDay.original)}</span>
+                          )}
+                          <div>{formatPrice(threeDay.price)}</div>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap"> {/* <-- FIX 1: was whitespace-nowdwrap */}
+                          {/* --- MODIFIED TO SHOW DISCOUNT --- */}
+                          {dropPick.original && (
+                            <span className="text-xs text-red-500 line-through">{formatPrice(dropPick.original)}</span>
+                          )}
+                          <div>{formatPrice(dropPick.price)}</div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -253,7 +311,7 @@ const TransportDetails = () => {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSubmit={handleBookingSubmit}
-        item={service}
+        item={service} // 'service' here includes the 'promotion' object
         itemType="transport"
       />
     </div>

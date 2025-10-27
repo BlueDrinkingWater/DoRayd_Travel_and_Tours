@@ -1,4 +1,5 @@
 import TransportService from '../models/TransportService.js';
+import Promotion from '../models/Promotion.js'; // Import Promotion model
 import { createActivityLog } from './activityLogController.js';
 
 // Get all Transport Services (Admin/Employee, includes archived optionally)
@@ -34,8 +35,65 @@ export const getAllTransportServicesAdmin = async (req, res) => {
 export const getAllTransportServicesPublic = async (req, res) => {
   try {
     const services = await TransportService.find({ archived: false, isAvailable: true }).sort({ vehicleType: 1, name: 1 });
-    res.json({ success: true, data: services });
+    // Fetch active promotions
+    const promotions = await Promotion.find({ isActive: true, endDate: { $gte: new Date() } });
+
+    // Map through services and apply promotions
+    const servicesWithPromotions = services.map(service => {
+        const serviceObj = service.toObject();
+
+        const applicablePromotions = promotions.filter(promo => {
+            if (promo.applicableTo === 'all') return true;
+            if (promo.applicableTo === 'transport' && promo.itemIds.includes(service._id.toString())) return true;
+            return false;
+        });
+
+        if (applicablePromotions.length > 0) {
+             // Find the "best" promotion (e.g., highest discount)
+             // This is a simplistic approach; you might want more complex logic
+             const bestPromo = applicablePromotions.reduce((best, current) => {
+                // Simple logic: assume percentage is better, or higher fixed value
+                // You'll need to refine this based on your pricing
+                if (!best) return current;
+                if (current.discountType === 'percentage' && best.discountType !== 'percentage') return current;
+                if (current.discountType === best.discountType && current.discountValue > best.discountValue) return current;
+                return best;
+             }, null);
+
+             if (bestPromo) {
+                serviceObj.promotion = {
+                    title: bestPromo.title,
+                    discountValue: bestPromo.discountValue,
+                    discountType: bestPromo.discountType,
+                };
+                
+                // --- IMPORTANT ---
+                // Applying discounts to transport's complex pricing (per destination/type)
+                // is complex. We are just attaching the promo info.
+                // The frontend will need to interpret this and apply the discount
+                // to the relevant pricing field (e.g., dayTour, overnight, etc.)
+                // For example, you could apply it to each pricing entry:
+                /*
+                serviceObj.pricing = serviceObj.pricing.map(p => {
+                    const originalPrice = p.price;
+                    let discountedPrice = originalPrice;
+                    if (bestPromo.discountType === 'percentage') {
+                        discountedPrice = originalPrice * (1 - bestPromo.discountValue / 100);
+                    } else { // fixed
+                        discountedPrice = originalPrice - bestPromo.discountValue;
+                    }
+                    return { ...p, originalPrice, price: Math.max(0, discountedPrice) };
+                });
+                */
+             }
+        }
+        return serviceObj;
+    });
+
+
+    res.json({ success: true, data: servicesWithPromotions }); // Send modified data
   } catch (error) {
+    console.error("Error fetching public transport services:", error); // Log error
     res.status(500).json({ success: false, message: 'Server Error fetching transport services.' });
   }
 };
@@ -48,8 +106,54 @@ export const getTransportServiceById = async (req, res) => {
     if (!service) {
       return res.status(404).json({ success: false, message: 'Transport service not found' });
     }
-    res.json({ success: true, data: service });
+
+    // Fetch active promotions
+    const promotions = await Promotion.find({ isActive: true, endDate: { $gte: new Date() } });
+    const serviceObj = service.toObject();
+
+    // Apply promotion logic (similar to getAllTransportServicesPublic)
+    const applicablePromotions = promotions.filter(promo => {
+        if (promo.applicableTo === 'all') return true;
+        if (promo.applicableTo === 'transport' && promo.itemIds.includes(service._id.toString())) return true;
+        return false;
+    });
+
+    if (applicablePromotions.length > 0) {
+        // Find the "best" promotion
+        const bestPromo = applicablePromotions.reduce((best, current) => {
+            if (!best) return current;
+            if (current.discountType === 'percentage' && best.discountType !== 'percentage') return current;
+            if (current.discountType === best.discountType && current.discountValue > best.discountValue) return current;
+            return best;
+        }, null);
+
+        if (bestPromo) {
+            serviceObj.promotion = {
+                title: bestPromo.title,
+                discountValue: bestPromo.discountValue,
+                discountType: bestPromo.discountType,
+            };
+            
+            // Again, just attaching promo info. Frontend must apply discount.
+            // Example of applying discount to pricing array:
+            /*
+            serviceObj.pricing = serviceObj.pricing.map(p => {
+                const originalPrice = p.price;
+                let discountedPrice = originalPrice;
+                if (bestPromo.discountType === 'percentage') {
+                    discountedPrice = originalPrice * (1 - bestPromo.discountValue / 100);
+                } else { // fixed
+                    discountedPrice = originalPrice - bestPromo.discountValue;
+                }
+                return { ...p, originalPrice, price: Math.max(0, discountedPrice) };
+            });
+            */
+        }
+    }
+
+    res.json({ success: true, data: serviceObj }); // Send modified data
   } catch (error) {
+    console.error("Error fetching transport service by ID:", error); // Log error
     res.status(500).json({ success: false, message: 'Server Error fetching transport service.' });
   }
 };

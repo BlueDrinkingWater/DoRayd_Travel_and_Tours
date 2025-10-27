@@ -8,6 +8,7 @@ const ManagePromotions = () => {
     const promotions = promotionsData?.data || [];
     const [cars, setCars] = useState([]);
     const [tours, setTours] = useState([]);
+    const [transportServices, setTransportServices] = useState([]); // Added state for transport
     const [submitting, setSubmitting] = useState(false);
 
     const [showModal, setShowModal] = useState(false);
@@ -20,12 +21,15 @@ const ManagePromotions = () => {
     useEffect(() => {
         if (showModal) {
             const fetchServices = async () => {
-                const [carsResponse, toursResponse] = await Promise.all([
+                // Fetch transport services along with cars and tours
+                const [carsResponse, toursResponse, transportResponse] = await Promise.all([
                     DataService.fetchAllCars({ limit: 1000 }), // fetch all for selection
-                    DataService.fetchAllTours({ limit: 1000 })
+                    DataService.fetchAllTours({ limit: 1000 }),
+                    DataService.fetchAllTransportAdmin({ limit: 1000 }) // Added transport fetch
                 ]);
                 if (carsResponse.success) setCars(carsResponse.data);
                 if (toursResponse.success) setTours(toursResponse.data);
+                if (transportResponse.success) setTransportServices(transportResponse.data); // Set transport state
             };
             fetchServices();
         }
@@ -157,7 +161,15 @@ const ManagePromotions = () => {
                                 <div><label className="text-sm font-medium">Discount Type</label><select value={formData.discountType} onChange={e => setFormData({ ...formData, discountType: e.target.value })} className="w-full p-2 border rounded-md mt-1"><option value="percentage">Percentage</option><option value="fixed">Fixed Amount</option></select></div>
                                 <div><label className="text-sm font-medium">Discount Value</label><input type="number" value={formData.discountValue} onChange={e => setFormData({ ...formData, discountValue: e.target.value })} className="w-full p-2 border rounded-md mt-1" /></div>
                             </div>
-                            <div><label className="text-sm font-medium">Applicable To</label><select value={formData.applicableTo} onChange={handleApplicableToChange} className="w-full p-2 border rounded-md mt-1"><option value="all">All Services</option><option value="car">Specific Cars</option><option value="tour">Specific Tours</option></select></div>
+                            <div>
+                                <label className="text-sm font-medium">Applicable To</label>
+                                <select value={formData.applicableTo} onChange={handleApplicableToChange} className="w-full p-2 border rounded-md mt-1">
+                                    <option value="all">All Services</option>
+                                    <option value="car">Specific Cars</option>
+                                    <option value="tour">Specific Tours</option>
+                                    <option value="transport">Specific Transport</option> {/* Added option */}
+                                </select>
+                            </div>
                             {formData.applicableTo === 'car' && (<>
                                 <label className="text-sm font-medium">Select Cars</label>
                                 <select multiple value={formData.itemIds} onChange={handleItemIdsChange} className="w-full p-2 border rounded-md h-40 mt-1">{cars.map(car => (<option key={car._id} value={car._id}>{car.brand} {car.model}</option>))}</select>
@@ -165,6 +177,17 @@ const ManagePromotions = () => {
                             {formData.applicableTo === 'tour' && (<>
                                 <label className="text-sm font-medium">Select Tours</label>
                                 <select multiple value={formData.itemIds} onChange={handleItemIdsChange} className="w-full p-2 border rounded-md h-40 mt-1">{tours.map(tour => (<option key={tour._id} value={tour._id}>{tour.title}</option>))}</select>
+                            </>)}
+                            {/* Added conditional rendering for transport */}
+                            {formData.applicableTo === 'transport' && (<>
+                                <label className="text-sm font-medium">Select Transport Services</label>
+                                <select multiple value={formData.itemIds} onChange={handleItemIdsChange} className="w-full p-2 border rounded-md h-40 mt-1">
+                                    {transportServices.map(transport => (
+                                        <option key={transport._id} value={transport._id}>
+                                            {transport.vehicleType} {transport.name ? `(${transport.name})` : ''} - Cap: {transport.capacity}
+                                        </option>
+                                    ))}
+                                </select>
                             </>)}
                             <div className="grid grid-cols-2 gap-4">
                                 <div><label className="text-sm font-medium">Start Date</label><input type="date" value={formData.startDate} onChange={e => setFormData({ ...formData, startDate: e.target.value })} className="w-full p-2 border rounded-md mt-1" /></div>

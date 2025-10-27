@@ -79,6 +79,9 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
+if (process.env.NODE_ENV === "production") {
+  app.set("trust proxy", true);
+}
 // Security Middleware
 app.use(helmet());
 app.use(mongoSanitize());
@@ -214,8 +217,6 @@ mongoose
                          console.error('Failed to create auto-cancellation notification:', notificationError);
                      }
                      
-                     // Optionally send email
-                     // EmailService.sendBookingCancellation(booking, 'automatic cancellation').catch(console.error);
                  }
               }
             }

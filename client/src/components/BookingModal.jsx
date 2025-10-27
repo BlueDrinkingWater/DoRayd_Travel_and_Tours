@@ -132,9 +132,43 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
       const endDate = new Date(startDate);
       endDate.setDate(startDate.getDate() + parseInt(formData.numberOfDays, 10)); // End date is start + days
       setCalculatedEndDate(endDate);
-      setTotalPrice(formData.numberOfDays * (item?.pricePerDay || 0));
+      
+      // --- APPLY CAR PROMOTION ---
+      let carPrice = formData.numberOfDays * (item?.pricePerDay || 0);
+      if (item.promotion && carPrice > 0) {
+        const { discountType, discountValue } = item.promotion;
+        if (discountType === 'percentage') {
+            carPrice = carPrice - (carPrice * (discountValue / 100));
+        } else { // fixed
+            // Note: Fixed discount for cars applies PER DAY in this logic.
+            // If it should apply ONCE, this logic needs changing.
+            // Assuming per day to match original pricePerDay logic.
+            // For a one-time fixed discount, change to:
+            // carPrice = carPrice - discountValue;
+            carPrice = (formData.numberOfDays * Math.max(0, (item?.pricePerDay || 0) - discountValue));
+        }
+        carPrice = Math.max(0, carPrice);
+      }
+      setTotalPrice(carPrice);
+      
     } else if (itemType === 'tour') {
-      setTotalPrice(formData.numberOfGuests * (item?.price || 0));
+      // --- APPLY TOUR PROMOTION ---
+      let tourPrice = formData.numberOfGuests * (item?.price || 0);
+      if (item.promotion && tourPrice > 0) {
+         const { discountType, discountValue } = item.promotion;
+         if (discountType === 'percentage') {
+            tourPrice = tourPrice - (tourPrice * (discountValue / 100));
+         } else { // fixed
+            // Fixed discount for tours could be per guest or per booking.
+            // Assuming per guest to match original logic.
+            // For a one-time fixed discount, change to:
+            // tourPrice = tourPrice - discountValue;
+            tourPrice = (formData.numberOfGuests * Math.max(0, (item?.price || 0) - discountValue));
+         }
+         tourPrice = Math.max(0, tourPrice);
+      }
+      setTotalPrice(tourPrice);
+      
       // Tours have fixed end dates from item data
       setCalculatedEndDate(item.endDate ? new Date(item.endDate) : (formData.startDate ? new Date(formData.startDate) : null));
     
@@ -170,6 +204,21 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
           }
         }
       }
+      
+      // --- ADDED PROMOTION LOGIC FOR TRANSPORT ---
+      // Apply promotion if it exists (passed in the 'item' prop)
+      // This applies the discount ONCE to the final calculated price.
+      if (item.promotion && newPrice > 0) {
+        const { discountType, discountValue } = item.promotion;
+        if (discountType === 'percentage') {
+          newPrice = newPrice - (newPrice * (discountValue / 100));
+        } else { // fixed
+          newPrice = newPrice - discountValue;
+        }
+        newPrice = Math.max(0, newPrice); // Ensure price isn't negative
+      }
+      // --- END OF ADDED BLOCK ---
+      
       setTotalPrice(newPrice);
       setCalculatedEndDate(newEndDate);
     }
@@ -278,7 +327,9 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
         if (!formData.transportDestination) return setSubmitError("Destination is required for transport.");
         if (!formData.transportServiceType) return setSubmitError("Service Type is required for transport.");
         // --- ADDED: Price validation for transport ---
-        if (totalPrice <= 0) return setSubmitError("Please select a valid Destination and Service Type to calculate the price.");
+        if (totalPrice <= 0 && !(formData.transportDestination && formData.transportServiceType)) { 
+            return setSubmitError("Please select a valid Destination and Service Type to calculate the price.");
+        }
     }
     if (!formData.agreedToTerms) return setSubmitError('You must agree to the terms to proceed.');
     

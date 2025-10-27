@@ -5,7 +5,7 @@ const promotionSchema = new mongoose.Schema({
   description: { type: String, required: true, trim: true },
   discountType: { type: String, enum: ['percentage', 'fixed'], required: true },
   discountValue: { type: Number, required: true, min: 0 },
-  applicableTo: { type: String, enum: ['all', 'car', 'tour'], required: true },
+  applicableTo: { type: String, enum: ['all', 'car', 'tour', 'transport'], required: true }, // Added 'transport'
   itemIds: [{ type: mongoose.Schema.Types.ObjectId, refPath: 'itemModel' }], // Correctly reference other models
   isActive: { type: Boolean, default: true },
   startDate: { type: Date, required: true },
@@ -20,6 +20,7 @@ const promotionSchema = new mongoose.Schema({
 promotionSchema.virtual('itemModel').get(function() {
   if (this.applicableTo === 'car') return 'Car';
   if (this.applicableTo === 'tour') return 'Tour';
+  if (this.applicableTo === 'transport') return 'TransportService'; // Added this line
   return undefined;
 });
 

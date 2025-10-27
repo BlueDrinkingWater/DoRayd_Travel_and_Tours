@@ -602,6 +602,17 @@ uploadProfilePicture: async (file) => {
     }
   },
 
+  // --- NEW FUNCTION ADDED ---
+  deleteCar: async (id) => {
+    try {
+      const response = await api.delete(`/api/cars/${id}`);
+      return response.data;
+    } catch (error) {
+      return handleError(error, 'Failed to delete car.');
+    }
+  },
+  // --- END NEW FUNCTION ---
+
   createTour: async (tourData) => {
     try {
       const response = await api.post('/api/tours', tourData);
@@ -637,6 +648,17 @@ uploadProfilePicture: async (file) => {
       return handleError(error, 'Failed to restore tour.'); // Corrected message
     }
   },
+  
+  // --- NEW FUNCTION ADDED ---
+  deleteTour: async (id) => {
+    try {
+      const response = await api.delete(`/api/tours/${id}`);
+      return response.data;
+    } catch (error) {
+      return handleError(error, 'Failed to delete tour.');
+    }
+  },
+  // --- END NEW FUNCTION ---
 
   // --- NEW: Transport Service Management ---
   fetchAllTransportAdmin: async (params = {}) => {

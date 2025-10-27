@@ -1,5 +1,7 @@
+// server/routes/tours.js
 import express from 'express';
-import { getAllTours, getTourById, createTour, updateTour, archiveTour, unarchiveTour } from '../controllers/toursController.js';
+// --- ADD deleteTour ---
+import { getAllTours, getTourById, createTour, updateTour, archiveTour, unarchiveTour, deleteTour } from '../controllers/toursController.js';
 import { auth } from '../middleware/auth.js';
 import { checkPermission } from '../middleware/permission.js';
 
@@ -11,11 +13,14 @@ router.route('/')
 
 router.route('/:id')
     .get(getTourById)
-    .put(auth, checkPermission('tours', 'write'), updateTour);
+    .put(auth, checkPermission('tours', 'write'), updateTour)
+    // --- ADD DELETE route ---
+    .delete(auth, checkPermission('tours', 'full'), deleteTour);
 
 router.route('/:id/archive')
     .patch(auth, checkPermission('tours', 'full'), archiveTour);
 
 router.route('/:id/unarchive')
     .patch(auth, checkPermission('tours', 'full'), unarchiveTour);
+
 export default router;

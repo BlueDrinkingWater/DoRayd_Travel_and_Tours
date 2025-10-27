@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit3, Archive, Eye, EyeOff, Search, Car, Users, Fuel, Settings2, X, MapPin, RotateCcw, DollarSign, Percent, Info } from 'lucide-react';
+// --- ADDED Trash ---
+import { Plus, Edit3, Archive, Eye, EyeOff, Search, Car, Users, Fuel, Settings2, X, MapPin, RotateCcw, DollarSign, Percent, Info, Trash } from 'lucide-react';
 import DataService, { getImageUrl } from '../../components/services/DataService';
 import ImageUpload from '../../components/ImageUpload';
 import { useApi } from '../../hooks/useApi';
+import { toast } from 'react-toastify'; // Import toast
 
 const ManageCars = () => {
   const [showModal, setShowModal] = useState(false);
@@ -11,7 +13,26 @@ const ManageCars = () => {
   const [filterStatus, setFilterStatus] = useState('active');
   const [submitting, setSubmitting] = useState(false);
 
-  const { data: carsData, loading, refetch: fetchCars } = useApi(() => DataService.fetchAllCars({ archived: filterStatus === 'archived' }), [filterStatus]);
+  // --- THIS IS THE FIX for "All Cars" ---
+  // It now calls the correct DataService.fetchAllCars
+  // and sends the correct parameters based on your carsController.js logic
+  const { data: carsData, loading, refetch: fetchCars } = useApi(
+    () => {
+        const params = {};
+        if (filterStatus === 'archived') {
+            params.archived = true;
+        } else if (filterStatus === 'all') {
+            params.includeArchived = true;
+        } else {
+            // 'active' or default
+            params.archived = false;
+        }
+        return DataService.fetchAllCars(params); // Use correct function
+    },
+    [filterStatus]
+  );
+  // --- END FIX ---
+
   const cars = carsData?.data || [];
 
   const initialFormState = {
@@ -95,12 +116,12 @@ const ManageCars = () => {
     // Downpayment validation
      if (formData.paymentType === 'downpayment') {
         if (!formData.downpaymentType || !formData.downpaymentValue || parseFloat(formData.downpaymentValue) <= 0) {
-            alert('Downpayment Type and a positive Value are required when downpayment is enabled.');
+            toast.error('Downpayment Type and a positive Value are required when downpayment is enabled.');
             setSubmitting(false);
             return;
         }
         if (formData.downpaymentType === 'percentage' && (parseFloat(formData.downpaymentValue) < 1 || parseFloat(formData.downpaymentValue) > 99)) {
-            alert('Percentage must be between 1 and 99.');
+            toast.error('Percentage must be between 1 and 99.');
             setSubmitting(false);
             return;
         }
@@ -117,9 +138,13 @@ const ManageCars = () => {
      // Ensure features and pickupLocations are arrays (Safety Check)
      if (typeof simplePayload.features === 'string') {
         simplePayload.features = simplePayload.features.split(',').map(s => s.trim()).filter(Boolean);
+     } else if (!Array.isArray(simplePayload.features)) {
+        simplePayload.features = []; // Default to empty array if invalid
      }
      if (typeof simplePayload.pickupLocations === 'string') {
         simplePayload.pickupLocations = simplePayload.pickupLocations.split(',').map(s => s.trim()).filter(Boolean);
+     } else if (!Array.isArray(simplePayload.pickupLocations)) {
+        simplePayload.pickupLocations = []; // Default to empty array if invalid
      }
 
      // Clean up payment fields if 'full'
@@ -132,17 +157,17 @@ const ManageCars = () => {
       if (editingCar) {
         // Update uses simplePayload (JSON) as ImageUpload handled uploads/deletions
         await DataService.updateCar(editingCar._id, simplePayload);
-        alert('Car updated successfully!');
+        toast.success('Car updated successfully!');
       } else {
         // Create uses simplePayload (JSON)
         await DataService.createCar(simplePayload);
-        alert('Car created successfully!');
+        toast.success('Car created successfully!');
       }
       setShowModal(false);
       fetchCars();
     } catch (error) {
       console.error('Error saving car:', error);
-      alert(`Failed to save car: ${error.message || 'Unknown error'}`);
+      toast.error(`Failed to save car: ${error.message || 'Unknown error'}`);
     } finally {
       setSubmitting(false);
     }
@@ -183,55 +208,66 @@ const ManageCars = () => {
     setShowModal(true);
   };
 
-  const handleArchive = async (carId) => {
-    if (window.confirm('Are you sure you want to archive this car?')) {
+  const handleArchive = async (carId, carName) => {
+    if (window.confirm(`Are you sure you want to archive this car (${carName})?`)) {
       try {
         await DataService.archiveCar(carId);
-        alert('Car archived successfully!');
+        toast.success('Car archived successfully!');
         fetchCars();
       } catch (error) {
-        alert('Failed to archive car.');
+        toast.error('Failed to archive car.');
       }
     }
   };
 
-  const handleRestore = async (carId) => {
-    if (window.confirm('Are you sure you want to restore this car?')) {
+  const handleRestore = async (carId, carName) => {
+    if (window.confirm(`Are you sure you want to restore this car (${carName})?`)) {
       try {
         await DataService.unarchiveCar(carId);
-        alert('Car restored successfully!');
+        toast.success('Car restored successfully!');
         fetchCars();
       } catch (error) {
-        alert('Failed to restore car.');
+        toast.error('Failed to restore car.');
       }
     }
   };
+
+  // --- ADDED: Delete Handler ---
+  const handleDelete = async (carId, carName) => {
+    if (window.confirm(`Are you sure you want to PERMANENTLY DELETE (${carName})? This action cannot be undone and will fail if there are active bookings.`)) {
+      try {
+        await DataService.deleteCar(carId); // This function needs to be added to DataService
+        toast.success('Car permanently deleted!');
+        fetchCars();
+      } catch (error) {
+        toast.error(`Failed to delete car: ${error.message || 'Server error'}`);
+      }
+    }
+  };
+  // --- END: Delete Handler ---
 
   const handleToggleAvailability = async (car) => {
     const action = car.isAvailable ? 'unavailable' : 'available';
-    if (window.confirm(`Are you sure you want to mark this car as ${action}?`)) {
+    if (window.confirm(`Are you sure you want to mark this car (${car.brand} ${car.model}) as ${action}?`)) {
       try {
         await DataService.updateCar(car._id, { isAvailable: !car.isAvailable });
+        toast.success(`Car marked as ${action}.`);
         fetchCars();
       } catch (error) {
-        alert('Failed to toggle availability.');
+        toast.error('Failed to toggle availability.');
       }
     }
   };
 
   const filteredCars = Array.isArray(cars) ? cars.filter(car => {
     const lowerSearchTerm = searchTerm.toLowerCase();
-    const carStatus = car.archived ? 'archived' : 'active';
-
+    // No need to filter by status here, as `useApi` hook now does it
     const matchesSearch = (
       car.brand?.toLowerCase().includes(lowerSearchTerm) ||
       car.model?.toLowerCase().includes(lowerSearchTerm) ||
       car.location?.toLowerCase().includes(lowerSearchTerm)
     );
-
-    const matchesStatus = filterStatus === 'all' || carStatus === filterStatus;
-
-    return matchesSearch && matchesStatus;
+    return matchesSearch;
   }) : [];
 
 
@@ -291,14 +327,19 @@ const ManageCars = () => {
                   alt={`${car.brand} ${car.model}`}
                   className="w-full h-full object-cover"
                 />
+                {/* --- MODIFIED: Action Buttons --- */}
                 <div className="absolute top-2 right-2 flex gap-1">
                   {car.archived ? (
-                    <button onClick={() => handleRestore(car._id)} className="p-2 bg-white rounded-full shadow-md" title="Restore Car"><RotateCcw className="w-4 h-4 text-green-600" /></button>
+                    <>
+                      <button onClick={() => handleRestore(car._id, `${car.brand} ${car.model}`)} className="p-2 bg-white rounded-full shadow-md" title="Restore Car"><RotateCcw className="w-4 h-4 text-green-600" /></button>
+                      {/* --- ADDED Delete Button --- */}
+                      <button onClick={() => handleDelete(car._id, `${car.brand} ${car.model}`)} className="p-2 bg-white rounded-full shadow-md" title="PERMANENTLY DELETE"><Trash className="w-4 h-4 text-red-700" /></button>
+                    </>
                   ) : (
                     <>
                       <button onClick={() => handleEdit(car)} className="p-2 bg-white rounded-full shadow-md" title="Edit Car"><Edit3 className="w-4 h-4" /></button>
                       <button onClick={() => handleToggleAvailability(car)} className="p-2 bg-white rounded-full shadow-md" title={car.isAvailable ? 'Mark Unavailable' : 'Mark Available'}>{car.isAvailable ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</button>
-                      <button onClick={() => handleArchive(car._id)} className="p-2 bg-white rounded-full shadow-md" title="Archive Car"><Archive className="w-4 h-4 text-red-600" /></button>
+                      <button onClick={() => handleArchive(car._id, `${car.brand} ${car.model}`)} className="p-2 bg-white rounded-full shadow-md" title="Archive Car"><Archive className="w-4 h-4 text-red-600" /></button>
                     </>
                   )}
                 </div>
@@ -316,7 +357,10 @@ const ManageCars = () => {
             <div className="col-span-full text-center py-12">
               <Car className="w-16 h-16 text-gray-300 mx-auto mb-4" />
               <h3 className="text-lg font-medium">No cars found.</h3>
-              <p className="text-gray-500">There are no cars matching your current filter.</p>
+              <p className="text-gray-500">
+                {searchTerm ? `No cars match "${searchTerm}". ` : ''}
+                {`There are no ${filterStatus} cars.`}
+              </p>
             </div>
           )}
         </div>
@@ -329,7 +373,7 @@ const ManageCars = () => {
                 <h2 className="text-2xl font-bold text-gray-900">{editingCar ? 'Edit Car' : 'Add New Car'}</h2>
                 <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600"><X className="w-6 h-6" /></button>
             </div>
-            <form id="carForm" onSubmit={handleSubmit} className="space-y-6 overflow-y-auto p-6">
+            <form id="carForm" onSubmit={handleSubmit} className="space-y-6 overflow-y-auto p-6 scrollbar-thin"> {/* Added scrollbar-thin */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div><label className="block text-sm font-medium text-gray-700 mb-1">Brand *</label><input type="text" name="brand" required value={formData.brand} onChange={handleInputChange} className="w-full p-2 border rounded-lg" placeholder="Toyota, Honda, etc." /></div>
                     <div><label className="block text-sm font-medium text-gray-700 mb-1">Model *</label><input type="text" name="model" required value={formData.model} onChange={handleInputChange} className="w-full p-2 border rounded-lg" placeholder="Camry, Civic, etc." /></div>
@@ -414,7 +458,6 @@ const ManageCars = () => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Features</label>
                   <div className="flex gap-2 mb-2"><input type="text" value={newFeature} onChange={(e) => setNewFeature(e.target.value)} className="flex-1 px-3 py-2 border border-gray-300 rounded-lg" placeholder="Add a feature (e.g., Air Conditioning)" onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addFeature())} /><button type="button" onClick={addFeature} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Add</button></div>
-                  {/* FIX: Ensure formData.features is an array before mapping */}
                   {Array.isArray(formData.features) && formData.features.length > 0 && (
                     <div className="flex flex-wrap gap-2">
                         {formData.features.map((feature, index) => (
@@ -431,7 +474,6 @@ const ManageCars = () => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Pickup Locations</label>
                   <div className="flex gap-2 mb-2"><input type="text" value={newPickupLocation} onChange={(e) => setNewPickupLocation(e.target.value)} className="flex-1 px-3 py-2 border border-gray-300 rounded-lg" placeholder="Add a pickup location" onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addPickupLocation())} /><button type="button" onClick={addPickupLocation} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Add</button></div>
-                  {/* FIX: Ensure formData.pickupLocations is an array before mapping */}
                   {Array.isArray(formData.pickupLocations) && formData.pickupLocations.length > 0 && (
                     <div className="flex flex-wrap gap-2">
                         {formData.pickupLocations.map((location, index) => (

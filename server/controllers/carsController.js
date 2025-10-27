@@ -2,13 +2,8 @@ import Car from '../models/Car.js';
 import Promotion from '../models/Promotion.js';
 import { createNotification } from './notificationController.js';
 import { createActivityLog } from './activityLogController.js';
-import Booking from '../models/Booking.js'; // Make sure Booking model is imported
-
-// --- THIS IS THE FIX ---
-// Changed from './imageController.js' to './uploadController.js'
-import { deleteImage } from './uploadController.js'; 
-// --- END FIX ---
-
+import Booking from '../models/Booking.js';
+import { deleteImage } from './uploadController.js';
 
 export const getAllCars = async (req, res) => {
   try {
@@ -275,17 +270,38 @@ export const deleteCar = async (req, res) => {
     }
 
     // Check for existing active/pending bookings
-    const existingBookings = await Booking.findOne({ itemId: id, status: { $in: ['pending', 'confirmed'] } });
+    const existingBookings = await Booking.findOne({ 
+      itemId: id, 
+      itemType: 'car', 
+      status: { $in: ['pending', 'confirmed', 'fully_paid'] } 
+    });
+
     if (existingBookings) {
-      return res.status(400).json({ success: false, message: 'Cannot delete car with active or pending bookings. Please archive it instead.' });
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Cannot delete car with active or pending bookings. Please archive it instead.' 
+      });
     }
 
-    // Delete associated images
+    // Delete associated images from Cloudinary
     if (car.images && car.images.length > 0) {
+      console.log(`Deleting ${car.images.length} car images...`);
       for (const imageUrl of car.images) {
         try {
-          // Use the correctly imported deleteImage function
-          await deleteImage(imageUrl); 
+          // Extract public_id from URL
+          const urlParts = imageUrl.split('/');
+          const publicIdWithFolder = urlParts.slice(urlParts.indexOf('dorayd')).join('/'); 
+
+          if (publicIdWithFolder) {
+             await deleteImage(
+               { params: { public_id: decodeURIComponent(publicIdWithFolder) } }, 
+               { // Mock response object
+                 status: () => ({ json: () => {} }), 
+                 json: () => {}
+               }
+             );
+             console.log(`Attempted deletion of image: ${publicIdWithFolder}`);
+          }
         } catch (imgErr) {
           console.warn(`Failed to delete car image ${imageUrl}: ${imgErr.message}`);
         }
@@ -296,18 +312,21 @@ export const deleteCar = async (req, res) => {
 
     // Activity Log
     const io = req.app.get('io');
-    const newLog = await createActivityLog(
-      req.user.id,
-      'DELETE_CAR',
-      `Permanently deleted: ${car.brand} ${car.model}`,
-      '/owner/manage-cars'
-    );
-    if(newLog && io) io.to('admin').emit('activity-log-update', newLog);
+    if (io && (req.user.role === 'admin' || req.user.role === 'employee')) {
+        const newLog = await createActivityLog(
+          req.user.id,
+          'DELETE_CAR',
+          `Permanently deleted: ${car.brand} ${car.model}`,
+          '/owner/manage-cars'
+        );
+        if(newLog) io.to('admin').emit('activity-log-update', newLog);
+        console.log(`Activity log created for DELETE_CAR by ${req.user.role}: ${req.user.id}`);
+    }
 
     res.json({ success: true, message: 'Car permanently deleted' });
   } catch (error) {
     console.error('Error deleting car:', error);
-    res.status(500).json({ success: false, message: 'Server Error', error: error.message });
+    res.status(500).json({ success: false, message: 'Server Error during car deletion.', error: error.message });
   }
 };
 
@@ -315,7 +334,7 @@ export const getCarById = async (req, res) => {
   try {
     const car = await Car.findById(req.params.id);
     if (!car) {
-      return res.status(4404).json({ success: false, message: 'Car not found' });
+      return res.status(404).json({ success: false, message: 'Car not found' });
     }
 
     const promotions = await Promotion.find({ isActive: true, endDate: { $gte: new Date() } });

@@ -1,5 +1,5 @@
 import express from 'express';
-import { getAllCars, createCar, updateCar, archiveCar, unarchiveCar, getCarById } from '../controllers/carsController.js';
+import { getAllCars, createCar, updateCar, archiveCar, unarchiveCar, getCarById, deleteCar } from '../controllers/carsController.js';
 import { auth } from '../middleware/auth.js';
 import { checkPermission } from '../middleware/permission.js';
 
@@ -10,8 +10,10 @@ router.route('/')
     .post(auth, checkPermission('cars', 'write'), createCar);
 
 router.route('/:id')
-    .get(getCarById) 
-    .put(auth, checkPermission('cars', 'write'), updateCar);
+    .get(getCarById)
+    .put(auth, checkPermission('cars', 'write'), updateCar)
+    // --- ADD DELETE route ---
+    .delete(auth, checkPermission('cars', 'full'), deleteCar);
 
 router.route('/:id/archive')
     .patch(auth, checkPermission('cars', 'full'), archiveCar);
@@ -19,5 +21,4 @@ router.route('/:id/archive')
 router.route('/:id/unarchive')
     .patch(auth, checkPermission('cars', 'full'), unarchiveCar);
 
-router.delete('/:id', auth, checkPermission('cars', 'full'), deleteCar);
 export default router;

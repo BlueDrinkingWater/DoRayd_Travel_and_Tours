@@ -18,6 +18,6 @@ router.route('/:id/status')
 
 // --- ADD THIS ROUTE ---
 router.route('/:id')
-    .delete(auth, authorize('admin', 'employee'), deleteMessage); // Add delete route for a specific message ID
+    .delete(auth, authorize('admin', 'employee'), deleteMessage); 
 
 export default router;

@@ -6,7 +6,9 @@ import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import { useApi } from '../../hooks/useApi';
 import DataService, { getImageUrl } from '../../components/services/DataService';
-import { X, Eye, Calendar, Clock, User, Car, MapPin, Check, FileText, Link as LinkIcon, Hash, Package, DollarSign, Image as ImageIcon } from 'lucide-react';
+// --- FIX: Import useSecureImage hook ---
+import { useSecureImage } from '../../hooks/useSecureImage'; 
+import { X, Eye, Calendar, Clock, User, Car, MapPin, Check, FileText, Link as LinkIcon, Hash, Package, DollarSign, Image as ImageIcon, Loader2 } from 'lucide-react';
 
 // --- Helper Functions ---
 const formatDateTime = (dateString) => {
@@ -82,10 +84,48 @@ const DayEventsModal = ({ date, events, onClose, onEventSelect }) => {
   );
 };
 
+
+// --- FIX: New component to securely load payment proof ---
+const SecurePaymentProofImage = ({ serverPath }) => {
+  const { secureUrl, loading, error } = useSecureImage(serverPath);
+
+  if (loading) {
+    return (
+      <div className="w-full h-32 flex items-center justify-center bg-gray-100 rounded-lg">
+        <Loader2 className="animate-spin text-gray-400" />
+      </div>
+    );
+  }
+
+  if (error || !secureUrl) {
+    return (
+      <div className="w-full h-32 flex items-center justify-center bg-red-50 text-red-700 rounded-lg">
+        <p>Error loading image.</p>
+      </div>
+    );
+  }
+
+  return (
+    <a href={secureUrl} target="_blank" rel="noopener noreferrer" className="mt-4 block">
+      <img 
+        src={secureUrl} 
+        alt="Payment Proof" 
+        className="w-full h-auto max-h-80 rounded-lg object-contain border" 
+      />
+    </a>
+  );
+};
+
+
 // Full Booking Detail Modal
 const BookingDetailModal = ({ booking, onClose, onUpdate }) => {
     const [adminNotes, setAdminNotes] = useState(booking?.adminNotes || '');
     const [updating, setUpdating] = useState(false);
+
+    // --- FIX: Get the payment proof path from the payments array ---
+    const paymentProofPath = (booking.payments && booking.payments.length > 0) 
+      ? booking.payments[0].paymentProof 
+      : null;
 
     const handleStatusUpdate = async (newStatus) => {
         setUpdating(true);
@@ -154,11 +194,12 @@ const BookingDetailModal = ({ booking, onClose, onUpdate }) => {
                                     <span className="font-semibold text-gray-800">Total Amount Due:</span>
                                     <span className="text-2xl font-bold text-blue-600">{formatPrice(booking.totalPrice)}</span>
                                 </div>
-                                {booking.paymentProofUrl ? (
-                                    <a href={getImageUrl(booking.paymentProofUrl)} target="_blank" rel="noopener noreferrer" className="mt-4 block">
-                                        <img src={getImageUrl(booking.paymentProofUrl)} alt="Payment Proof" className="w-full h-auto rounded-lg object-contain border" />
-                                    </a>
+                                
+                                {/* --- FIX: Use the new SecurePaymentProofImage component --- */}
+                                {paymentProofPath ? (
+                                    <SecurePaymentProofImage serverPath={paymentProofPath} />
                                 ) : <p className="text-sm text-gray-500 text-center py-8">No payment proof uploaded.</p>}
+                                
                             </InfoBlock>
                              <InfoBlock title="Admin Actions" icon={FileText}>
                                 <div className="flex items-center justify-between mb-4">

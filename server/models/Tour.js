@@ -42,17 +42,11 @@ const tourSchema = new mongoose.Schema({
     required: [true, 'Maximum group size is required'],
     min: [1, 'Group size must be at least 1']
   },
-  difficulty: {
-    type: String,
-    required: [true, 'Difficulty level is required'],
-    enum: ['easy', 'moderate', 'challenging'],
-    default: 'moderate'
-  },
+  // --- REMOVED 'difficulty' FIELD ---
   category: {
     type: String,
     required: [true, 'Category is required'],
-    enum: ['adventure', 'cultural', 'nature', 'beach', 'city', 'historical'],
-    default: 'nature'
+    // --- REMOVED 'enum' AND 'default' ---
   },
   images: [{
     type: String,

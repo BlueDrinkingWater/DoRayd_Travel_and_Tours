@@ -21,7 +21,7 @@ export const getAllCars = async (req, res) => {
         if (filters.minPrice) query.pricePerDay.$gte = Number(filters.minPrice);
         if (filters.maxPrice) query.pricePerDay.$lte = Number(filters.maxPrice);
     }
-    
+
     // Handle 'search' query for broader matching
     if (filters.search) {
         const searchRegex = new RegExp(filters.search, 'i');
@@ -48,9 +48,9 @@ export const getAllCars = async (req, res) => {
       .limit(parseInt(limit))
       .skip((parseInt(page) - 1) * parseInt(limit))
       .sort({ createdAt: -1 });
-      
+
     const promotions = await Promotion.find({ isActive: true, endDate: { $gte: new Date() } });
-    
+
     const carsWithPromotions = cars.map(car => {
         const carObj = car.toObject();
         carObj.originalPrice = carObj.pricePerDay;
@@ -104,12 +104,12 @@ export const getAllCars = async (req, res) => {
 
 export const createCar = async (req, res) => {
   try {
-    const { 
+    const {
         brand, model, year, category, transmission, seats, fuelType, pricePerDay,
         description, features, pickupLocations, availabilityStatus,
         paymentType, downpaymentType, downpaymentValue, images // Images now passed as array of URLs
     } = req.body;
-    
+
     // Downpayment validation
     if (paymentType === 'downpayment') {
         if (!downpaymentType || !downpaymentValue || Number(downpaymentValue) <= 0) {
@@ -120,8 +120,8 @@ export const createCar = async (req, res) => {
         }
     }
 
-    const car = new Car({ 
-        ...req.body, 
+    const car = new Car({
+        ...req.body,
         owner: req.user.id,
         // Ensure arrays are saved correctly from comma-separated strings if needed
         features: Array.isArray(features) ? features : (features ? features.split(',').map(f => f.trim()) : []),
@@ -133,14 +133,16 @@ export const createCar = async (req, res) => {
         downpaymentType: paymentType === 'downpayment' ? downpaymentType : undefined,
         downpaymentValue: paymentType === 'downpayment' ? Number(downpaymentValue) : undefined,
     });
-    
+
     await car.save();
 
     const io = req.app.get('io');
-    if (io && req.user.role === 'employee') {
+    // *** MODIFIED: Added check for req.user.role before logging ***
+    if (io && req.user && req.user.role === 'employee') {
         const newLog = await createActivityLog(req.user.id, 'CREATE_CAR', `Car: ${car.brand} ${car.model}`, '/owner/manage-cars');
-        if(newLog) io.to('admin').emit('activity-log-update', newLog);
+        if (newLog) io.to('admin').emit('activity-log-update', newLog);
     }
+    // *** END MODIFICATION ***
 
     res.status(201).json({ success: true, data: car });
   } catch (error) {
@@ -159,18 +161,18 @@ export const updateCar = async (req, res) => {
      // Find car first
      const car = await Car.findById(id);
      if (!car) return res.status(404).json({ success: false, message: 'Car not found' });
-     
+
      // Handle availabilityStatus
      if (updateData.availabilityStatus) {
          updateData.isAvailable = updateData.availabilityStatus === 'available';
          delete updateData.availabilityStatus; // Remove field to avoid saving it
      }
-     
+
      // Handle features conversion from string
      if (updateData.features && typeof updateData.features === 'string') {
          updateData.features = updateData.features.split(',').map(f => f.trim()).filter(Boolean);
      }
-     
+
      // Handle pickupLocations conversion from string
      if (updateData.pickupLocations && typeof updateData.pickupLocations === 'string') {
          updateData.pickupLocations = updateData.pickupLocations.split(',').map(f => f.trim()).filter(Boolean);
@@ -208,14 +210,16 @@ export const updateCar = async (req, res) => {
 
     // Update other fields
     car.set(updateData); // Apply other updates from req.body
-    
+
     const updatedCar = await car.save(); // Run validators on save
-    
+
     const io = req.app.get('io');
-    if (io && req.user.role === 'employee') {
+    // *** MODIFIED: Added check for req.user.role before logging ***
+    if (io && req.user && req.user.role === 'employee') {
         const newLog = await createActivityLog(req.user.id, 'UPDATE_CAR', `Car: ${updatedCar.brand} ${updatedCar.model}`, '/owner/manage-cars');
-        if(newLog) io.to('admin').emit('activity-log-update', newLog);
+        if (newLog) io.to('admin').emit('activity-log-update', newLog);
     }
+    // *** END MODIFICATION ***
 
     res.json({ success: true, data: updatedCar });
   } catch (error) {
@@ -232,10 +236,12 @@ export const archiveCar = async (req, res) => {
     if (!car) return res.status(404).json({ success: false, message: 'Car not found' });
 
     const io = req.app.get('io');
-    if (io && req.user.role === 'employee') {
+    // *** MODIFIED: Added check for req.user.role before logging ***
+    if (io && req.user && req.user.role === 'employee') {
         const newLog = await createActivityLog(req.user.id, 'ARCHIVE_CAR', `Car: ${car.brand} ${car.model}`, '/owner/manage-cars');
-        if(newLog) io.to('admin').emit('activity-log-update', newLog);
+        if (newLog) io.to('admin').emit('activity-log-update', newLog);
     }
+    // *** END MODIFICATION ***
 
     res.json({ success: true, message: "Car archived successfully", data: car });
   } catch (error) {
@@ -247,12 +253,14 @@ export const unarchiveCar = async (req, res) => {
   try {
     const car = await Car.findByIdAndUpdate(req.params.id, { archived: false, isAvailable: true }, { new: true });
     if (!car) return res.status(404).json({ success: false, message: 'Car not found' });
-    
+
     const io = req.app.get('io');
-    if (io && req.user.role === 'employee') {
+    // *** MODIFIED: Added check for req.user.role before logging ***
+    if (io && req.user && req.user.role === 'employee') {
         const newLog = await createActivityLog(req.user.id, 'RESTORE_CAR', `Car: ${car.brand} ${car.model}`, '/owner/manage-cars');
-        if(newLog) io.to('admin').emit('activity-log-update', newLog);
+        if (newLog) io.to('admin').emit('activity-log-update', newLog);
     }
+    // *** END MODIFICATION ***
 
     res.json({ success: true, message: "Car restored successfully", data: car });
   } catch (error) {
@@ -270,16 +278,16 @@ export const deleteCar = async (req, res) => {
     }
 
     // Check for existing active/pending bookings
-    const existingBookings = await Booking.findOne({ 
-      itemId: id, 
-      itemType: 'car', 
-      status: { $in: ['pending', 'confirmed', 'fully_paid'] } 
+    const existingBookings = await Booking.findOne({
+      itemId: id,
+      itemType: 'car',
+      status: { $in: ['pending', 'confirmed', 'fully_paid'] }
     });
 
     if (existingBookings) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Cannot delete car with active or pending bookings. Please archive it instead.' 
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot delete car with active or pending bookings. Please archive it instead.'
       });
     }
 
@@ -290,13 +298,13 @@ export const deleteCar = async (req, res) => {
         try {
           // Extract public_id from URL
           const urlParts = imageUrl.split('/');
-          const publicIdWithFolder = urlParts.slice(urlParts.indexOf('dorayd')).join('/'); 
+          const publicIdWithFolder = urlParts.slice(urlParts.indexOf('dorayd')).join('/');
 
           if (publicIdWithFolder) {
              await deleteImage(
-               { params: { public_id: decodeURIComponent(publicIdWithFolder) } }, 
+               { params: { public_id: decodeURIComponent(publicIdWithFolder) } },
                { // Mock response object
-                 status: () => ({ json: () => {} }), 
+                 status: () => ({ json: () => {} }),
                  json: () => {}
                }
              );
@@ -312,7 +320,8 @@ export const deleteCar = async (req, res) => {
 
     // Activity Log
     const io = req.app.get('io');
-    if (io && (req.user.role === 'admin' || req.user.role === 'employee')) {
+    // *** MODIFIED: Changed check to req.user.role === 'employee' ***
+    if (io && req.user && req.user.role === 'employee') {
         const newLog = await createActivityLog(
           req.user.id,
           'DELETE_CAR',
@@ -322,6 +331,7 @@ export const deleteCar = async (req, res) => {
         if(newLog) io.to('admin').emit('activity-log-update', newLog);
         console.log(`Activity log created for DELETE_CAR by ${req.user.role}: ${req.user.id}`);
     }
+    // *** END MODIFICATION ***
 
     res.json({ success: true, message: 'Car permanently deleted' });
   } catch (error) {

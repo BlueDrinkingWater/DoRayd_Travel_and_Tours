@@ -28,11 +28,13 @@ export const createFAQ = async (req, res) => {
     const newFAQ = new FAQ({ question, answer, keywords, category });
     await newFAQ.save();
 
-    if (req.user.role === 'employee') {
+    // *** MODIFIED: Added check for req.user.role before logging ***
+    if (req.user && req.user.role === 'employee') {
         const io = req.app.get('io');
         const newLog = await createActivityLog(req.user.id, 'CREATE_FAQ', `FAQ: ${question}`, '/owner/manage-faqs');
-        io.to('admin').emit('activity-log-update', newLog);
+        if (newLog) io.to('admin').emit('activity-log-update', newLog);
     }
+    // *** END MODIFICATION ***
 
     res.status(201).json({ success: true, data: newFAQ });
   } catch (error) {
@@ -48,11 +50,13 @@ export const updateFAQ = async (req, res) => {
       return res.status(404).json({ success: false, message: 'FAQ not found' });
     }
 
-    if (req.user.role === 'employee') {
+    // *** MODIFIED: Added check for req.user.role before logging ***
+    if (req.user && req.user.role === 'employee') {
         const io = req.app.get('io');
         const newLog = await createActivityLog(req.user.id, 'UPDATE_FAQ', `FAQ: ${faq.question}`, '/owner/manage-faqs');
-        io.to('admin').emit('activity-log-update', newLog);
+        if (newLog) io.to('admin').emit('activity-log-update', newLog);
     }
+    // *** END MODIFICATION ***
 
     res.json({ success: true, data: faq });
   } catch (error) {
@@ -68,11 +72,13 @@ export const deleteFAQ = async (req, res) => {
       return res.status(404).json({ success: false, message: 'FAQ not found' });
     }
 
-    if (req.user.role === 'employee') {
+    // *** MODIFIED: Added check for req.user.role before logging ***
+    if (req.user && req.user.role === 'employee') {
         const io = req.app.get('io');
         const newLog = await createActivityLog(req.user.id, 'DELETE_FAQ', `FAQ: ${faq.question}`, '/owner/manage-faqs');
-        io.to('admin').emit('activity-log-update', newLog);
+        if (newLog) io.to('admin').emit('activity-log-update', newLog);
     }
+    // *** END MODIFICATION ***
 
     res.json({ success: true, message: 'FAQ deleted' });
   } catch (error) {

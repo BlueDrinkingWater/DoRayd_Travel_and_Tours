@@ -347,16 +347,21 @@ const BookingDetailModal = ({ booking, onClose, onUpdate }) => {
                 )}
               </InfoBlock>
               
+               {/* --- === ACTION BUTTONS (MODIFIED) === --- */}
                <div className="mt-6 space-y-3">
                    {selectedBooking.status === 'pending' && (
-                    <div className="flex gap-3">
+                    <div className="flex flex-col sm:flex-row gap-3">
                       <button onClick={() => handleStatusUpdate('confirmed')} disabled={updating || (selectedBooking.paymentOption === 'downpayment' && !paymentDueDuration)} className="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg font-semibold flex items-center justify-center gap-2 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed"><Check size={16} /> Confirm</button>
                       <button onClick={() => handleStatusUpdate('rejected')} disabled={updating || !adminNotes.trim()} className="flex-1 bg-red-600 text-white px-4 py-2 rounded-lg font-semibold flex items-center justify-center gap-2 hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed"><X size={16} /> Reject *</button>
+                      <button onClick={() => handleCancelBooking()} disabled={updating || !adminNotes.trim()} className="flex-1 bg-gray-600 text-white px-4 py-2 rounded-lg font-semibold flex items-center justify-center gap-2 hover:bg-gray-700 disabled:bg-gray-400 disabled:cursor-not-allowed"><X size={16} /> Cancel Booking *</button>
                     </div>
                    )}
                    {(selectedBooking.status === 'confirmed' || selectedBooking.status === 'fully_paid') && (
-                    <div className="flex gap-3">
+                    <div className="flex flex-col sm:flex-row gap-3">
                       <button onClick={() => handleStatusUpdate('completed')} disabled={updating} className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold flex items-center justify-center gap-2 hover:bg-blue-700 disabled:bg-gray-400"><Check size={16} /> Mark Completed</button>
+                      {/* --- ADDED REJECT BUTTON HERE --- */}
+                      <button onClick={() => handleStatusUpdate('rejected')} disabled={updating || !adminNotes.trim()} className="flex-1 bg-red-600 text-white px-4 py-2 rounded-lg font-semibold flex items-center justify-center gap-2 hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed"><X size={16} /> Reject *</button>
+                      {/* --- CANCEL BUTTON ALREADY EXISTED --- */}
                       <button onClick={() => handleCancelBooking()} disabled={updating || !adminNotes.trim()} className="flex-1 bg-gray-600 text-white px-4 py-2 rounded-lg font-semibold flex items-center justify-center gap-2 hover:bg-gray-700 disabled:bg-gray-400 disabled:cursor-not-allowed"><X size={16} /> Cancel Booking *</button>
                     </div>
                    )}
@@ -365,6 +370,7 @@ const BookingDetailModal = ({ booking, onClose, onUpdate }) => {
                    )}
                    <p className="text-xs text-gray-500 text-center">* Note required for Reject/Cancel actions.</p>
                 </div>
+                {/* --- === END ACTION BUTTONS (MODIFIED) === --- */}
             </div>
           </div>
         </div>

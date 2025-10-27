@@ -58,13 +58,27 @@ const ManageCars = () => {
     setEditingCar(null);
   };
 
+  // --- UPDATED: handleInputChange ---
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
+
+    // --- ADDED VALIDATION for pricePerDay ---
+    if (name === 'pricePerDay') {
+      // This regex allows numbers, an empty string, and a single decimal point.
+      // It prevents 'e', '-', '+' etc. from being typed.
+      if (value === '' || /^[0-9]*(\.[0-9]*)?$/.test(value)) {
+        setFormData(prev => ({ ...prev, [name]: value }));
+      }
+      return; // Prevent default action for this specific input
+    }
+    // --- END ADDED VALIDATION ---
+
     setFormData(prev => ({
         ...prev,
         [name]: type === 'checkbox' ? checked : value
     }));
   };
+  // --- END: handleInputChange ---
 
   // Handle changes specifically for payment type radio buttons
   const handlePaymentTypeChange = (e) => {
@@ -388,7 +402,8 @@ const ManageCars = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                      <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Price Per Day (₱) *</label>
-                        <input type="number" name="pricePerDay" required min="0" step="0.01" value={formData.pricePerDay} onChange={handleInputChange} className="w-full p-2 border rounded-lg" placeholder="2500.00" />
+                        {/* --- MODIFIED: Added onChange listener for new logic --- */}
+                        <input type="text" name="pricePerDay" required value={formData.pricePerDay} onChange={handleInputChange} className="w-full p-2 border rounded-lg" placeholder="2500.00" inputMode="decimal" />
                      </div>
                      <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Availability</label>

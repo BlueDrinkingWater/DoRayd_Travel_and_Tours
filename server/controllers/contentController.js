@@ -2,7 +2,7 @@ import Content from "../models/Content.js";
 import { createNotification } from "./notificationController.js";
 import { createActivityLog } from "./activityLogController.js";
 
-// 🟦 Get all unique content types
+// 洶 Get all unique content types
 export const getAllContentTypes = async (req, res) => {
   try {
     const contentTypes = await Content.distinct("type");
@@ -13,7 +13,7 @@ export const getAllContentTypes = async (req, res) => {
   }
 };
 
-// 🟦 Get content by its type (creates default if not existing)
+// 洶 Get content by its type (creates default if not existing)
 export const getContentByType = async (req, res) => {
   const { type } = req.params;
 
@@ -39,7 +39,7 @@ export const getContentByType = async (req, res) => {
   }
 };
 
-// 🟦 Update content by its type
+// 洶 Update content by its type
 export const updateContent = async (req, res) => {
   const { type } = req.params;
   const { title, content } = req.body;
@@ -52,9 +52,10 @@ export const updateContent = async (req, res) => {
       { new: true, upsert: true, runValidators: true }
     );
 
-    // 🔔 Real-time activity + notification for admins
+    // 粕 Real-time activity + notification for admins
     const io = req.app.get("io");
-    if (io && req.user.role === "employee") {
+    // *** MODIFIED: Added check for req.user.role before logging ***
+    if (io && req.user && req.user.role === "employee") {
       const message = `Employee ${req.user.firstName} updated the '${type}' content.`;
       const link = "/owner/content-management";
 
@@ -64,18 +65,18 @@ export const updateContent = async (req, res) => {
         `Content: ${type}`,
         link
       );
+      if (newLog) io.to("admin").emit("activity-log-update", newLog); // Emit log only if created
+
       const notifications = await createNotification(
         { roles: ["admin"], module: "content" },
         message,
         { admin: link }
       );
-
-      io.to("admin").emit("activity-log-update", newLog);
-
       if (notifications && notifications.length > 0) {
         io.to("admin").emit("notification", notifications[0]);
       }
     }
+    // *** END MODIFICATION ***
 
     res.json({
       success: true,

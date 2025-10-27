@@ -7,6 +7,9 @@ import TransportService from '../models/TransportService.js'; // Ensure this is 
 import User from '../models/User.js';
 import EmailService from '../utils/emailServices.js';
 import { createNotification } from './notificationController.js';
+// *** ADDED: Import createActivityLog ***
+import { createActivityLog } from './activityLogController.js';
+
 
 // Get all bookings for a specific service
 export const getBookingAvailability = async (req, res) => {
@@ -183,7 +186,7 @@ export const createBooking = async (req, res) => {
         if (!item || !item.isAvailable) {
             return res.status(400).json({ success: false, message: 'Selected item is currently unavailable.' });
         }
-        
+
         const newStartDate = new Date(startDate);
         const newEndDate = endDate ? new Date(endDate) : newStartDate;
 
@@ -199,7 +202,7 @@ export const createBooking = async (req, res) => {
          if (conflictingBooking) {
            return res.status(400).json({ success: false, message: 'Selected dates conflict with an existing booking. Please choose different dates.' });
          }
-         
+
         // *** MODIFIED: SERVER-SIDE PRICE CALCULATION & VALIDATION (Security Fix) ***
         let serverCalculatedPrice = 0;
         let serverNumberOfDays = 0;
@@ -249,28 +252,28 @@ export const createBooking = async (req, res) => {
 
             // 1. Verify the client's 'originalPrice' matches the server-calculated price
             if (Math.abs(serverCalculatedPrice - clientOriginalPrice) > 0.01) {
-                return res.status(400).json({ 
-                    success: false, 
-                    message: `Price mismatch. Server-calculated base price (${serverCalculatedPrice}) does not match reported original price (${clientOriginalPrice}).` 
+                return res.status(400).json({
+                    success: false,
+                    message: `Price mismatch. Server-calculated base price (${serverCalculatedPrice}) does not match reported original price (${clientOriginalPrice}).`
                 });
             }
-            
+
             // 2. Verify the client's math
             if (Math.abs(clientOriginalPrice - clientDiscount - clientTotalPrice) > 0.01) {
                 return res.status(400).json({ success: false, message: 'Promotion calculation error. Client math is incorrect.' });
             }
-            
+
             // If both checks pass, trust the client's final discounted price
             finalPrice = clientTotalPrice;
         } else {
             // No promotion, just use the server's calculated price
             finalPrice = serverCalculatedPrice;
-            
+
             // 3. Verify the client's 'totalPrice' matches the server-calculated price
             if (Math.abs(Number(totalPrice) - finalPrice) > 0.01) {
-                 return res.status(400).json({ 
-                    success: false, 
-                    message: `Price mismatch. Client price (${totalPrice}) does not match server-calculated price (${finalPrice}).` 
+                 return res.status(400).json({
+                    success: false,
+                    message: `Price mismatch. Client price (${totalPrice}) does not match server-calculated price (${finalPrice}).`
                 });
             }
         }
@@ -313,9 +316,9 @@ export const createBooking = async (req, res) => {
             deliveryMethod: itemType === 'car' ? deliveryMethod : undefined,
             pickupLocation: itemType === 'car' && deliveryMethod === 'pickup' ? pickupLocation : undefined,
             dropoffLocation: itemType === 'car' && deliveryMethod === 'dropoff' ? dropoffLocation : undefined,
-            
+
             // *** MODIFIED: Use server-validated price and direct transport data ***
-            totalPrice: finalPrice, 
+            totalPrice: finalPrice,
             numberOfDays: itemType === 'car' ? serverNumberOfDays : undefined,
             transportDestination: itemType === 'transport' ? transportDestination : undefined,
             transportServiceType: itemType === 'transport' ? transportServiceType : undefined,
@@ -525,9 +528,17 @@ export const updateBookingStatus = async (req, res) => {
 
     const populatedBooking = await Booking.findById(booking._id)
                                     .populate('user', 'firstName email')
-                                    .populate('itemId', 'brand model title vehicleType name'); 
+                                    .populate('itemId', 'brand model title vehicleType name');
 
     const io = req.app.get('io');
+
+    // *** MODIFIED: Added check for req.user.role before logging ***
+    if (io && req.user && req.user.role === 'employee') {
+        const newLog = await createActivityLog(req.user.id, 'UPDATE_BOOKING_STATUS', `Booking ${populatedBooking.bookingReference} status changed to ${status}`, '/owner/manage-bookings');
+        if (newLog) io.to('admin').emit('activity-log-update', newLog);
+    }
+    // *** END MODIFICATION ***
+
     if (io && populatedBooking.user) {
       const customerMessage = `Your booking ${populatedBooking.bookingReference} status updated to: ${status}. ${adminNotes ? 'Note: ' + adminNotes : ''}`;
       await createNotification(
@@ -598,9 +609,17 @@ export const cancelBooking = async (req, res) => {
 
     const populatedBooking = await Booking.findById(booking._id)
                                     .populate('user', 'firstName email')
-                                    .populate('itemId', 'brand model title vehicleType name'); 
+                                    .populate('itemId', 'brand model title vehicleType name');
 
     const io = req.app.get('io');
+
+    // *** MODIFIED: Added check for req.user.role before logging ***
+    if (io && req.user && req.user.role === 'employee') {
+        const newLog = await createActivityLog(req.user.id, 'CANCEL_BOOKING', `Cancelled booking ${populatedBooking.bookingReference}`, '/owner/manage-bookings');
+        if (newLog) io.to('admin').emit('activity-log-update', newLog);
+    }
+    // *** END MODIFICATION ***
+
     if (io && populatedBooking.user) {
        const customerMessage = `Your booking ${populatedBooking.bookingReference} has been cancelled. ${adminNotes ? 'Reason: ' + adminNotes : ''}`;
        await createNotification(

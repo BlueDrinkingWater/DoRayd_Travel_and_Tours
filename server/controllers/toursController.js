@@ -3,6 +3,8 @@ import Booking from '../models/Booking.js';
 import Promotion from '../models/Promotion.js';
 import { createNotification } from './notificationController.js';
 import { createActivityLog } from './activityLogController.js';
+// *** ADDED: Import deleteImage ***
+import { deleteImage } from './uploadController.js';
 
 export const getAllTours = async (req, res) => {
   try {
@@ -17,10 +19,10 @@ export const getAllTours = async (req, res) => {
             { title: searchRegex },
             { destination: searchRegex },
             { category: searchRegex },
-            { difficulty: searchRegex }
+            // { difficulty: searchRegex } // Removed difficulty
         ];
     }
-    
+
     if (filters.featured) query.featured = filters.featured === 'true';
     if (filters.isAvailable) query.isAvailable = filters.isAvailable === 'true';
     if (filters.destination) query.destination = new RegExp(filters.destination, 'i');
@@ -31,7 +33,7 @@ export const getAllTours = async (req, res) => {
         if (filters.minPrice) query.price.$gte = Number(filters.minPrice);
         if (filters.maxPrice) query.price.$lte = Number(filters.maxPrice);
     }
-    
+
     // Handle 'includeArchived'
     if (req.query.includeArchived === 'true') {
         query.archived = { $in: [true, false] };
@@ -50,7 +52,7 @@ export const getAllTours = async (req, res) => {
       .sort({ createdAt: -1 });
 
     const promotions = await Promotion.find({ isActive: true, endDate: { $gte: new Date() } });
-    
+
     const toursWithPromotions = tours.map(tour => {
         const tourObj = tour.toObject();
         tourObj.originalPrice = tourObj.price;
@@ -148,13 +150,13 @@ export const getTourById = async (req, res) => {
 
 export const createTour = async (req, res) => {
   try {
-    const { 
+    const {
         title, description, price, duration, startDate, endDate, maxGroupSize,
-        difficulty, category, inclusions, exclusions, itinerary,
+        category, inclusions, exclusions, itinerary, // Removed 'difficulty'
         availabilityStatus,
         paymentType, downpaymentType, downpaymentValue, images
     } = req.body;
-    
+
     // --- Validation ---
     if (!title || !price || !startDate || !endDate) {
         return res.status(400).json({ success: false, message: 'Title, Price, Start Date, and End Date are required.' });
@@ -170,7 +172,7 @@ export const createTour = async (req, res) => {
              return res.status(400).json({ success: false, message: 'Downpayment percentage must be between 1 and 99.' });
         }
     }
-    
+
     let parsedItinerary = [];
     try {
         if (itinerary) {
@@ -196,14 +198,18 @@ export const createTour = async (req, res) => {
         downpaymentType: paymentType === 'downpayment' ? downpaymentType : undefined,
         downpaymentValue: paymentType === 'downpayment' ? Number(downpaymentValue) : undefined,
     });
-    
+    // Remove difficulty before saving if it somehow exists
+    delete tour.difficulty;
+
     await tour.save();
 
     const io = req.app.get('io');
-    if (io && req.user.role === 'employee') {
+    // *** MODIFIED: Added check for req.user.role before logging ***
+    if (io && req.user && req.user.role === 'employee') {
         const newLog = await createActivityLog(req.user.id, 'CREATE_TOUR', `Tour: ${tour.title}`, '/owner/manage-tours');
-        if(newLog) io.to('admin').emit('activity-log-update', newLog);
+        if (newLog) io.to('admin').emit('activity-log-update', newLog);
     }
+    // *** END MODIFICATION ***
 
     res.status(201).json({ success: true, data: tour });
   } catch (error) {
@@ -218,17 +224,17 @@ export const updateTour = async (req, res) => {
   try {
     const { id } = req.params;
     const updateData = { ...req.body };
-    
+
     const tour = await Tour.findById(id);
     if (!tour) return res.status(404).json({ success: false, message: 'Tour not found' });
-    
+
     // --- Validation ---
     const newStartDate = updateData.startDate || tour.startDate;
     const newEndDate = updateData.endDate || tour.endDate;
     if (new Date(newStartDate) >= new Date(newEndDate)) {
         return res.status(400).json({ success: false, message: 'End Date must be after Start Date.' });
     }
-    
+
     const paymentType = updateData.paymentType || tour.paymentType;
     if (paymentType === 'downpayment') {
          const dpType = updateData.downpaymentType || tour.downpaymentType;
@@ -249,13 +255,13 @@ export const updateTour = async (req, res) => {
         tour.downpaymentValue = undefined;
     }
     // --- End Validation ---
-    
+
     // Handle availabilityStatus
      if (updateData.availabilityStatus) {
          updateData.isAvailable = updateData.availabilityStatus === 'available';
          delete updateData.availabilityStatus;
      }
-     
+
     // Handle string-to-array conversions
     if (updateData.inclusions && typeof updateData.inclusions === 'string') {
          updateData.inclusions = updateData.inclusions.split(',').map(f => f.trim()).filter(Boolean);
@@ -263,7 +269,7 @@ export const updateTour = async (req, res) => {
     if (updateData.exclusions && typeof updateData.exclusions === 'string') {
          updateData.exclusions = updateData.exclusions.split(',').map(f => f.trim()).filter(Boolean);
     }
-    
+
     // Handle itinerary JSON string
     if (updateData.itinerary && typeof updateData.itinerary === 'string') {
         try {
@@ -273,7 +279,7 @@ export const updateTour = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Itinerary must be a valid JSON array string.' });
         }
     }
-    
+
     // Handle images (assuming 'images' in body is the final array of URLs)
      if (updateData.images && Array.isArray(updateData.images)) {
          tour.images = updateData.images.map(img => (typeof img === 'string' ? img : img.url)).filter(Boolean);
@@ -283,17 +289,24 @@ export const updateTour = async (req, res) => {
      delete updateData.downpaymentType;
      delete updateData.downpaymentValue;
      delete updateData.images; // We set this manually on `tour`
-     
+
+    // Remove difficulty if it's sent
+    if (updateData.hasOwnProperty('difficulty')) {
+      delete updateData.difficulty;
+    }
+
     // Update other fields
     tour.set(updateData);
-    
+
     const updatedTour = await tour.save(); // Run validators on save
-    
+
     const io = req.app.get('io');
-    if (io && req.user.role === 'employee') {
+    // *** MODIFIED: Added check for req.user.role before logging ***
+    if (io && req.user && req.user.role === 'employee') {
         const newLog = await createActivityLog(req.user.id, 'UPDATE_TOUR', `Tour: ${updatedTour.title}`, '/owner/manage-tours');
-        if(newLog) io.to('admin').emit('activity-log-update', newLog);
+        if (newLog) io.to('admin').emit('activity-log-update', newLog);
     }
+    // *** END MODIFICATION ***
 
     res.json({ success: true, data: updatedTour });
   } catch (error) {
@@ -310,10 +323,12 @@ export const archiveTour = async (req, res) => {
     if (!tour) return res.status(404).json({ success: false, message: 'Tour not found' });
 
     const io = req.app.get('io');
-    if (io && req.user.role === 'employee') {
+    // *** MODIFIED: Added check for req.user.role before logging ***
+    if (io && req.user && req.user.role === 'employee') {
         const newLog = await createActivityLog(req.user.id, 'ARCHIVE_TOUR', `Tour: ${tour.title}`, '/owner/manage-tours');
-        if(newLog) io.to('admin').emit('activity-log-update', newLog);
+        if (newLog) io.to('admin').emit('activity-log-update', newLog);
     }
+    // *** END MODIFICATION ***
 
     res.json({ success: true, message: "Tour archived", data: tour });
   } catch (error) {
@@ -325,13 +340,15 @@ export const unarchiveTour = async (req, res) => {
   try {
     const tour = await Tour.findByIdAndUpdate(req.params.id, { archived: false, isAvailable: true }, { new: true });
     if (!tour) return res.status(404).json({ success: false, message: 'Tour not found' });
-    
+
     const io = req.app.get('io');
-    if (io && req.user.role === 'employee') {
+    // *** MODIFIED: Added check for req.user.role before logging ***
+    if (io && req.user && req.user.role === 'employee') {
         const newLog = await createActivityLog(req.user.id, 'RESTORE_TOUR', `Tour: ${tour.title}`, '/owner/manage-tours');
-        if(newLog) io.to('admin').emit('activity-log-update', newLog);
+        if (newLog) io.to('admin').emit('activity-log-update', newLog);
     }
-    
+    // *** END MODIFICATION ***
+
     res.json({ success: true, message: "Tour restored successfully", data: tour });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server Error' });
@@ -381,7 +398,8 @@ export const deleteTour = async (req, res) => {
 
     // Activity Log
     const io = req.app.get('io');
-     if (io && (req.user.role === 'admin' || req.user.role === 'employee')) { // Check permission properly
+     // *** MODIFIED: Changed check to req.user.role === 'employee' ***
+     if (io && req.user && req.user.role === 'employee') {
         const newLog = await createActivityLog(
           req.user.id,
           'DELETE_TOUR',
@@ -391,6 +409,7 @@ export const deleteTour = async (req, res) => {
          if(newLog) io.to('admin').emit('activity-log-update', newLog); // Emit to admin room
          console.log(`Activity log created for DELETE_TOUR by ${req.user.role}: ${req.user.id}`);
      }
+     // *** END MODIFICATION ***
 
     res.json({ success: true, message: 'Tour permanently deleted' });
   } catch (error) {

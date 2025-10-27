@@ -41,14 +41,16 @@ export const createPromotion = async (req, res) => {
     await promotion.save();
 
     const io = req.app.get('io');
-    if (io && req.user.role === 'employee') {
+    // *** MODIFIED: Added check for req.user.role before logging ***
+    if (io && req.user && req.user.role === 'employee') {
         const newLog = await createActivityLog(req.user.id, 'CREATE_PROMOTION', `Promotion: ${promotion.title}`, '/owner/manage-promotions');
-        io.to('admin').emit('activity-log-update', newLog);
+        if (newLog) io.to('admin').emit('activity-log-update', newLog);
     }
+    // *** END MODIFICATION ***
 
     res.status(201).json({ success: true, data: promotion });
   } catch (error) {
-    console.error("PROMOTION CREATION ERROR:", error); 
+    console.error("PROMOTION CREATION ERROR:", error);
     res.status(400).json({ success: false, message: error.message });
   }
 };
@@ -73,10 +75,12 @@ export const updatePromotion = async (req, res) => {
     }
 
     const io = req.app.get('io');
-    if (io && req.user.role === 'employee') {
+    // *** MODIFIED: Added check for req.user.role before logging ***
+    if (io && req.user && req.user.role === 'employee') {
         const newLog = await createActivityLog(req.user.id, 'UPDATE_PROMOTION', `Promotion: ${promotion.title}`, '/owner/manage-promotions');
-        io.to('admin').emit('activity-log-update', newLog);
+        if (newLog) io.to('admin').emit('activity-log-update', newLog);
     }
+    // *** END MODIFICATION ***
 
     res.json({ success: true, data: promotion });
   } catch (error) {
@@ -95,10 +99,12 @@ export const deletePromotion = async (req, res) => {
     }
 
     const io = req.app.get('io');
-    if (io && req.user.role === 'employee') {
+    // *** MODIFIED: Added check for req.user.role before logging ***
+    if (io && req.user && req.user.role === 'employee') {
         const newLog = await createActivityLog(req.user.id, 'DELETE_PROMOTION', `Promotion: ${promotion.title}`, '/owner/manage-promotions');
-        io.to('admin').emit('activity-log-update', newLog);
+        if (newLog) io.to('admin').emit('activity-log-update', newLog);
     }
+    // *** END MODIFICATION ***
 
     res.json({ success: true, message: 'Promotion deleted' });
   } catch (error) {

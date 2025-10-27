@@ -35,9 +35,9 @@ export const submitReview = async (req, res) => {
             comment,
             isAnonymous: isAnonymous || false,
         });
-        
+
         await review.save();
-        
+
         const io = req.app.get('io');
         if (io) {
             const notificationMessage = 'A new review has been submitted for approval.';
@@ -63,10 +63,10 @@ export const submitReview = async (req, res) => {
 export const getReviewsForItem = async (req, res) => {
     try {
         const { itemId } = req.params;
-        const reviews = await Review.find({ 
-            item: itemId, 
+        const reviews = await Review.find({
+            item: itemId,
             type: 'review',
-            isApproved: true 
+            isApproved: true
         })
         .populate('user', 'firstName lastName')
         .sort({ createdAt: -1 });
@@ -151,21 +151,23 @@ export const getAllFeedback = async (req, res) => {
 export const approveReview = async (req, res) => {
     try {
         const review = await Review.findByIdAndUpdate(
-            req.params.id, 
-            { isApproved: true }, 
+            req.params.id,
+            { isApproved: true },
             { new: true }
         ).populate('user', 'firstName lastName');
         if (!review) {
             return res.status(404).json({ success: false, message: 'Review not found.' });
         }
-        
+
         // --- ACTIVITY LOGGING ---
         const io = req.app.get('io');
-        if (io && req.user.role === 'employee') {
+        // *** MODIFIED: Added check for req.user.role before logging ***
+        if (io && req.user && req.user.role === 'employee') {
             const userName = review.user ? `${review.user.firstName} ${review.user.lastName}` : 'an unknown user';
             const newLog = await createActivityLog(req.user.id, 'APPROVE_REVIEW', `Approved review from ${userName}`, '/owner/manage-reviews');
-            io.to('admin').emit('activity-log-update', newLog);
+            if (newLog) io.to('admin').emit('activity-log-update', newLog);
         }
+        // *** END MODIFICATION ***
 
         res.json({ success: true, data: review });
     } catch (error) {
@@ -178,8 +180,8 @@ export const approveReview = async (req, res) => {
 export const approveFeedback = async (req, res) => {
     try {
         const feedback = await Feedback.findByIdAndUpdate(
-            req.params.id, 
-            { isApproved: true }, 
+            req.params.id,
+            { isApproved: true },
             { new: true }
         );
         if (!feedback) {
@@ -196,21 +198,23 @@ export const approveFeedback = async (req, res) => {
 export const disapproveReview = async (req, res) => {
     try {
         const review = await Review.findByIdAndUpdate(
-            req.params.id, 
-            { isApproved: false }, 
+            req.params.id,
+            { isApproved: false },
             { new: true }
         ).populate('user', 'firstName lastName');
         if (!review) {
             return res.status(404).json({ success: false, message: 'Review not found.' });
         }
-        
+
         // --- ACTIVITY LOGGING ---
         const io = req.app.get('io');
-        if (io && req.user.role === 'employee') {
+        // *** MODIFIED: Added check for req.user.role before logging ***
+        if (io && req.user && req.user.role === 'employee') {
             const userName = review.user ? `${review.user.firstName} ${review.user.lastName}` : 'an unknown user';
             const newLog = await createActivityLog(req.user.id, 'DISAPPROVE_REVIEW', `Disapproved review from ${userName}`, '/owner/manage-reviews');
-            io.to('admin').emit('activity-log-update', newLog);
+            if (newLog) io.to('admin').emit('activity-log-update', newLog);
         }
+        // *** END MODIFICATION ***
 
         res.json({ success: true, data: review });
     } catch (error) {
@@ -223,8 +227,8 @@ export const disapproveReview = async (req, res) => {
 export const disapproveFeedback = async (req, res) => {
     try {
         const feedback = await Feedback.findByIdAndUpdate(
-            req.params.id, 
-            { isApproved: false }, 
+            req.params.id,
+            { isApproved: false },
             { new: true }
         );
         if (!feedback) {
@@ -247,11 +251,13 @@ export const deleteReview = async (req, res) => {
 
         // --- ACTIVITY LOGGING ---
         const io = req.app.get('io');
-        if (io && req.user.role === 'employee') {
+        // *** MODIFIED: Added check for req.user.role before logging ***
+        if (io && req.user && req.user.role === 'employee') {
             const userName = review.user ? `${review.user.firstName} ${review.user.lastName}` : 'an unknown user';
             const newLog = await createActivityLog(req.user.id, 'DELETE_REVIEW', `Deleted review from ${userName}`, '/owner/manage-reviews');
-            io.to('admin').emit('activity-log-update', newLog);
+            if (newLog) io.to('admin').emit('activity-log-update', newLog);
         }
+        // *** END MODIFICATION ***
 
         res.json({ success: true, message: 'Review deleted successfully.' });
     } catch (error) {

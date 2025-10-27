@@ -73,10 +73,12 @@ export const createTransportService = async (req, res) => {
     await newService.save();
 
     const io = req.app.get('io');
-    if (io && req.user.role === 'employee') {
+    // *** MODIFIED: Added check for req.user.role before logging ***
+    if (io && req.user && req.user.role === 'employee') {
         const newLog = await createActivityLog(req.user.id, 'CREATE_TRANSPORT', `Transport: ${newService.vehicleType} ${newService.name || ''}`, '/owner/manage-transport');
         if(newLog) io.to('admin').emit('activity-log-update', newLog);
     }
+    // *** END MODIFICATION ***
 
     res.status(201).json({ success: true, data: newService });
   } catch (error) {
@@ -109,10 +111,12 @@ export const updateTransportService = async (req, res) => {
     }
 
     const io = req.app.get('io');
-    if (io && req.user.role === 'employee') {
+    // *** MODIFIED: Added check for req.user.role before logging ***
+    if (io && req.user && req.user.role === 'employee') {
         const newLog = await createActivityLog(req.user.id, 'UPDATE_TRANSPORT', `Transport: ${updatedService.vehicleType} ${updatedService.name || ''}`, '/owner/manage-transport');
         if(newLog) io.to('admin').emit('activity-log-update', newLog);
     }
+    // *** END MODIFICATION ***
 
     res.json({ success: true, data: updatedService });
   } catch (error) {
@@ -130,10 +134,12 @@ export const archiveTransportService = async (req, res) => {
     if (!service) return res.status(404).json({ success: false, message: 'Transport service not found' });
 
     const io = req.app.get('io');
-    if (io && req.user.role === 'employee') {
+    // *** MODIFIED: Added check for req.user.role before logging ***
+    if (io && req.user && req.user.role === 'employee') {
         const newLog = await createActivityLog(req.user.id, 'ARCHIVE_TRANSPORT', `Transport: ${service.vehicleType} ${service.name || ''}`, '/owner/manage-transport');
         if(newLog) io.to('admin').emit('activity-log-update', newLog);
     }
+    // *** END MODIFICATION ***
 
     res.json({ success: true, message: "Transport service archived", data: service });
   } catch (error) {
@@ -148,10 +154,12 @@ export const unarchiveTransportService = async (req, res) => {
     if (!service) return res.status(404).json({ success: false, message: 'Transport service not found' });
 
     const io = req.app.get('io');
-    if (io && req.user.role === 'employee') {
+    // *** MODIFIED: Added check for req.user.role before logging ***
+    if (io && req.user && req.user.role === 'employee') {
         const newLog = await createActivityLog(req.user.id, 'RESTORE_TRANSPORT', `Transport: ${service.vehicleType} ${service.name || ''}`, '/owner/manage-transport');
         if(newLog) io.to('admin').emit('activity-log-update', newLog);
     }
+    // *** END MODIFICATION ***
 
     res.json({ success: true, message: "Transport service restored successfully", data: service });
   } catch (error) {
@@ -167,8 +175,13 @@ export const deleteTransportService = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Transport service not found' });
     }
 
-    // Add activity log if needed
-    // ...
+    // *** MODIFIED: Added check for req.user.role before logging ***
+    const io = req.app.get('io');
+    if (io && req.user && req.user.role === 'employee') {
+        const newLog = await createActivityLog(req.user.id, 'DELETE_TRANSPORT', `Permanently deleted: ${service.vehicleType} ${service.name || ''}`, '/owner/manage-transport');
+        if(newLog) io.to('admin').emit('activity-log-update', newLog);
+    }
+    // *** END MODIFICATION ***
 
     res.json({ success: true, message: 'Transport service deleted successfully' });
   } catch (error) {

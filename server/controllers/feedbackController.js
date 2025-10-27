@@ -60,7 +60,7 @@ export const createFeedback = async (req, res) => {
 
 export const getAllFeedback = async (req, res) => {
     try {
-        const feedback = await Feedback.find({}) 
+        const feedback = await Feedback.find({})
             .populate('user', 'firstName lastName')
             .sort({ createdAt: -1 });
         res.json({ success: true, data: feedback });
@@ -100,12 +100,14 @@ export const approveFeedback = async (req, res) => {
         if (!feedback) {
             return res.status(404).json({ success: false, message: 'Feedback not found.' });
         }
-        
-        if (req.user.role === 'employee') {
+
+        // *** MODIFIED: Added check for req.user.role before logging ***
+        if (req.user && req.user.role === 'employee') {
             const io = req.app.get('io');
             const newLog = await createActivityLog(req.user.id, 'APPROVE_FEEDBACK', `Feedback ID: ${feedback._id}`, '/owner/manage-feedback');
-            io.to('admin').emit('activity-log-update', newLog);
+            if (newLog) io.to('admin').emit('activity-log-update', newLog);
         }
+        // *** END MODIFICATION ***
 
         res.json({ success: true, data: feedback });
     } catch (error) {
@@ -121,11 +123,13 @@ export const deleteFeedback = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Feedback not found' });
         }
 
-        if (req.user.role === 'employee') {
+        // *** MODIFIED: Added check for req.user.role before logging ***
+        if (req.user && req.user.role === 'employee') {
             const io = req.app.get('io');
             const newLog = await createActivityLog(req.user.id, 'DELETE_FEEDBACK', `Feedback ID: ${feedback._id}`, '/owner/manage-feedback');
-            io.to('admin').emit('activity-log-update', newLog);
+            if (newLog) io.to('admin').emit('activity-log-update', newLog);
         }
+        // *** END MODIFICATION ***
 
         res.json({ success: true, message: 'Feedback deleted successfully.' });
     } catch (error) {

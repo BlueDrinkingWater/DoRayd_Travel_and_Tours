@@ -1,29 +1,36 @@
+// server/routes/transportRoutes.js
+
 import express from 'express';
 import {
-    getAllTransportServicesAdmin,
-    getAllTransportServicesPublic,
-    getTransportServiceById,
-    createTransportService,
-    updateTransportService,
-    archiveTransportService,
-    unarchiveTransportService,
-    deleteTransportService // Optional, if you want hard delete
+  getAllTransportAdmin,
+  getAllTransportPublic,
+  getTransportById,
+  createTransport,
+  updateTransport,
+  archiveTransport,
+  unarchiveTransport,
+  getBookedDatesForTransport,
+  deleteTransport, // --- ADDED ---
 } from '../controllers/transportController.js';
-import { auth } from '../middleware/auth.js';
-import { checkPermission } from '../middleware/permission.js'; // Assuming 'transport' module
+import { auth, isAdminOrEmployee } from '../middleware/auth.js';
 
 const router = express.Router();
 
 // Public routes
-router.get('/', getAllTransportServicesPublic);
-router.get('/:id', getTransportServiceById); // Public can view details too
+router.get('/', getAllTransportPublic);
+router.get('/:id', getTransportById);
+router.get('/booked-dates/:id', getBookedDatesForTransport);
 
-// Admin & Employee (with 'transport' permission) routes
-router.get('/admin/all', auth, checkPermission('transport', 'read'), getAllTransportServicesAdmin); // Separate route for admin view
-router.post('/', auth, checkPermission('transport', 'write'), createTransportService);
-router.put('/:id', auth, checkPermission('transport', 'write'), updateTransportService);
-router.patch('/:id/archive', auth, checkPermission('transport', 'full'), archiveTransportService);
-router.patch('/:id/unarchive', auth, checkPermission('transport', 'full'), unarchiveTransportService);
-// router.delete('/:id', auth, checkPermission('transport', 'full'), deleteTransportService); // Optional hard delete
+// Admin/Employee routes
+router.get('/admin/all', auth, isAdminOrEmployee, getAllTransportAdmin); // Changed path to avoid conflict
+router.post('/', auth, isAdminOrEmployee, createTransport);
+router.put('/:id', auth, isAdminOrEmployee, updateTransport);
+router.patch('/archive/:id', auth, isAdminOrEmployee, archiveTransport);
+router.patch('/unarchive/:id', auth, isAdminOrEmployee, unarchiveTransport);
+
+// --- ADDED ---
+// DELETE a transport service (permanent)
+router.delete('/:id', auth, isAdminOrEmployee, deleteTransport);
+
 
 export default router;

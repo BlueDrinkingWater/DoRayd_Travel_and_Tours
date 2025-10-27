@@ -1,93 +1,89 @@
 // server/models/TransportService.js
 
 import mongoose from 'mongoose';
-const { Schema } = mongoose;
 
-const pricingSchema = new Schema({
-  region: { type: String, trim: true },
-  destination: { type: String, required: true, trim: true },
-  dayTourTime: { type: String, trim: true }, // e.g., "10", "12", "36" hours/days
-  dayTourPrice: { type: Number, min: 0 },
-  ovnPrice: { type: Number, min: 0 }, // Overnight
-  threeDayTwoNightPrice: { type: Number, min: 0 }, // 3D2N
-  dropAndPickPrice: { type: Number, min: 0 },
-}, { _id: false });
+const transportPricingSchema = new mongoose.Schema({
+  region: {
+    type: String,
+    trim: true,
+  },
+  destination: {
+    type: String,
+    trim: true,
+    required: true,
+  },
+  // --- MODIFIED ---
+  dayTourTime: { // Represents duration in hours, e.g., 8, 10, 12
+    type: Number, 
+  },
+  // --- END MODIFICATION ---
+  dayTourPrice: {
+    type: Number,
+  },
+  ovnPrice: { // Overnight
+    type: Number,
+  },
+  threeDayTwoNightPrice: { // 3D2N
+    type: Number,
+  },
+  dropAndPickPrice: {
+    type: Number,
+  },
+});
 
-const transportServiceSchema = new Schema({
+const transportServiceSchema = new mongoose.Schema({
   vehicleType: {
     type: String,
+    required: true,
     enum: ['Tourist Bus', 'Coaster'],
-    required: [true, 'Vehicle type is required'],
   },
-  name: { // Optional: e.g., "Bus Alpha", "Coaster 1"
+  name: { // Optional name, e.g., "Bus Alpha"
     type: String,
     trim: true,
-    maxlength: [100, 'Name cannot exceed 100 characters']
   },
   capacity: {
-    type: String, // Store as string like "49 Regular", "22 Regular + 6 Jumpseats"
-    required: [true, 'Capacity is required'],
-    trim: true,
-    maxlength: [100, 'Capacity description cannot exceed 100 characters']
+    type: Number, // Changed from String to Number
+    required: true,
   },
   amenities: [{
     type: String,
-    trim: true
+    trim: true,
   }],
   description: {
     type: String,
-    trim: true,
-    maxlength: [1000, 'Description cannot exceed 1000 characters']
   },
   images: [{
-    type: String, // URLs to images
+    type: String,
   }],
-  pricing: [pricingSchema], // Array to hold destination-based pricing
   isAvailable: {
     type: Boolean,
-    default: true
+    default: true,
   },
   archived: {
     type: Boolean,
-    default: false
+    default: false,
   },
-  owner: { // Optional, if needed to track who added it
-    type: Schema.Types.ObjectId,
-    ref: 'User',
-  },
-  
-  // --- MODIFIED: PAYMENT FIELDS (Aligned with Tour/ManageTransport.jsx) ---
+  pricing: [transportPricingSchema], // Array of pricing rules
+
+  // Payment fields
   paymentType: {
     type: String,
     enum: ['full', 'downpayment'],
-    default: 'full'
+    default: 'full',
   },
-  downpaymentType: {
+  downpaymentType: { // 'percentage' or 'fixed'
     type: String,
-    enum: ['fixed', 'percentage'],
+    enum: ['percentage', 'fixed'],
+    required: function() { return this.paymentType === 'downpayment'; },
   },
   downpaymentValue: {
     type: Number,
-    min: 0,
-    validate: {
-        validator: function(value) {
-            // Only validate if paymentType is 'downpayment'
-            if (this.paymentType !== 'downpayment') {
-                return true;
-            }
-            // If it is 'downpayment', value must be set and positive
-            return value != null && value > 0;
-        },
-        message: 'Downpayment value is required when downpayment is enabled and must be greater than 0.'
-    }
-  }
-  // --- END PAYMENT FIELDS ---
+    required: function() { return this.paymentType === 'downpayment'; },
+    min: [1, 'Downpayment value must be at least 1.'],
+  },
+}, { timestamps: true });
 
-}, {
-  timestamps: true
-});
-
-transportServiceSchema.index({ vehicleType: 1 });
-transportServiceSchema.index({ archived: 1, isAvailable: 1 });
+// Index for searching
+transportServiceSchema.index({ vehicleType: 'text', name: 'text', capacity: 'text' });
 
 export default mongoose.model('TransportService', transportServiceSchema);

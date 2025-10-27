@@ -22,7 +22,7 @@ import {
 import DataService, { getImageUrl } from '../../components/services/DataService.jsx';
 import ImageUpload from '../../components/ImageUpload.jsx';
 import { useApi } from '../../hooks/useApi.jsx';
-import { toast } from 'react-toastify'; // Optional: for better notifications
+import { toast } from 'react-toastify'; 
 
 const ManageTransport = () => {
   const [showModal, setShowModal] = useState(false);
@@ -41,7 +41,7 @@ const ManageTransport = () => {
   const initialFormState = {
     vehicleType: 'Tourist Bus',
     name: '',
-    capacity: '',
+    capacity: '49', // Default to 49 for Tourist Bus
     amenities: [],
     description: '',
     images: [], // Holds image objects { url, serverId, name }
@@ -59,7 +59,7 @@ const ManageTransport = () => {
   const [newPriceRow, setNewPriceRow] = useState({
     region: '',
     destination: '',
-    dayTourTime: '',
+    dayTourTime: '', // This will be hours (1-24)
     dayTourPrice: '',
     ovnPrice: '',
     threeDayTwoNightPrice: '',
@@ -76,12 +76,43 @@ const ManageTransport = () => {
     setEditingTransport(null);
   };
 
+  // Handle capacity limits based on vehicle type
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value,
-    }));
+
+    if (name === 'capacity') {
+      const vehicleType = formData.vehicleType;
+      let maxCap = 999;
+      if (vehicleType === 'Coaster') maxCap = 28;
+      if (vehicleType === 'Tourist Bus') maxCap = 49;
+      
+      let numValue = parseInt(value, 10);
+      if (isNaN(numValue)) {
+        numValue = ''; // Allow empty
+      } else if (numValue > maxCap) {
+        numValue = maxCap; // Enforce max
+      }
+      
+      setFormData((prev) => ({ ...prev, capacity: numValue.toString() }));
+
+    } else if (name === 'vehicleType') {
+      // When type changes, check existing capacity
+      const currentCap = parseInt(formData.capacity, 10);
+      let maxCap = 999;
+      if (value === 'Coaster') maxCap = 28;
+      if (value === 'Tourist Bus') maxCap = 49;
+      
+      setFormData((prev) => ({
+        ...prev,
+        vehicleType: value,
+        capacity: (currentCap > maxCap || !prev.capacity) ? maxCap.toString() : prev.capacity,
+      }));
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: type === 'checkbox' ? checked : value,
+      }));
+    }
   };
 
   const handlePaymentTypeChange = (e) => {
@@ -89,14 +120,12 @@ const ManageTransport = () => {
       setFormData(prev => ({
         ...prev,
         paymentType: value,
-        // Reset downpayment fields if switching to 'full', keep existing if switching to downpayment
         downpaymentType: value === 'full' ? prev.downpaymentType : (prev.downpaymentType || 'percentage'),
         downpaymentValue: value === 'full' ? '' : (prev.downpaymentValue || 20),
       }));
   };
 
   const handleImagesChange = (uploadedImages) => {
-    // uploadedImages is an array of { url, serverId, name } from ImageUpload
     setFormData(prev => ({ ...prev, images: uploadedImages }));
   };
 
@@ -111,20 +140,58 @@ const ManageTransport = () => {
     setFormData(prev => ({ ...prev, amenities: prev.amenities.filter((_, i) => i !== index) }));
   };
 
-  // Pricing Handlers
+  // --- MODIFIED: Pricing Handlers ---
   const handlePriceRowChange = (index, field, value) => {
     const updatedPricing = [...formData.pricing];
-    // Ensure numeric fields are stored as numbers, allow empty string
-    const numValue = field.includes('Price') && value !== '' ? parseFloat(value) : value;
-    updatedPricing[index] = { ...updatedPricing[index], [field]: numValue };
+    let processedValue = value;
+    
+    if (field.includes('Price')) { // For price fields
+      processedValue = value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
+    
+    } else if (field === 'dayTourTime') { // For hours field
+      // Allow only integers, min 1, max 24
+      let numValue = parseInt(value.replace(/[^0-9]/g, ''), 10);
+      if (isNaN(numValue)) {
+        processedValue = ''; // Allow empty
+      } else if (numValue < 1) {
+        processedValue = '1';
+      } else if (numValue > 24) {
+        processedValue = '24';
+      } else {
+        processedValue = numValue.toString();
+      }
+    } 
+    // else, it's a string field like region/destination, do nothing
+
+    updatedPricing[index] = { ...updatedPricing[index], [field]: processedValue };
     setFormData(prev => ({ ...prev, pricing: updatedPricing }));
   };
 
   const handleNewPriceRowChange = (e) => {
     const { name, value } = e.target;
-    const numValue = name.includes('Price') && value !== '' ? parseFloat(value) : value;
-    setNewPriceRow(prev => ({ ...prev, [name]: numValue }));
+    let processedValue = value;
+    
+    if (name.includes('Price')) { // For price fields
+      processedValue = value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
+    
+    } else if (name === 'dayTourTime') { // For hours field
+      // Allow only integers, min 1, max 24
+      let numValue = parseInt(value.replace(/[^0-9]/g, ''), 10);
+      if (isNaN(numValue)) {
+        processedValue = ''; // Allow empty
+      } else if (numValue < 1 && value !== '') { // prevent setting 1 if user deletes
+        processedValue = '1';
+      } else if (numValue > 24) {
+        processedValue = '24';
+      } else {
+        processedValue = numValue.toString();
+      }
+    }
+    
+    setNewPriceRow(prev => ({ ...prev, [name]: processedValue }));
   };
+  // --- END MODIFICATION ---
+
 
   const addPriceRow = () => {
     if (!newPriceRow.destination || !newPriceRow.destination.trim()) {
@@ -149,7 +216,6 @@ const ManageTransport = () => {
     e.preventDefault();
     setSubmitting(true);
 
-    // Downpayment validation (including fixed amount)
      if (formData.paymentType === 'downpayment') {
         if (!formData.downpaymentType || !formData.downpaymentValue || parseFloat(formData.downpaymentValue) <= 0) {
             alert('Downpayment Type and a positive Value are required when downpayment is enabled.');
@@ -161,16 +227,16 @@ const ManageTransport = () => {
             setSubmitting(false);
             return;
         }
-        // No upper limit validation needed for fixed amount here, maybe add later if required
     }
 
     // Prepare payload
     const payload = {
        ...formData,
+       capacity: parseInt(formData.capacity, 10) || 0, // Ensure capacity is saved as a number
        images: formData.images.map(img => img.url), // Send only URLs
-       // Convert numeric price fields to numbers, handle potential empty strings
        pricing: formData.pricing.map(p => ({
            ...p,
+           dayTourTime: p.dayTourTime ? parseInt(p.dayTourTime, 10) : null, // Send as number
            dayTourPrice: p.dayTourPrice ? parseFloat(p.dayTourPrice) : null,
            ovnPrice: p.ovnPrice ? parseFloat(p.ovnPrice) : null,
            threeDayTwoNightPrice: p.threeDayTwoNightPrice ? parseFloat(p.threeDayTwoNightPrice) : null,
@@ -178,7 +244,6 @@ const ManageTransport = () => {
        })),
     };
 
-    // Clean up payment fields if 'full'
      if (payload.paymentType === 'full') {
          delete payload.downpaymentType;
          delete payload.downpaymentValue;
@@ -187,16 +252,16 @@ const ManageTransport = () => {
     try {
       if (editingTransport) {
         await DataService.updateTransport(editingTransport._id, payload);
-        toast.success('Transport updated successfully!'); // Use toast
+        toast.success('Transport updated successfully!');
       } else {
         await DataService.createTransport(payload);
-        toast.success('Transport created successfully!'); // Use toast
+        toast.success('Transport created successfully!');
       }
       setShowModal(false);
       fetchTransport();
     } catch (error) {
       console.error('Error saving transport:', error);
-      toast.error(`Failed to save transport: ${error.message || 'Unknown error'}`); // Use toast
+      toast.error(`Failed to save transport: ${error.message || 'Unknown error'}`);
     } finally {
       setSubmitting(false);
     }
@@ -205,11 +270,10 @@ const ManageTransport = () => {
   const handleEdit = (transport) => {
     setEditingTransport(transport);
 
-    // Convert image URLs to objects for ImageUpload
     const processedImages = Array.isArray(transport.images)
       ? transport.images.map((imgUrl, index) => ({
           url: imgUrl,
-          serverId: imgUrl.split('/').pop() || `img-${index}`, // Attempt to get ID from URL
+          serverId: imgUrl.split('/').pop() || `img-${index}`,
           name: imgUrl.split('/').pop() || `image-${index}.jpg`,
         }))
       : [];
@@ -218,9 +282,7 @@ const ManageTransport = () => {
       ...initialFormState,
       ...transport,
       images: processedImages,
-      // Ensure pricing is an array
       pricing: Array.isArray(transport.pricing) ? transport.pricing : [],
-      // Ensure payment fields have defaults if missing
       paymentType: transport.paymentType || 'full',
       downpaymentType: transport.downpaymentType || 'percentage',
       downpaymentValue: transport.downpaymentValue || (transport.paymentType === 'downpayment' ? 20 : ''),
@@ -253,6 +315,19 @@ const ManageTransport = () => {
     }
   };
 
+  // Delete Handler (from previous step)
+  const handleDelete = async (transportId, transportName) => {
+    if (window.confirm(`Are you sure you want to PERMANENTLY DELETE (${transportName})? This action cannot be undone and will fail if there are active bookings.`)) {
+      try {
+        await DataService.deleteTransport(transportId);
+        toast.success('Transport permanently deleted!');
+        fetchTransport();
+      } catch (error) {
+        toast.error(`Failed to delete: ${error.message || 'Server error'}`);
+      }
+    }
+  };
+
   const handleToggleAvailability = async (transport) => {
     const action = transport.isAvailable ? 'unavailable' : 'available';
     if (window.confirm(`Are you sure you want to mark this transport (${transport.name || transport.vehicleType}) as ${action}?`)) {
@@ -265,20 +340,15 @@ const ManageTransport = () => {
     }
   };
 
-  // Filter logic (adjust fields as necessary)
+  // Filter logic
   const filteredTransports = Array.isArray(transports) ? transports.filter(transport => {
     const lowerSearchTerm = searchTerm.toLowerCase();
-    const transportStatus = transport.archived ? 'archived' : 'active';
-
-    const matchesSearch = (
-        transport.vehicleType?.toLowerCase().includes(lowerSearchTerm) ||
+    
+    return (
+        (transport.vehicleType?.toLowerCase().includes(lowerSearchTerm) ||
         transport.name?.toLowerCase().includes(lowerSearchTerm) ||
-        transport.capacity?.toLowerCase().includes(lowerSearchTerm)
+        transport.capacity?.toString().includes(lowerSearchTerm))
     );
-
-    const matchesStatus = filterStatus === 'all' || transportStatus === filterStatus;
-
-    return matchesSearch && matchesStatus;
   }) : [];
 
 
@@ -311,7 +381,6 @@ const ManageTransport = () => {
             <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
               <option value="active">Active Transport</option>
               <option value="archived">Archived Transport</option>
-              <option value="all">All Transport</option>
             </select>
           </div>
         </div>
@@ -329,9 +398,13 @@ const ManageTransport = () => {
                   alt={transport.name || transport.vehicleType}
                   className="w-full h-full object-cover"
                 />
+                {/* Delete button (from previous step) */}
                 <div className="absolute top-2 right-2 flex gap-1">
                   {transport.archived ? (
-                    <button onClick={() => handleRestore(transport._id, transport.name || transport.vehicleType)} className="p-2 bg-white rounded-full shadow-md" title="Restore Transport"><RotateCcw className="w-4 h-4 text-green-600" /></button>
+                    <>
+                      <button onClick={() => handleRestore(transport._id, transport.name || transport.vehicleType)} className="p-2 bg-white rounded-full shadow-md" title="Restore Transport"><RotateCcw className="w-4 h-4 text-green-600" /></button>
+                      <button onClick={() => handleDelete(transport._id, transport.name || transport.vehicleType)} className="p-2 bg-white rounded-full shadow-md" title="PERMANENTLY DELETE"><Trash className="w-4 h-4 text-red-700" /></button>
+                    </>
                   ) : (
                     <>
                       <button onClick={() => handleEdit(transport)} className="p-2 bg-white rounded-full shadow-md" title="Edit Transport"><Edit3 className="w-4 h-4" /></button>
@@ -346,9 +419,7 @@ const ManageTransport = () => {
               </div>
               <div className="p-4">
                 <h3 className="text-lg font-semibold">{transport.vehicleType} {transport.name ? `(${transport.name})` : ''}</h3>
-                <p className="text-sm text-gray-500">{transport.capacity}</p>
-                 {/* Optionally display a base price or range here */}
-                {/* <p className="text-xl font-bold text-blue-600">Quote Based</p> */}
+                <p className="text-sm text-gray-500">Capacity: {transport.capacity} passengers</p>
               </div>
             </div>
           )) : (
@@ -367,10 +438,9 @@ const ManageTransport = () => {
           <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
             <div className="p-6 border-b flex items-center justify-between">
               <h2 className="text-2xl font-bold text-gray-900">{editingTransport ? 'Edit Transport Service' : 'Add Transport Service'}</h2>
-              {/* --- FIX 1: Use setShowModal(false) --- */}
               <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600"><X className="w-6 h-6" /></button>
             </div>
-             {/* Use the same form structure */}
+            
             <form id="transportFormModal" onSubmit={handleSubmit} className="space-y-6 overflow-y-auto p-6 scrollbar-thin">
 
                 {/* Basic Info */}
@@ -386,9 +456,20 @@ const ManageTransport = () => {
                         <label className="block text-sm font-medium text-gray-700 mb-1">Name (Optional)</label>
                         <input type="text" name="name" value={formData.name} onChange={handleInputChange} className="w-full p-2 border rounded-lg" placeholder="e.g., Bus Alpha"/>
                     </div>
+                    {/* Capacity Input (from previous step) */}
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Capacity *</label>
-                        <input type="text" name="capacity" value={formData.capacity} onChange={handleInputChange} required className="w-full p-2 border rounded-lg" placeholder="e.g., 49 Regular + 6 Jump"/>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Capacity (Max Passengers) *</label>
+                        <input
+                           type="number"
+                           name="capacity"
+                           value={formData.capacity}
+                           onChange={handleInputChange}
+                           required
+                           min="1"
+                           max={formData.vehicleType === 'Coaster' ? 28 : (formData.vehicleType === 'Tourist Bus' ? 49 : 999)}
+                           className="w-full p-2 border rounded-lg"
+                           placeholder={formData.vehicleType === 'Coaster' ? 'Max 28' : 'Max 49'}
+                         />
                     </div>
                 </div>
 
@@ -419,7 +500,7 @@ const ManageTransport = () => {
                   )}
                 </div>
 
-                {/* --- Payment Configuration --- */}
+                {/* Payment Configuration */}
                  <div className="border p-4 rounded-md bg-gray-50">
                     <h3 className="text-lg font-semibold mb-3 flex items-center gap-2"><DollarSign size={18}/> Payment Options</h3>
                     <div className="flex gap-6 mb-4">
@@ -472,7 +553,7 @@ const ManageTransport = () => {
                         </div>
                     )}
                  </div>
-                 {/* --- End Payment Configuration --- */}
+                 {/* End Payment Configuration */}
 
                 {/* Availability */}
                 <div>
@@ -483,7 +564,7 @@ const ManageTransport = () => {
                    </select>
                 </div>
 
-                {/* --- Pricing Table --- */}
+                {/* --- MODIFIED: Pricing Table --- */}
                 <div className="md:col-span-2">
                   <label className="block text-lg font-semibold text-gray-700 mb-3">
                     Destination Pricing Guide
@@ -495,7 +576,8 @@ const ManageTransport = () => {
                         <tr>
                           <th className="px-2 py-2 text-left font-medium text-gray-500">Region</th>
                           <th className="px-2 py-2 text-left font-medium text-gray-500">Destination*</th>
-                          <th className="px-2 py-2 text-left font-medium text-gray-500">Day Tour Time</th>
+                          {/* --- HEADER CHANGED --- */}
+                          <th className="px-2 py-2 text-left font-medium text-gray-500">Day Tour (Hours)</th>
                           <th className="px-2 py-2 text-left font-medium text-gray-500">Day Tour Price</th>
                           <th className="px-2 py-2 text-left font-medium text-gray-500">OVN Price</th>
                           <th className="px-2 py-2 text-left font-medium text-gray-500">3D2N Price</th>
@@ -508,7 +590,19 @@ const ManageTransport = () => {
                           <tr key={index}>
                             <td className="px-2 py-1"><input type="text" value={price.region || ''} onChange={(e) => handlePriceRowChange(index, 'region', e.target.value)} className="w-full p-1 border rounded-md text-xs"/></td>
                             <td className="px-2 py-1"><input type="text" value={price.destination || ''} onChange={(e) => handlePriceRowChange(index, 'destination', e.target.value)} className="w-full p-1 border rounded-md text-xs font-medium" required/></td>
-                            <td className="px-2 py-1"><input type="text" value={price.dayTourTime || ''} onChange={(e) => handlePriceRowChange(index, 'dayTourTime', e.target.value)} className="w-16 p-1 border rounded-md text-xs"/></td>
+                            {/* --- INPUT CHANGED --- */}
+                            <td className="px-2 py-1">
+                               <input
+                                  type="number"
+                                  min="1"
+                                  max="24"
+                                  step="1"
+                                  value={price.dayTourTime || ''}
+                                  onChange={(e) => handlePriceRowChange(index, 'dayTourTime', e.target.value)}
+                                  className="w-20 p-1 border rounded-md text-xs"
+                                  placeholder="Hours"
+                                />
+                            </td>
                             <td className="px-2 py-1"><input type="number" step="0.01" value={price.dayTourPrice || ''} onChange={(e) => handlePriceRowChange(index, 'dayTourPrice', e.target.value)} className="w-24 p-1 border rounded-md text-xs"/></td>
                             <td className="px-2 py-1"><input type="number" step="0.01" value={price.ovnPrice || ''} onChange={(e) => handlePriceRowChange(index, 'ovnPrice', e.target.value)} className="w-24 p-1 border rounded-md text-xs"/></td>
                             <td className="px-2 py-1"><input type="number" step="0.01" value={price.threeDayTwoNightPrice || ''} onChange={(e) => handlePriceRowChange(index, 'threeDayTwoNightPrice', e.target.value)} className="w-24 p-1 border rounded-md text-xs"/></td>
@@ -520,8 +614,21 @@ const ManageTransport = () => {
                         <tr className="bg-gray-50">
                           <td className="px-2 py-1"><input type="text" name="region" value={newPriceRow.region} onChange={handleNewPriceRowChange} className="w-full p-1 border rounded-md text-xs" placeholder="Region"/></td>
                           <td className="px-2 py-1"><input type="text" name="destination" value={newPriceRow.destination} onChange={handleNewPriceRowChange} className="w-full p-1 border rounded-md text-xs" placeholder="Destination Name*"/></td>
-                          <td className="px-2 py-1"><input type="text" name="dayTourTime" value={newPriceRow.dayTourTime} onChange={handleNewPriceRowChange} className="w-16 p-1 border rounded-md text-xs" placeholder="Time/Days"/></td>
-                          <td className="px-2 py-1"><input type="number" step="0.01" name="dayTourPrice" value={newPriceRow.dayTourPrice} onChange={handleNewPriceRowChange} className="w-24 p-1 border rounded-md text-xs" placeholder="Day Tour ₱"/></td>
+                           {/* --- INPUT CHANGED --- */}
+                          <td className="px-2 py-1">
+                              <input
+                                type="number"
+                                min="1"
+                                max="24"
+                                step="1"
+                                name="dayTourTime"
+                                value={newPriceRow.dayTourTime}
+                                onChange={handleNewPriceRowChange}
+                                className="w-20 p-1 border rounded-md text-xs"
+                                placeholder="Hours (1-24)"
+                              />
+                          </td>
+D                         <td className="px-2 py-1"><input type="number" step="0.01" name="dayTourPrice" value={newPriceRow.dayTourPrice} onChange={handleNewPriceRowChange} className="w-24 p-1 border rounded-md text-xs" placeholder="Day Tour ₱"/></td>
                           <td className="px-2 py-1"><input type="number" step="0.01" name="ovnPrice" value={newPriceRow.ovnPrice} onChange={handleNewPriceRowChange} className="w-24 p-1 border rounded-md text-xs" placeholder="OVN ₱"/></td>
                           <td className="px-2 py-1"><input type="number" step="0.01" name="threeDayTwoNightPrice" value={newPriceRow.threeDayTwoNightPrice} onChange={handleNewPriceRowChange} className="w-24 p-1 border rounded-md text-xs" placeholder="3D2N ₱"/></td>
                           <td className="px-2 py-1"><input type="number" step="0.01" name="dropAndPickPrice" value={newPriceRow.dropAndPickPrice} onChange={handleNewPriceRowChange} className="w-24 p-1 border rounded-md text-xs" placeholder="Drop & Pick ₱"/></td>
@@ -544,7 +651,6 @@ const ManageTransport = () => {
                 </div>
             </form>
             <div className="flex justify-end gap-3 p-4 border-t bg-gray-50">
-                {/* --- FIX 2: Use setShowModal(false) --- */}
                 <button type="button" onClick={() => setShowModal(false)} className="px-6 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors">Cancel</button>
                 <button type="submit" form="transportFormModal" disabled={submitting} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
                     {submitting ? (<><div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>{editingTransport ? 'Updating...' : 'Creating...'}</>) : (editingTransport ? 'Update Transport' : 'Create Transport')}

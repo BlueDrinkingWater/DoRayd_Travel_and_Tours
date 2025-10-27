@@ -258,6 +258,51 @@ export const unarchiveCar = async (req, res) => {
   }
 };
 
+export const deleteCar = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const car = await Car.findById(id);
+
+    if (!car) {
+      return res.status(404).json({ success: false, message: 'Car not found' });
+    }
+
+    // Check for existing active/pending bookings
+    const existingBookings = await Booking.findOne({ itemId: id, status: { $in: ['pending', 'confirmed'] } });
+    if (existingBookings) {
+      return res.status(400).json({ success: false, message: 'Cannot delete car with active or pending bookings. Please archive it instead.' });
+    }
+
+    // Delete associated images
+    if (car.images && car.images.length > 0) {
+      for (const imageUrl of car.images) {
+        try {
+          await deleteImage(imageUrl);
+        } catch (imgErr) {
+          console.warn(`Failed to delete car image ${imageUrl}: ${imgErr.message}`);
+        }
+      }
+    }
+
+    await Car.findByIdAndDelete(id);
+
+    // Activity Log
+    const io = req.app.get('io');
+    const newLog = await createActivityLog(
+      req.user.id,
+      'DELETE_CAR',
+      `Permanently deleted: ${car.brand} ${car.model}`,
+      '/owner/manage-cars'
+    );
+    if(newLog && io) io.to('admin').emit('activity-log-update', newLog);
+
+    res.json({ success: true, message: 'Car permanently deleted' });
+  } catch (error) {
+    console.error('Error deleting car:', error);
+    res.status(500).json({ success: false, message: 'Server Error', error: error.message });
+  }
+};
+
 export const getCarById = async (req, res) => {
   try {
     const car = await Car.findById(req.params.id);

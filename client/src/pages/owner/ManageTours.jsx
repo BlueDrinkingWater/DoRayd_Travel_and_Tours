@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit3, Archive, Eye, EyeOff, Search, MapPin, X, RotateCcw, DollarSign, Percent, Info } from 'lucide-react';
+import { Plus, Edit3, Archive, Eye, EyeOff, Search, MapPin, X, RotateCcw, DollarSign, Percent, Info, Trash } from 'lucide-react'; // --- ADDED Trash ---
 import DataService, { getImageUrl } from '../../components/services/DataService.jsx';
 import ImageUpload from '../../components/ImageUpload.jsx';
 import { useApi } from '../../hooks/useApi.jsx';
@@ -8,20 +8,33 @@ const ManageTours = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingTour, setEditingTour] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState('active');
+  const [filterStatus, setFilterStatus] = useState('active'); // Default to showing active tours
   const [submitting, setSubmitting] = useState(false);
 
-  const { data: toursData, loading, refetch: fetchTours } = useApi(() => DataService.fetchAllTours({ archived: filterStatus === 'archived' }), [filterStatus]);
+  // Fetch tours based on the selected filter status (active/archived/all)
+  const { data: toursData, loading, refetch: fetchTours } = useApi(
+    () => DataService.fetchAllTours({
+        // Pass the correct parameter based on filterStatus
+        archived: filterStatus === 'archived',
+        // If filterStatus is 'all', we need a way to tell the backend to include archived
+        // Let's use a separate param like 'includeArchived'
+        includeArchived: filterStatus === 'all'
+     }),
+    [filterStatus] // Refetch when filterStatus changes
+  );
   const tours = toursData?.data || [];
 
   const initialFormState = {
     title: '', description: '', destination: '', duration: '', price: '',
     startDate: '', endDate: '',
     maxGroupSize: 10, difficulty: 'easy', category: '', inclusions: [],
-    exclusions: [], itinerary: [], images: [], isAvailable: true,
+    exclusions: [], itinerary: [], images: [],
+    isAvailable: true, // Default new tours to available
     paymentType: 'full',
     downpaymentType: 'percentage',
     downpaymentValue: 20,
+    // Add availabilityStatus for the select dropdown in the modal
+    availabilityStatus: 'available', // Corresponds to isAvailable: true
   };
 
   const [formData, setFormData] = useState(initialFormState);
@@ -42,15 +55,34 @@ const ManageTours = () => {
 
   const formatDateForInput = (dateString) => {
     if (!dateString) return '';
-    return new Date(dateString).toISOString().split('T')[0];
+    // Ensures the date is interpreted correctly regardless of timezone issues for input[type=date]
+     try {
+        const date = new Date(dateString);
+        // Add timezone offset to get the correct local date string
+        const offset = date.getTimezoneOffset();
+        const adjustedDate = new Date(date.getTime() - (offset*60*1000));
+        return adjustedDate.toISOString().split('T')[0];
+    } catch (e) {
+        console.error("Error formatting date:", dateString, e);
+        return '';
+    }
   };
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
-     setFormData(prev => ({
-        ...prev,
-        [name]: type === 'checkbox' ? checked : value
-    }));
+     // Handle the availabilityStatus dropdown separately
+     if (name === 'availabilityStatus') {
+        setFormData(prev => ({
+            ...prev,
+            availabilityStatus: value,
+            isAvailable: value === 'available' // Sync isAvailable based on dropdown
+        }));
+     } else {
+        setFormData(prev => ({
+            ...prev,
+            [name]: type === 'checkbox' ? checked : value
+        }));
+     }
   };
 
   // Handle changes specifically for payment type radio buttons
@@ -59,21 +91,23 @@ const ManageTours = () => {
       setFormData(prev => ({
         ...prev,
         paymentType: value,
-        // Reset downpayment fields if switching to 'full'
         downpaymentType: value === 'full' ? prev.downpaymentType : (prev.downpaymentType || 'percentage'),
-        downpaymentValue: value === 'full' ? '' : prev.downpaymentValue,
+        downpaymentValue: value === 'full' ? '' : (prev.downpaymentValue || 20),
       }));
   };
-  
+
+  // Callback for ImageUpload component
   const handleImagesChange = (uploadedImages) => {
-     setFormData(prev => ({ ...prev, images: uploadedImages.map(img => ({ url: img.url, serverId: img.serverId })) }));
+     // uploadedImages is an array of { url, serverId, name }
+     setFormData(prev => ({ ...prev, images: uploadedImages }));
   };
 
+  // Inclusion/Exclusion handlers (no changes needed)
   const addInclusion = () => { if (newInclusion.trim()) { setFormData(prev => ({ ...prev, inclusions: [...prev.inclusions, newInclusion.trim()] })); setNewInclusion(''); } };
   const removeInclusion = (index) => setFormData(prev => ({ ...prev, inclusions: prev.inclusions.filter((_, i) => i !== index) }));
   const addExclusion = () => { if (newExclusion.trim()) { setFormData(prev => ({ ...prev, exclusions: [...prev.exclusions, newExclusion.trim()] })); setNewExclusion(''); } };
   const removeExclusion = (index) => setFormData(prev => ({ ...prev, exclusions: prev.exclusions.filter((_, i) => i !== index) }));
-  
+
   // --- Itinerary Handlers ---
   const addItineraryDay = () => {
     if (!newItineraryDay.title.trim() || !newItineraryDay.activities.trim()) {
@@ -91,11 +125,10 @@ const ManageTours = () => {
   const removeItineraryDay = (index) => {
     setFormData(prev => ({
       ...prev,
-      // Re-number subsequent days
       itinerary: prev.itinerary.filter((_, i) => i !== index)
-                         .map((item, i) => ({ ...item, day: i + 1 }))
+                         .map((item, i) => ({ ...item, day: i + 1 })) // Re-number days
     }));
-     // Update newItineraryDay number
+     // Update newItineraryDay number based on the new length
     setNewItineraryDay(prev => ({ ...prev, day: formData.itinerary.length }));
   };
 
@@ -109,7 +142,7 @@ const ManageTours = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
-    
+
     // Downpayment validation
      if (formData.paymentType === 'downpayment') {
         if (!formData.downpaymentType || !formData.downpaymentValue || parseFloat(formData.downpaymentValue) <= 0) {
@@ -123,19 +156,26 @@ const ManageTours = () => {
             return;
         }
     }
-    
-    // Prepare payload, ensuring images are URLs
+
+    // Prepare payload
     const payload = {
        ...formData,
-       images: formData.images.map(img => img.url),
+       images: formData.images.map(img => img.url), // Send only URLs
+       // Send itinerary as a JSON string
+       itinerary: JSON.stringify(formData.itinerary),
+       // isAvailable is already synced with availabilityStatus in handleInputChange
     };
-    
+
     // Clean up payment fields if 'full'
     if (payload.paymentType === 'full') {
         delete payload.downpaymentType;
         delete payload.downpaymentValue;
     }
-    
+
+    // Remove availabilityStatus before sending, use isAvailable
+    delete payload.availabilityStatus;
+
+
     try {
       if (editingTour) {
         await DataService.updateTour(editingTour._id, payload);
@@ -145,85 +185,101 @@ const ManageTours = () => {
         alert('Tour created successfully!');
       }
       setShowModal(false);
-      fetchTours();
+      fetchTours(); // Refetch the list to show changes/new tour
     } catch (error) {
       console.error('Error saving tour:', error);
-      alert(`Failed to save tour: ${error.message || 'Unknown error'}`);
+      // Display specific backend validation errors if available
+      const message = error.response?.data?.message || error.message || 'Unknown error';
+      alert(`Failed to save tour: ${message}`);
     } finally {
       setSubmitting(false);
     }
   };
 
+
 const handleEdit = (tour) => {
   setEditingTour(tour);
 
+  // Process images for the ImageUpload component
   const processedImages = Array.isArray(tour.images)
-    ? tour.images.map((img, index) => {
-        if (typeof img === 'string') {
-          return {
-            url: img,
-            serverId: img.split('/').pop() || `img-${index}`,
-            name: img.split('/').pop() || 'image.jpg',
-          };
-        } else if (img && img.url) {
-          return { ...img, serverId: img.serverId || img.url.split('/').pop() || `img-${index}` };
-        }
-        return null;
-      }).filter(Boolean)
+    ? tour.images.map((imgUrl, index) => ({
+        url: imgUrl,
+        serverId: imgUrl.split('/').pop() || `img-${index}`, // Attempt to get ID
+        name: imgUrl.split('/').pop() || `image-${index}.jpg`,
+      }))
     : [];
 
   setFormData({
-    ...initialFormState,
-    ...tour,
-    startDate: formatDateForInput(tour.startDate),
+    ...initialFormState, // Start with defaults
+    ...tour, // Override with tour data
+    startDate: formatDateForInput(tour.startDate), // Format dates for input
     endDate: formatDateForInput(tour.endDate),
-    images: processedImages,
-    // Ensure itinerary is an array (it should be from DB)
+    images: processedImages, // Use processed image objects
+    // Ensure itinerary is always an array
     itinerary: Array.isArray(tour.itinerary) ? tour.itinerary : [],
-     // Ensure payment fields have defaults if missing
+    // Ensure payment fields have defaults if missing
     paymentType: tour.paymentType || 'full',
     downpaymentType: tour.downpaymentType || 'percentage',
     downpaymentValue: tour.downpaymentValue || (tour.paymentType === 'downpayment' ? 20 : ''),
+     // Set availabilityStatus based on isAvailable for the dropdown
+    availabilityStatus: tour.isAvailable ? 'available' : 'unavailable',
   });
-  
-  // Set the next itinerary day number
-  setNewItineraryDay({ day: (tour.itinerary?.length || 0) + 1, title: '', activities: '' });
-  
+
+  // Set the next itinerary day number correctly
+  setNewItineraryDay({ day: (Array.isArray(tour.itinerary) ? tour.itinerary.length : 0) + 1, title: '', activities: '' });
+
   setShowModal(true);
 };
-  
+
+  // Archive/Restore/Toggle Availability (no changes needed)
   const handleArchive = async (tourId) => { if (window.confirm('Are you sure you want to archive this tour?')) { try { await DataService.archiveTour(tourId); alert('Tour archived successfully!'); fetchTours(); } catch (error) { alert('Failed to archive tour.'); } } };
   const handleRestore = async (tourId) => { if (window.confirm('Are you sure you want to restore this tour?')) { try { await DataService.unarchiveTour(tourId); alert('Tour restored successfully!'); fetchTours(); } catch (error) { alert('Failed to restore tour.'); } } };
+  
+  // --- ADDED: Delete Handler ---
+  const handleDelete = async (tourId, tourTitle) => {
+    if (window.confirm(`Are you sure you want to PERMANENTLY DELETE (${tourTitle})? This action cannot be undone and will fail if there are active bookings.`)) {
+      try {
+        await DataService.deleteTour(tourId);
+        alert('Tour permanently deleted!');
+        fetchTours();
+      } catch (error) {
+        const message = error.response?.data?.message || error.message || 'Unknown error';
+        alert(`Failed to delete tour: ${message}`);
+      }
+    }
+  };
+
   const handleToggleAvailability = async (tour) => {
     const action = tour.isAvailable ? 'unavailable' : 'available';
     if (window.confirm(`Are you sure you want to mark this tour as ${action}?`)) {
       try {
         await DataService.updateTour(tour._id, { isAvailable: !tour.isAvailable });
-        fetchTours();
+        fetchTours(); // Refetch to update the UI
       } catch (error) {
         alert('Failed to toggle availability.');
       }
     }
   };
-  
+
+  // Filter tours based on search term
   const filteredTours = Array.isArray(tours) ? tours.filter(tour => {
     const lowerSearchTerm = searchTerm.toLowerCase();
-    const tourStatus = tour.archived ? 'archived' : 'active';
-    
-    const matchesSearch = (
-        tour.title?.toLowerCase().includes(lowerSearchTerm) || 
-        tour.destination?.toLowerCase().includes(lowerSearchTerm) || 
+    // Check search term match
+    return (
+        tour.title?.toLowerCase().includes(lowerSearchTerm) ||
+        tour.destination?.toLowerCase().includes(lowerSearchTerm) ||
         tour.category?.toLowerCase().includes(lowerSearchTerm)
     );
-    
-    const matchesStatus = filterStatus === 'all' || tourStatus === filterStatus;
-    
-    return matchesSearch && matchesStatus;
   }) : [];
 
 
-  return (
+  // JSX remains largely the same, but ensure the availability dropdown uses `availabilityStatus`
+  // and other input fields use their respective `formData` properties.
+  // ... (rest of the component JSX, including the modal form)
+
+   return (
     <div className="p-6">
+      {/* Header and Add Button */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Manage Tours</h1>
@@ -237,6 +293,7 @@ const handleEdit = (tour) => {
         </button>
       </div>
 
+      {/* Search and Filter Bar */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1">
@@ -255,20 +312,27 @@ const handleEdit = (tour) => {
         </div>
       </div>
 
-      {loading ? (
+      {/* Tour Cards Grid */}
+       {loading ? (
         <div className="text-center py-12"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div></div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredTours.length > 0 ? filteredTours.map((tour) => (
             <div key={tour._id} className={`bg-white rounded-lg shadow-sm border overflow-hidden transition-opacity ${tour.archived ? 'opacity-60' : ''}`}>
+              {/* Card Image and Actions */}
               <div className="h-48 bg-gray-200 relative">
-              <img src={tour.images && tour.images.length > 0 ? getImageUrl(typeof tour.images[0] === 'string' ? tour.images[0] : (tour.images[0].url || tour.images[0])) : 'https://placehold.co/600x400/e2e8f0/475569?text=No+Image'}
+                <img
+                  src={tour.images && tour.images.length > 0 ? getImageUrl(tour.images[0]) : 'https://placehold.co/600x400/e2e8f0/475569?text=No+Image'}
                   alt={tour.title}
                   className="w-full h-full object-cover"
                 />
-                <div className="absolute top-2 right-2 flex gap-1">
+                {/* --- MODIFIED: Action Buttons --- */}
+                 <div className="absolute top-2 right-2 flex gap-1">
                   {tour.archived ? (
-                    <button onClick={() => handleRestore(tour._id)} className="p-2 bg-white rounded-full shadow-md" title="Restore Tour"><RotateCcw className="w-4 h-4 text-green-600" /></button>
+                    <>
+                      <button onClick={() => handleRestore(tour._id)} className="p-2 bg-white rounded-full shadow-md" title="Restore Tour"><RotateCcw className="w-4 h-4 text-green-600" /></button>
+                      <button onClick={() => handleDelete(tour._id, tour.title)} className="p-2 bg-white rounded-full shadow-md" title="PERMANENTLY DELETE"><Trash className="w-4 h-4 text-red-700" /></button>
+                    </>
                   ) : (
                     <>
                       <button onClick={() => handleEdit(tour)} className="p-2 bg-white rounded-full shadow-md" title="Edit Tour"><Edit3 className="w-4 h-4" /></button>
@@ -277,47 +341,71 @@ const handleEdit = (tour) => {
                     </>
                   )}
                 </div>
+                 {/* Availability Status Badge */}
                  <span className={`absolute top-2 left-2 px-2 py-1 text-xs font-semibold rounded ${tour.isAvailable ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                     {tour.isAvailable ? 'Available' : 'Unavailable'}
                  </span>
               </div>
+              {/* Card Content */}
               <div className="p-4">
-                <h3 className="text-lg font-semibold">{tour.title}</h3>
+                <h3 className="text-lg font-semibold truncate">{tour.title}</h3>
                 <p className="text-2xl font-bold text-blue-600">₱{tour.price?.toLocaleString()}/person</p>
-                <p className="text-sm text-gray-500">{tour.destination}</p>
+                <p className="text-sm text-gray-500 truncate">{tour.destination}</p>
+                 <p className="text-xs text-gray-400 mt-1">{tour.duration}</p>
               </div>
             </div>
           )) : (
+            // Empty State
             <div className="col-span-full text-center py-12">
               <MapPin className="w-16 h-16 text-gray-300 mx-auto mb-4" />
               <h3 className="text-lg font-medium">No {filterStatus} tours found.</h3>
-              <p className="text-gray-500">There are no tours matching your current filter.</p>
+               <p className="text-gray-500">
+                {searchTerm ? `No tours match "${searchTerm}".` : `There are no ${filterStatus} tours.`}
+               </p>
             </div>
           )}
         </div>
       )}
 
+
+      {/* Modal for Add/Edit Tour */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            {/* Modal Header */}
             <div className="p-6 border-b flex items-center justify-between">
                 <h2 className="text-2xl font-bold text-gray-900">{editingTour ? 'Edit Tour' : 'Add New Tour'}</h2>
                 <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600"><X className="w-6 h-6" /></button>
             </div>
-              <form id="tourForm" onSubmit={handleSubmit} className="space-y-6 overflow-y-auto p-6">
+            {/* Modal Form */}
+              <form id="tourForm" onSubmit={handleSubmit} className="space-y-6 overflow-y-auto p-6 scrollbar-thin">
+                {/* Basic Info Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="md:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Tour Title *</label><input type="text" name="title" required value={formData.title} onChange={handleInputChange} className="w-full p-2 border rounded-lg" /></div>
                   <div><label className="block text-sm font-medium text-gray-700 mb-1">Destination *</label><input type="text" name="destination" required value={formData.destination} onChange={handleInputChange} className="w-full p-2 border rounded-lg" /></div>
-                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Duration *</label><input type="text" name="duration" required value={formData.duration} onChange={handleInputChange} className="w-full p-2 border rounded-lg" /></div>
+                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Duration *</label><input type="text" name="duration" required value={formData.duration} onChange={handleInputChange} className="w-full p-2 border rounded-lg" placeholder="e.g., 3 Days, 2 Nights" /></div>
                   <div><label className="block text-sm font-medium text-gray-700 mb-1">Start Date *</label><input type="date" name="startDate" required value={formData.startDate} onChange={handleInputChange} className="w-full p-2 border rounded-lg" /></div>
                   <div><label className="block text-sm font-medium text-gray-700 mb-1">End Date *</label><input type="date" name="endDate" required value={formData.endDate} onChange={handleInputChange} className="w-full p-2 border rounded-lg" /></div>
                   <div><label className="block text-sm font-medium text-gray-700 mb-1">Price per Person (₱) *</label><input type="number" name="price" required min="0" value={formData.price} onChange={handleInputChange} className="w-full p-2 border rounded-lg" /></div>
                   <div><label className="block text-sm font-medium text-gray-700 mb-1">Max Group Size *</label><input type="number" name="maxGroupSize" required min="1" value={formData.maxGroupSize} onChange={handleInputChange} className="w-full p-2 border rounded-lg" /></div>
                   <div><label className="block text-sm font-medium text-gray-700 mb-1">Difficulty *</label><select name="difficulty" required value={formData.difficulty} onChange={handleInputChange} className="w-full p-2 border rounded-lg bg-white"><option value="easy">Easy</option><option value="moderate">Moderate</option><option value="challenging">Challenging</option></select></div>
-                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Category *</label><select name="category" required value={formData.category} onChange={handleInputChange} className="w-full p-2 border rounded-lg bg-white"><option value="">Select a category</option>{categoryOptions.map(cat => <option key={cat} value={cat.toLowerCase()}>{cat.charAt(0).toUpperCase() + cat.slice(1)}</option>)}</select></div>
+                   <div><label className="block text-sm font-medium text-gray-700 mb-1">Category *</label><select name="category" required value={formData.category} onChange={handleInputChange} className="w-full p-2 border rounded-lg bg-white"><option value="">Select a category</option>{categoryOptions.map(cat => <option key={cat} value={cat}>{cat.charAt(0).toUpperCase() + cat.slice(1)}</option>)}</select></div>
+                    {/* Availability Dropdown */}
+                   <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Availability</label>
+                        <select
+                           name="availabilityStatus"
+                           value={formData.availabilityStatus} // Use the separate state for dropdown
+                           onChange={handleInputChange}
+                           className="w-full p-2 border rounded-lg bg-white"
+                         >
+                           <option value="available">Available</option>
+                           <option value="unavailable">Unavailable</option>
+                        </select>
+                   </div>
                 </div>
-                 
-                 {/* --- Payment Configuration --- */}
+
+                {/* Payment Configuration */}
                  <div className="border p-4 rounded-md bg-gray-50">
                     <h3 className="text-lg font-semibold mb-3 flex items-center gap-2"><DollarSign size={18}/> Payment Options</h3>
                     <div className="flex gap-6 mb-4">
@@ -333,8 +421,8 @@ const handleEdit = (tour) => {
 
                     {formData.paymentType === 'downpayment' && (
                         <div className="border-t pt-4 space-y-3 animate-in fade-in duration-300">
-                            <p className="text-sm text-gray-600">Configure Downpayment:</p>
-                            <div className="flex gap-6 mb-2">
+                             <p className="text-sm text-gray-600">Configure Downpayment:</p>
+                             <div className="flex gap-6 mb-2">
                                <label className="flex items-center cursor-pointer">
                                     <input type="radio" name="downpaymentType" value="percentage" checked={formData.downpaymentType === 'percentage'} onChange={handleInputChange} className="mr-2"/>
                                     Percentage (%)
@@ -370,84 +458,68 @@ const handleEdit = (tour) => {
                         </div>
                     )}
                  </div>
-                 {/* --- End Payment Configuration --- */}
 
+                {/* Description, Inclusions, Exclusions, Itinerary, Images */}
                 <div><label className="block text-sm font-medium text-gray-700 mb-1">Description *</label><textarea name="description" required rows="4" value={formData.description} onChange={handleInputChange} className="w-full p-2 border rounded-lg" /></div>
+                {/* Inclusions */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Inclusions</label>
                   <div className="flex gap-2 mb-2">
-                    <input type="text" value={newInclusion} onChange={(e) => setNewInclusion(e.target.value)} className="flex-1 p-2 border rounded-lg" placeholder="Add inclusion (e.g., Hotel Accommodation)" onKeyPress={(e) => { if (e.key === 'Enter') { e.preventDefault(); addInclusion(); } }} />
+                    <input type="text" value={newInclusion} onChange={(e) => setNewInclusion(e.target.value)} className="flex-1 p-2 border rounded-lg" placeholder="Add inclusion" onKeyPress={(e) => { if (e.key === 'Enter') { e.preventDefault(); addInclusion(); } }} />
                     <button type="button" onClick={addInclusion} className="px-4 py-2 bg-blue-600 text-white rounded-lg">Add</button>
                   </div>
-                  <div className="flex flex-wrap gap-2">{formData.inclusions.map((item, index) => (<span key={index} className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">{item}<button type="button" onClick={() => removeInclusion(index)}><X className="w-3 h-3" /></button></span>))}</div>
+                  <div className="flex flex-wrap gap-2">{formData.inclusions?.map((item, index) => (<span key={index} className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">{item}<button type="button" onClick={() => removeInclusion(index)}><X className="w-3 h-3" /></button></span>))}</div>
                 </div>
+                 {/* Exclusions */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Exclusions</label>
                   <div className="flex gap-2 mb-2">
-                    <input type="text" value={newExclusion} onChange={(e) => setNewExclusion(e.target.value)} className="flex-1 p-2 border rounded-lg" placeholder="Add exclusion (e.g., Airfare)" onKeyPress={(e) => { if (e.key === 'Enter') { e.preventDefault(); addExclusion(); } }} />
+                    <input type="text" value={newExclusion} onChange={(e) => setNewExclusion(e.target.value)} className="flex-1 p-2 border rounded-lg" placeholder="Add exclusion" onKeyPress={(e) => { if (e.key === 'Enter') { e.preventDefault(); addExclusion(); } }} />
                     <button type="button" onClick={addExclusion} className="px-4 py-2 bg-blue-600 text-white rounded-lg">Add</button>
                   </div>
-                  <div className="flex flex-wrap gap-2">{formData.exclusions.map((item, index) => (<span key={index} className="inline-flex items-center gap-1 px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm">{item}<button type="button" onClick={() => removeExclusion(index)}><X className="w-3 h-3" /></button></span>))}</div>
+                   <div className="flex flex-wrap gap-2">{formData.exclusions?.map((item, index) => (<span key={index} className="inline-flex items-center gap-1 px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm">{item}<button type="button" onClick={() => removeExclusion(index)}><X className="w-3 h-3" /></button></span>))}</div>
                 </div>
-                
-                {/* --- Itinerary Section --- */}
+                {/* Itinerary */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Itinerary</label>
-                  {/* Display existing itinerary */}
                    <div className="space-y-3 mb-4">
-                        {formData.itinerary.map((item, index) => (
+                        {formData.itinerary?.map((item, index) => (
                             <div key={index} className="p-3 border rounded-lg bg-gray-50">
                                 <div className="flex justify-between items-center mb-2">
                                     <label className="font-semibold text-gray-800">Day {item.day}</label>
                                     <button type="button" onClick={() => removeItineraryDay(index)} className="text-red-500 text-xs hover:text-red-700">Remove</button>
                                 </div>
-                                <input 
-                                    value={item.title} 
-                                    onChange={(e) => updateItineraryField(index, 'title', e.target.value)} 
-                                    className="w-full p-2 border rounded-lg mb-2" 
-                                    placeholder="Day Title (e.g., Arrival in Manila)"
-                                />
-                                <textarea 
-                                    value={item.activities} 
-                                    onChange={(e) => updateItineraryField(index, 'activities', e.target.value)} 
-                                    className="w-full p-2 border rounded-lg" 
-                                    rows="2" 
-                                    placeholder="Activities & Details..." 
-                                />
+                                <input value={item.title || ''} onChange={(e) => updateItineraryField(index, 'title', e.target.value)} className="w-full p-2 border rounded-lg mb-2" placeholder="Day Title"/>
+                                <textarea value={item.activities || ''} onChange={(e) => updateItineraryField(index, 'activities', e.target.value)} className="w-full p-2 border rounded-lg" rows="2" placeholder="Activities & Details..."/>
                             </div>
                         ))}
                    </div>
-                   {/* Add new itinerary day */}
                    <div className="p-3 border-2 border-dashed rounded-lg">
                        <h4 className="font-semibold text-gray-700">Add Day {newItineraryDay.day}</h4>
                        <div className="space-y-2 mt-2">
-                           <input 
-                                value={newItineraryDay.title} 
-                                onChange={(e) => setNewItineraryDay(prev => ({ ...prev, title: e.target.value }))}
-                                className="w-full p-2 border rounded-lg" 
-                                placeholder="Day Title (e.g., City Tour)"
-                            />
-                            <textarea 
-                                value={newItineraryDay.activities} 
-                                onChange={(e) => setNewItineraryDay(prev => ({ ...prev, activities: e.target.value }))}
-                                className="w-full p-2 border rounded-lg" 
-                                rows="2" 
-                                placeholder="Activities & Details..." 
-                            />
+                           <input value={newItineraryDay.title} onChange={(e) => setNewItineraryDay(prev => ({ ...prev, title: e.target.value }))} className="w-full p-2 border rounded-lg" placeholder="Day Title"/>
+                            <textarea value={newItineraryDay.activities} onChange={(e) => setNewItineraryDay(prev => ({ ...prev, activities: e.target.value }))} className="w-full p-2 border rounded-lg" rows="2" placeholder="Activities & Details..."/>
                             <button type="button" onClick={addItineraryDay} className="text-sm px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300">Add Day {newItineraryDay.day}</button>
                        </div>
                    </div>
                 </div>
-
-                
+                 {/* Image Upload */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Images (First image is main)</label>
-                  <ImageUpload onImagesChange={handleImagesChange} existingImages={formData.images} maxImages={10} category="tours" />
+                  <ImageUpload
+                      onImagesChange={handleImagesChange}
+                      existingImages={formData.images}
+                      maxImages={10}
+                      category="tours"
+                  />
                 </div>
               </form>
+            {/* Modal Footer */}
             <div className="flex justify-end gap-3 p-4 border-t bg-gray-50">
                 <button type="button" onClick={() => setShowModal(false)} className="px-6 py-2 bg-gray-200 rounded-lg">Cancel</button>
-                <button type="submit" form="tourForm" disabled={submitting} className="px-6 py-2 bg-blue-600 text-white rounded-lg disabled:opacity-50">{submitting ? 'Saving...' : (editingTour ? 'Update Tour' : 'Create Tour')}</button>
+                <button type="submit" form="tourForm" disabled={submitting} className="px-6 py-2 bg-blue-600 text-white rounded-lg disabled:opacity-50">
+                  {submitting ? 'Saving...' : (editingTour ? 'Update Tour' : 'Create Tour')}
+                </button>
             </div>
           </div>
         </div>

@@ -2,6 +2,13 @@ import Car from '../models/Car.js';
 import Promotion from '../models/Promotion.js';
 import { createNotification } from './notificationController.js';
 import { createActivityLog } from './activityLogController.js';
+import Booking from '../models/Booking.js'; // Make sure Booking model is imported
+
+// --- THIS IS THE FIX ---
+// Changed from './imageController.js' to './uploadController.js'
+import { deleteImage } from './uploadController.js'; 
+// --- END FIX ---
+
 
 export const getAllCars = async (req, res) => {
   try {
@@ -277,7 +284,8 @@ export const deleteCar = async (req, res) => {
     if (car.images && car.images.length > 0) {
       for (const imageUrl of car.images) {
         try {
-          await deleteImage(imageUrl);
+          // Use the correctly imported deleteImage function
+          await deleteImage(imageUrl); 
         } catch (imgErr) {
           console.warn(`Failed to delete car image ${imageUrl}: ${imgErr.message}`);
         }
@@ -307,7 +315,7 @@ export const getCarById = async (req, res) => {
   try {
     const car = await Car.findById(req.params.id);
     if (!car) {
-      return res.status(404).json({ success: false, message: 'Car not found' });
+      return res.status(4404).json({ success: false, message: 'Car not found' });
     }
 
     const promotions = await Promotion.find({ isActive: true, endDate: { $gte: new Date() } });

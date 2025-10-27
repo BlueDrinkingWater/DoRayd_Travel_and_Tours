@@ -320,9 +320,6 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
           // --- ADDED: Use calculatedEndDate for transport (OVN, 3D2N) ---
           fullEndDate = combineDateAndTime(calculatedEndDate.toISOString().split('T')[0], formData.time);
       }
-      // For transport 'Day Tour' or 'Drop & Pick', fullEndDate remains same as fullStartDate (which is correct)
-
-
       // Set references, dates, price, item details
       bookingData.set('paymentReference', paymentReferenceCode);
       if (formData.manualPaymentReference.trim()) {
@@ -336,10 +333,8 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
       bookingData.set('itemType', itemType);
       bookingData.set('paymentOption', selectedPaymentOption); // Send selected payment option
 
-      // --- MODIFIED: REMOVED transport-specific payment exclusion ---
       // For car/tour/transport, ensure amountPaid matches required payment
       bookingData.set('amountPaid', requiredPayment.toString());
-      
 
       const result = await DataService.createBooking(bookingData);
       if (result.success) {
@@ -351,8 +346,8 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
           }, 2000);
         } else {
              setTimeout(() => {
-                onClose(); // Close modal for non-logged in users
-             }, 3000); // Longer delay to read message
+                onClose(); 
+             }, 3000); 
         }
       } else {
         throw new Error(result.message || 'Booking failed.');
@@ -582,9 +577,7 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
                               checked={selectedPaymentOption === 'downpayment'} 
                               onChange={(e) => setSelectedPaymentOption(e.target.value)} 
                               className="sr-only"
-                              // --- *** THIS IS THE FIX *** ---
-                              // The 'disabled' attribute has been REMOVED from here.
-                              // --- *** END OF FIX *** ---
+                              
                             />
                             Downpayment ({formatPrice(calculatedDownpayment)})
                           </label>

@@ -69,7 +69,7 @@ export const createMessage = async (req, res, next) => {
 
     const newMessage = await Message.create(newMessageData);
 
-    // Notify all admins
+    // Notify all admins (database notification)
     const admins = await User.find({ role: 'admin' });
     const notificationData = {
       message: `New contact message from ${name} regarding "${subject}".`,
@@ -79,6 +79,23 @@ export const createMessage = async (req, res, next) => {
     for (const admin of admins) {
       await createNotification(admin._id, notificationData);
     }
+
+    // --- THIS IS THE FIX ---
+    // Get the io instance from the app
+    const io = req.app.get('io');
+    
+    // Create the payload for the real-time socket event
+    const socketNotificationPayload = {
+        _id: newMessage._id, // Send the new message ID
+        message: `New message from ${name}: "${subject}"`,
+        link: '/admin/messages',
+        timestamp: new Date()
+    };
+    
+    // Emit the 'notification' event to all connected admins and employees
+    // This is what Messages.jsx is listening for
+    io.to('admin').to('employee').emit('notification', socketNotificationPayload);
+    // --- END OF FIX ---
 
     res.status(201).json({ success: true, data: newMessage });
   } catch (error) {

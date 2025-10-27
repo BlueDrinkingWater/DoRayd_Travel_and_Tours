@@ -30,8 +30,7 @@ const Home = () => {
   const [stats, setStats] = useState({
     totalCars: 0,
     totalTours: 0,
-    totalBookings: 0,
-    happyCustomers: 0
+    totalTransport: 0,
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -42,22 +41,23 @@ const Home = () => {
         setLoading(true);
         setError(null);
 
-        // Fetch featured cars and tours from database
-        const [carsResponse, toursResponse] = await Promise.all([
-          DataService.fetchAllCars({ page: 1, limit: 6 }),
-          DataService.fetchAllTours({ page: 1, limit: 6 })
+        // This is the correct, final logic:
+        // It fetches the total count of items that are marked as "isAvailable: true"
+        const [carsResponse, toursResponse, transportResponse] = await Promise.all([
+          DataService.fetchAllCars({ page: 1, limit: 6, isAvailable: 'true' }),
+          DataService.fetchAllTours({ page: 1, limit: 6, isAvailable: 'true' }),
+          DataService.fetchAllTransport({ page: 1, limit: 1, isAvailable: 'true' })
         ]);
 
-        if (carsResponse.success && toursResponse.success) {
+        if (carsResponse.success && toursResponse.success && transportResponse.success) {
           setFeaturedCars(carsResponse.data || []);
           setFeaturedTours(toursResponse.data || []);
           
-          // Set stats from actual database data
+          // The pagination.totalItems will correctly be 0 until you add available items
           setStats({
-            totalCars: carsResponse.pagination?.totalItems || carsResponse.data?.length || 0,
-            totalTours: toursResponse.pagination?.totalItems || toursResponse.data?.length || 0,
-            totalBookings: 150, // This could come from analytics endpoint
-            happyCustomers: 500 // This could come from analytics endpoint
+            totalCars: carsResponse.pagination?.totalItems || 0,
+            totalTours: toursResponse.pagination?.totalItems || 0,
+            totalTransport: transportResponse.pagination?.totalItems || 0,
           });
 
         } else {
@@ -65,14 +65,12 @@ const Home = () => {
         }
       } catch (error) {
         setError(error.message);
-        // Set empty arrays for featured items when database fails
         setFeaturedCars([]);
         setFeaturedTours([]);
         setStats({
           totalCars: 0,
           totalTours: 0,
-          totalBookings: 0,
-          happyCustomers: 0
+          totalTransport: 0,
         });
       } finally {
         setLoading(false);
@@ -138,7 +136,7 @@ const Home = () => {
             </p>
           </div>
 
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
             {[
               {
                 icon: Car,
@@ -150,23 +148,16 @@ const Home = () => {
               {
                 icon: MapPin,
                 value: loading ? '...' : stats.totalTours,
-                label: 'Tour Packages',
+                label: 'Tours Available',
                 color: 'text-green-600',
                 bgColor: 'bg-green-100'
               },
               {
-                icon: CheckCircle,
-                value: loading ? '...' : stats.totalBookings,
-                label: 'Successful Bookings',
+                icon: Globe,
+                value: loading ? '...' : stats.totalTransport,
+                label: 'Transport Available',
                 color: 'text-purple-600',
                 bgColor: 'bg-purple-100'
-              },
-              {
-                icon: Heart,
-                value: loading ? '...' : stats.happyCustomers,
-                label: 'Happy Customers',
-                color: 'text-red-600',
-                bgColor: 'bg-red-100'
               }
             ].map((stat, index) => (
               <div key={index} className="text-center p-6 bg-slate-50 rounded-xl transform transition-transform duration-300 hover:-translate-y-2">

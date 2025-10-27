@@ -1,11 +1,11 @@
-import React, { useState, useMemo, useEffect } from 'react'; // Added useEffect
+import React, { useState, useMemo, useEffect } from 'react';
 import { useApi } from '../../hooks/useApi.jsx';
 import DataService from '../../components/services/DataService.jsx';
-import { Mail, Send, Inbox, Edit, Trash2, X, AlertOctagon, Archive, Search, Paperclip } from 'lucide-react'; // <-- ADDED Paperclip
+import { Mail, Send, Inbox, Edit, Trash2, X, AlertOctagon, Archive, Search, Paperclip } from 'lucide-react';
 import { useAuth } from '../../components/Login.jsx';
 import { useSocket } from '../../hooks/useSocket.jsx';
-import { useSecureImage } from '../../hooks/useSecureImage.jsx'; // <-- ADDED IMPORT
-import { useNavigate } from 'react-router-dom'; // <-- ADDED useNavigate
+import { useSecureImage } from '../../hooks/useSecureImage.jsx';
+import { useNavigate } from 'react-router-dom';
 
 const formatDate = (dateString) => {
   if (!dateString) return 'N/A';
@@ -27,7 +27,6 @@ const getStatusBadge = (status) => {
   return <span className={`px-2 py-1 text-xs font-medium rounded-full ${config[status]}`}>{status}</span>;
 };
 
-// --- NEW Secure Attachment Link Component ---
 const SecureAttachmentLink = ({ attachmentPath, originalName }) => {
     const { secureUrl, loading } = useSecureImage(attachmentPath);
 
@@ -40,15 +39,14 @@ const SecureAttachmentLink = ({ attachmentPath, originalName }) => {
             target="_blank"
             rel="noopener noreferrer"
             className="mt-2 inline-flex items-center gap-1 text-sm text-blue-600 hover:underline bg-blue-50 px-2 py-1 rounded"
-            download={originalName} // Suggests the original filename for download
+            download={originalName}
         >
             <Paperclip size={14} /> {originalName || 'View Attachment'}
         </a>
     );
 };
-// --- END Secure Attachment Link Component ---
 
-const Messages = () => { // <-- FIXED: ()_> to () =>
+const Messages = () => {
   const [filter, setFilter] = useState('new');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMessage, setSelectedMessage] = useState(null);
@@ -57,62 +55,53 @@ const Messages = () => { // <-- FIXED: ()_> to () =>
   const [isReplying, setIsReplying] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(null);
   const { user } = useAuth();
-  const { socket } = useSocket(); // <-- Destructure socket here
-  const navigate = useNavigate(); // <-- Added navigate
+  const { socket } = useSocket();
+  const navigate = useNavigate();
 
+  // --- THIS IS THE FIX ---
+  // Changed DataService.fetchAllMessages to DataService.getAllMessages
   const { data: messagesData, loading, error, refetch: fetchMessages } = useApi(
-    () => DataService.fetchAllMessages({ status: filter, search: searchTerm }),
+    () => DataService.getAllMessages({ status: filter, search: searchTerm }),
     [filter, searchTerm]
   );
+  // --- END OF FIX ---
 
   const messages = messagesData?.data || [];
 
-  // Refetch messages on socket event
   useEffect(() => {
-    // --- FIX: Check if socket exists before using it ---
     if (socket) {
-      // Listen for the generic 'notification' event which might indicate a new message
       const handleNewMessageNotification = (notification) => {
-        // You might add more specific checks here if needed,
-        // e.g., check notification.type if it's available
         console.log('Notification possibly related to messages received:', notification);
-        fetchMessages();
+        fetchMessages(); // This will now call the correct function
       };
 
       socket.on('notification', handleNewMessageNotification);
 
       return () => {
-        // --- FIX: Check if socket exists before removing listener ---
         if (socket) {
           socket.off('notification', handleNewMessageNotification);
         }
       };
     }
-    // --- END FIX ---
-  }, [socket, fetchMessages]); // Dependency array includes socket
+  }, [socket, fetchMessages]);
 
   const handleSelectMessage = async (message) => {
     try {
-      // Fetch the full message details, which also marks it as read on the backend if needed
-      // Assuming getMessageById doesn't exist or isn't needed, we mark read locally if status is 'new'
       setSelectedMessage(message);
-      setReplyMessage(''); // Clear reply box
-      setAttachment(null); // Clear attachment
+      setReplyMessage('');
+      setAttachment(null);
 
-      // If the message is 'new', update its status to 'read' via API
       if (message.status === 'new') {
         try {
           await DataService.updateMessageStatus(message._id, 'read');
-          fetchMessages(); // Refetch to update the list visually
+          fetchMessages();
         } catch (statusUpdateError) {
           console.error("Failed to mark message as read:", statusUpdateError);
-          // Proceed to show the message anyway
         }
       }
 
     } catch (err) {
       console.error('Error selecting message:', err);
-      // Handle error (e.g., show a notification to the user)
     }
   };
 
@@ -123,27 +112,26 @@ const Messages = () => { // <-- FIXED: ()_> to () =>
 
     setIsReplying(true);
     try {
-      // Use FormData to handle potential file uploads
       const formData = new FormData();
       formData.append('replyMessage', replyMessage.trim());
       if (attachment) {
         formData.append('attachment', attachment);
       }
 
-      const response = await DataService.replyToMessage(selectedMessage._id, formData); // Pass FormData
+      // --- FIX: Pass FormData directly to DataService.replyToMessage ---
+      const response = await DataService.replyToMessage(selectedMessage._id, formData);
+      // --- END FIX ---
 
       if (response.success) {
-        setSelectedMessage(response.data); // Update with the new reply
-        setReplyMessage(''); // Clear reply box
-        setAttachment(null); // Clear attachment
-        fetchMessages(); // Refetch the list to update status
+        setSelectedMessage(response.data);
+        setReplyMessage('');
+        setAttachment(null);
+        fetchMessages();
       } else {
-        // Handle specific errors returned from the API
         throw new Error(response.message || 'Failed to send reply.');
       }
     } catch (err) {
       console.error('Error sending reply:', err);
-      // Potentially show an error message to the user
       alert(`Error sending reply: ${err.message}`);
     } finally {
       setIsReplying(false);
@@ -153,12 +141,11 @@ const Messages = () => { // <-- FIXED: ()_> to () =>
 
   const handleDelete = async (messageId) => {
     try {
-        // Assuming DataService.deleteMessage exists and handles the API call
         const response = await DataService.deleteMessage(messageId);
         if (response.success) {
             setShowDeleteModal(null);
-            setSelectedMessage(null); // Close the detail view if it was deleted
-            fetchMessages(); // Refresh the list
+            setSelectedMessage(null);
+            fetchMessages();
             alert('Message deleted successfully.');
         } else {
             throw new Error(response.message || 'Failed to delete message.');
@@ -166,15 +153,14 @@ const Messages = () => { // <-- FIXED: ()_> to () =>
     } catch (err) {
         console.error('Error deleting message:', err);
         alert(`Error deleting message: ${err.message}`);
-        // Optionally keep the modal open or provide more specific feedback
     }
   };
 
 
-  const filteredMessages = messages; // Data is already filtered by API
+  const filteredMessages = messages;
 
-  const stats = useMemo(() => { // <-- FIXED: ()_> to () =>
-    const all = messagesData?.data || []; // Use the raw data before filtering
+  const stats = useMemo(() => {
+    const all = messagesData?.data || [];
     return {
       new: all.filter(m => m.status === 'new').length,
       read: all.filter(m => m.status === 'read').length,
@@ -274,8 +260,6 @@ const Messages = () => { // <-- FIXED: ()_> to () =>
                       <p className="text-gray-800 whitespace-pre-wrap leading-relaxed">
                         {reply.message}
                       </p>
-
-                      {/* --- ADDED ATTACHMENT LINK --- */}
                       {reply.attachment && (
                         <div className="mt-3">
                           <SecureAttachmentLink
@@ -284,8 +268,6 @@ const Messages = () => { // <-- FIXED: ()_> to () =>
                           />
                         </div>
                       )}
-                      {/* --- END ADDED BLOCK --- */}
-
                       <div className="mt-3 text-sm text-gray-600">
                         Replied by {reply.repliedBy?.firstName || 'Admin'} on {formatDate(reply.repliedAt)}
                       </div>
@@ -406,14 +388,14 @@ const MessageItem = ({ message, isSelected, onSelect }) => (
   >
     <div className="flex justify-between items-center">
       <span className="text-gray-900 truncate">{message.name}</span>
-      <span className={`text-xs ${message.status === 'new' ? 'text-red-600' : 'text-gray-500'}`}> {/* <-- FIXED: className_ to className */}
-        {formatDate(message.createdAt).split(',')[0]} {/* Just show date */}
+      <span className={`text-xs ${message.status === 'new' ? 'text-red-600' : 'text-gray-500'}`}>
+        {formatDate(message.createdAt).split(',')[0]}
       </span>
     </div>
     <p className={`text-sm truncate ${message.status === 'new' ? 'text-gray-800' : 'text-gray-600'}`}>
       {message.subject}
     </p>
-    <p className={`text-sm truncate ${message.status === 'new' ? 'text-gray-600' : 'text-gray-500'}`}> {/* <-- FIXED: className_ to className */}
+    <p className={`text-sm truncate ${message.status === 'new' ? 'text-gray-600' : 'text-gray-500'}`}>
       {message.message}
     </p>
     <div className="mt-2">

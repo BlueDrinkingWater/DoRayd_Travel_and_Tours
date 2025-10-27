@@ -5,7 +5,7 @@ import DataService, { SERVER_URL } from '../components/services/DataService';
 
 const socket = io(SERVER_URL, {
     autoConnect: false,
-    transports: ['websocket'],
+    // transports: ['websocket'], // This line was removed
 });
 
 export const useSocket = () => {

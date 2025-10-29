@@ -132,12 +132,23 @@ class EmailService {
     return { success: true, message: 'Booking confirmation email sent successfully' };
   }
 
+  // --- MODIFIED FUNCTION ---
   async sendStatusUpdate(booking) {
-    if (booking.status === 'confirmed') {
-      return this.sendBookingApproval(booking);
-    }
-    if (booking.status === 'rejected') {
-      return this.sendBookingRejection(booking);
+    // Using switch for clarity
+    switch (booking.status) {
+      case 'confirmed':
+        return this.sendBookingApproval(booking);
+      case 'rejected':
+        return this.sendBookingRejection(booking);
+      case 'fully_paid':
+        return this.sendBookingFullyPaid(booking); // ADDED
+      case 'completed':
+        return this.sendBookingCompleted(booking); // ADDED
+      case 'cancelled':
+        return this.sendBookingCancellation(booking); // ADDED
+      default:
+        console.warn(`No email handler for status: ${booking.status}`);
+        return;
     }
   }
 
@@ -225,6 +236,49 @@ class EmailService {
     };
     await this.sendEmail(mailOptions);
     return { success: true, message: 'Booking rejection email sent successfully' };
+  }
+
+  // --- ADDED FUNCTION ---
+  async sendBookingFullyPaid(booking) {
+    const subject = `Payment Received: ${booking.bookingReference}`;
+    const content = `
+      <h1 style="color: #4CAF50;">Payment Received</h1>
+      <p>Dear <strong>${booking.firstName} ${booking.lastName}</strong>,</p>
+      <p>We have received your full payment for booking ${booking.bookingReference}. Your booking is now fully paid.</p>
+      <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin-top: 15px;">
+        <h3 style="margin-top: 0;">Booking Summary</h3>
+        <p><strong>Reference:</strong> ${booking.bookingReference}</p>
+        <p><strong>Service:</strong> ${booking.itemName}</p>
+        <p><strong>Total Price:</strong> PHP ${booking.totalPrice.toLocaleString()}</p>
+      </div>
+    `;
+    const mailOptions = {
+      from: `DoRayd Travel & Tours <${this.fromAddress}>`,
+      to: booking.email,
+      subject: subject,
+      html: createEmailTemplate(subject, content),
+    };
+    await this.sendEmail(mailOptions);
+    return { success: true, message: 'Booking fully paid email sent' };
+  }
+
+  // --- ADDED FUNCTION ---
+  async sendBookingCompleted(booking) {
+    const subject = `Booking Completed: ${booking.bookingReference}`;
+    const content = `
+      <h1 style="color: #007bff;">Booking Completed</h1>
+      <p>Dear <strong>${booking.firstName} ${booking.lastName}</strong>,</p>
+      <p>Your booking (Ref: ${booking.bookingReference}) has been marked as completed. We hope you enjoyed our service!</p>
+      <p>We would love to hear your feedback. Please feel free to leave us a review.</p>
+    `;
+    const mailOptions = {
+      from: `DoRayd Travel & Tours <${this.fromAddress}>`,
+      to: booking.email,
+      subject: subject,
+      html: createEmailTemplate(subject, content),
+    };
+    await this.sendEmail(mailOptions);
+    return { success: true, message: 'Booking completed email sent' };
   }
 
   async sendBookingCancellation(booking) {

@@ -1,11 +1,9 @@
-// client/src/components/BookingModal.jsx
-
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { X, Calendar, Users, Upload, CheckCircle, Shield, FileText, AlertTriangle, Tag, User as UserIcon, Mail, Phone, Home, Info, Bus } from 'lucide-react';
 import DataService, { SERVER_URL } from './services/DataService.jsx';
 import CalendarBooking from './CalendarBooking.jsx';
 import DropoffMap from './DropoffMap.jsx';
-import PickupMap from './PickupMap.jsx'; // ADDED
+import PickupMap from './PickupMap.jsx'; 
 import { useAuth } from './Login.jsx';
 import { Link, useNavigate } from 'react-router-dom';
 
@@ -68,7 +66,7 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
     startDate: '', time: '', numberOfDays: 1, numberOfGuests: 1,
     specialRequests: '', agreedToTerms: false, paymentProof: null,
     pickupLocation: '', dropoffLocation: '', dropoffCoordinates: null,
-    pickupCoordinates: null, // ADDED
+    pickupCoordinates: null, 
     deliveryMethod: 'pickup', amountPaid: '', manualPaymentReference: '',
     transportDestination: '', transportServiceType: '',
   });
@@ -96,7 +94,7 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
           specialRequests: '', agreedToTerms: false, paymentProof: null,
           pickupLocation: '',
           dropoffLocation: '', dropoffCoordinates: null, 
-          pickupCoordinates: null, // ADDED
+          pickupCoordinates: null, 
           deliveryMethod: 'pickup',
           amountPaid: '', manualPaymentReference: '',
           transportDestination: '', transportServiceType: '',
@@ -127,18 +125,14 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
       const endDate = new Date(startDate);
       endDate.setDate(startDate.getDate() + parseInt(formData.numberOfDays, 10));
       setCalculatedEndDate(endDate);
-      
+
       let carPrice = formData.numberOfDays * (item?.pricePerDay || 0);
-      
-      // THIS IS THE FIX: Removed the if(item.promotion) block that was re-applying the discount.
-      
+
       setTotalPrice(Math.max(0, carPrice));
       
     } else if (itemType === 'tour') {
       let tourPrice = formData.numberOfGuests * (item?.price || 0);
-      
-      // THIS IS THE FIX: Removed the if(item.promotion) block that was re-applying the discount.
-      
+
       setTotalPrice(Math.max(0, tourPrice));
       
       setCalculatedEndDate(item.endDate ? new Date(item.endDate) : (formData.startDate ? new Date(formData.startDate) : null));
@@ -174,8 +168,7 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
           }
         }
       }
-      
-      // This logic is correct for transport, as the price is dynamic.
+
       if (item.promotion && newPrice > 0) {
         const { discountType, discountValue } = item.promotion;
         if (discountType === 'percentage') {
@@ -206,7 +199,6 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
     dropoffCoordinates: { lat: location.latitude, lng: location.longitude } 
   })), []);
   
-  // ADDED: Handler for pickup location
   const handlePickupLocationSelect = useCallback((location) => {
     setFormData(prev => ({ 
       ...prev, 
@@ -286,8 +278,8 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
       }
     }
     
-    if (!formData.manualPaymentReference && !paymentReferenceCode) {
-        return setSubmitError("A payment reference (either generated or manual) is required.");
+  if (!formData.manualPaymentReference) {
+        return setSubmitError("Bank Reference Number is required.");
     }
     if (itemType === 'car') {
       if (formData.deliveryMethod === 'pickup' && !formData.pickupLocation) return setSubmitError("Pickup location is required.");
@@ -645,7 +637,7 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
                           </div>
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Or Enter Your Bank Reference Number</label>
-                            <input type="text" name="manualPaymentReference" value={formData.manualPaymentReference} onChange={(e) => setFormData({ ...formData, manualPaymentReference: e.target.value })} className="w-full p-2 border rounded-md" placeholder="Optional bank ref"/>
+                            <input type="text" name="manualPaymentReference" value={formData.manualPaymentReference} onChange={(e) => setFormData({ ...formData, manualPaymentReference: e.target.value })} className="w-full p-2 border rounded-md" placeholder="Enter bank reference number" required />
                           </div>
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Amount to Pay *</label>

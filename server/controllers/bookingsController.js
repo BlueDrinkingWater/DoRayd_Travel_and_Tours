@@ -1,5 +1,3 @@
-// server/controllers/bookingsController.js
-
 import Booking from '../models/Booking.js';
 import Car from '../models/Car.js';
 import Tour from '../models/Tour.js';
@@ -7,9 +5,7 @@ import TransportService from '../models/TransportService.js'; // Ensure this is 
 import User from '../models/User.js';
 import EmailService from '../utils/emailServices.js';
 import { createNotification } from './notificationController.js';
-// *** ADDED: Import createActivityLog ***
 import { createActivityLog } from './activityLogController.js';
-
 
 // Get all bookings for a specific service
 export const getBookingAvailability = async (req, res) => {
@@ -22,9 +18,7 @@ export const getBookingAvailability = async (req, res) => {
     }).select('startDate endDate');
 
     const bookedDates = bookings.reduce((acc, booking) => {
-      // Ensure dates are valid before processing
       const startDate = booking.startDate ? new Date(booking.startDate) : null;
-      // *** MODIFIED: Use startDate if endDate is invalid or missing ***
       const endDate = booking.endDate && !isNaN(new Date(booking.endDate)) ? new Date(booking.endDate) : startDate;
 
       if (!startDate || isNaN(startDate.getTime())) return acc; // Skip invalid entries

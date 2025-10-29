@@ -5,8 +5,7 @@ import DataService from '../components/services/DataService.jsx';
 
 // --- Load IDs from Vite's import.meta.env object ---
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-const FACEBOOK_APP_ID = import.meta.env.VITE_FACEBOOK_APP_ID;
-
+// REMOVED: FACEBOOK_APP_ID
 
 const AuthContext = createContext(null);
 
@@ -127,9 +126,46 @@ export const UnifiedLoginPortal = ({ isOpen, onClose, showRegistration = false }
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [isFbSdkReady, setIsFbSdkReady] = useState(false);
+  // REMOVED: isFbSdkReady state
   const [loginPrivacyContent, setLoginPrivacyContent] = useState(''); // NEW: State for login privacy content
   const [agreedToLoginPrivacy, setAgreedToLoginPrivacy] = useState(false); // NEW: State for agreement
+
+  // --- REFACTORED GOOGLE LOGIN LOGIC ---
+  const handleGoogleCallbackResponse = async (response) => {
+    setLoading(true);
+    setError('');
+    const result = await socialLogin('google', { credential: response.credential });
+    if (result.success) {
+        onClose();
+        // ... (navigation logic)
+    } else {
+        setError(result.message || "Login failed.");
+    }
+    setLoading(false);
+  };
+
+  const initializeGoogleGSI = () => {
+    if (!window.google || !document.getElementById("googleSignInButton")) {
+      // If window.google isn't ready or the button isn't rendered, try again shortly
+      // This handles race conditions
+      setTimeout(initializeGoogleGSI, 100);
+      return;
+    }
+    
+    try {
+        window.google.accounts.id.initialize({
+            client_id: GOOGLE_CLIENT_ID,
+            callback: handleGoogleCallbackResponse
+        });
+        window.google.accounts.id.renderButton(
+            document.getElementById("googleSignInButton"),
+            { theme: "outline", size: "large", text: "continue_with" } 
+        );
+    } catch (error) {
+        console.error("Error initializing Google Sign-In:", error);
+        setError("Could not load Google Sign-In. Please try again.");
+    }
+  };
 
   useEffect(() => {
     if (!isOpen) {
@@ -155,25 +191,10 @@ export const UnifiedLoginPortal = ({ isOpen, onClose, showRegistration = false }
         console.warn('VITE_GOOGLE_CLIENT_ID is not configured in your .env file. Google Login will fail.');
         setError('Google Login is not configured by the administrator.');
     }
-    if (!FACEBOOK_APP_ID) {
-        console.warn('VITE_FACEBOOK_APP_ID is not configured in your .env file. Facebook Login will fail.');
-        setError('Facebook Login is not configured by the administrator.');
-    }
     
-    const handleGoogleCallbackResponse = async (response) => {
-        setLoading(true);
-        setError('');
-        const result = await socialLogin('google', { credential: response.credential });
-        if (result.success) {
-            onClose();
-            // ... (navigation logic)
-        } else {
-            setError(result.message || "Login failed.");
-        }
-        setLoading(false);
-    };
+    // REMOVED: Facebook App ID check
 
-    // Google Script
+    // --- REFACTORED GOOGLE SCRIPT LOADING ---
     const googleScriptId = 'google-gsi-script';
     if (!document.getElementById(googleScriptId) && GOOGLE_CLIENT_ID) {
         const googleScript = document.createElement('script');
@@ -181,51 +202,17 @@ export const UnifiedLoginPortal = ({ isOpen, onClose, showRegistration = false }
         googleScript.src = 'https://accounts.google.com/gsi/client';
         googleScript.async = true;
         googleScript.defer = true;
-        googleScript.onload = () => {
-            if (window.google) {
-                window.google.accounts.id.initialize({
-                    client_id: GOOGLE_CLIENT_ID,
-                    callback: handleGoogleCallbackResponse
-                });
-                window.google.accounts.id.renderButton(
-                    document.getElementById("googleSignInButton"),
-                    { theme: "outline", size: "large", text: "continue_with" } 
-                );
-            }
-        };
+        // The onload callback is the most reliable place to initialize
+        googleScript.onload = initializeGoogleGSI; 
         document.body.appendChild(googleScript);
-    } else if (window.google && document.getElementById("googleSignInButton")) {
-        window.google.accounts.id.renderButton(
-            document.getElementById("googleSignInButton"),
-            { theme: "outline", size: "large", text: "continue_with" }
-        );
+    } else if (GOOGLE_CLIENT_ID) {
+        // If script already exists, just re-initialize the button
+        initializeGoogleGSI();
     }
+    
+    // REMOVED: Facebook Script loading logic
 
-    // Facebook Script
-    const facebookScriptId = 'facebook-jssdk';
-    if (!document.getElementById(facebookScriptId) && FACEBOOK_APP_ID) {
-        window.fbAsyncInit = function() {
-            window.FB.init({
-                appId: FACEBOOK_APP_ID,
-                cookie: true,
-                xfbml: true,
-                version: 'v18.0'
-            });
-            setIsFbSdkReady(true);
-        };
-        const facebookScript = document.createElement('script');
-        facebookScript.id = facebookScriptId;
-        facebookScript.src = "https://connect.facebook.net/en_US/sdk.js";
-        facebookScript.async = true;
-        facebookScript.defer = true;
-        facebookScript.crossOrigin = 'anonymous';
-        document.body.appendChild(facebookScript);
-    } else {
-      if (window.FB) {
-        setIsFbSdkReady(true);
-      }
-    }
-  }, [isOpen, socialLogin, onClose]);
+  }, [isOpen]); // Removed socialLogin and onClose from dependencies as they are stable
 
   useEffect(() => {
     setIsLoginView(!showRegistration);
@@ -304,49 +291,7 @@ export const UnifiedLoginPortal = ({ isOpen, onClose, showRegistration = false }
     setLoading(false);
   };
   
-  const handleFacebookLoginClick = () => {
-      if (!isFbSdkReady || !window.FB) {
-        setError("Facebook Login is not ready or is misconfigured. Please try again in a moment.");
-        return;
-      }
-      
-      window.FB.login(
-        (response) => {
-          if (response.authResponse) {
-            setLoading(true);
-            setError('');
-            const processFacebookLogin = async () => {
-              const result = await socialLogin('facebook', {
-                accessToken: response.authResponse.accessToken,
-              });
-              if (result.success) {
-                onClose();
-                switch (result.user.role) {
-                  case 'admin':
-                    navigate('/owner/dashboard', { replace: true });
-                    break;
-                  case 'employee':
-                    navigate('/employee/dashboard', { replace: true });
-                    break;
-                  case 'customer':
-                    navigate('/my-bookings', { replace: true });
-                    break;
-                  default:
-                    navigate('/');
-                }
-              } else {
-                setError(result.message);
-              }
-              setLoading(false);
-            };
-            processFacebookLogin();
-          } else {
-            setError('Facebook login was cancelled or failed.');
-          }
-        },
-        { scope: 'email,public_profile' }
-      );
-  };
+  // REMOVED: handleFacebookLoginClick function
 
   const handleInputChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -415,21 +360,10 @@ export const UnifiedLoginPortal = ({ isOpen, onClose, showRegistration = false }
                   <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-300"></div></div>
                   <div className="relative flex justify-center text-sm"><span className="px-2 bg-white text-gray-500">Or continue with</span></div>
                 </div>
-                {/* --- FIX: Updated the social login buttons section for alignment --- */}
+                {/* --- REMOVED: Facebook button and wrapper div --- */}
                 <div className="space-y-3 flex flex-col items-center">
                   <div id="googleSignInButton" className="flex justify-center"></div>
-                  
-                  <button
-                    onClick={handleFacebookLoginClick}
-                    type="button"
-                    disabled={!isFbSdkReady}
-                    className="h-[40px] px-6 flex justify-center items-center gap-3 border rounded-full text-gray-700 font-medium hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                      <img src="https://upload.wikimedia.org/wikipedia/commons/b/b8/2021_Facebook_icon.svg" alt="Facebook" className="w-5 h-5"/>
-                      <span className="text-sm">
-                        {isFbSdkReady ? 'Continue with Facebook' : 'Loading Facebook...'}
-                      </span>
-                  </button>
+                  {/* REMOVED: Facebook Button */}
                 </div>
               </>
             )}

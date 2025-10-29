@@ -148,13 +148,16 @@ export const getAllFeedback = async (req, res) => {
 };
 
 // ADMIN: Approve review
+// ADMIN: Approve review
 export const approveReview = async (req, res) => {
     try {
         const review = await Review.findByIdAndUpdate(
             req.params.id,
             { isApproved: true },
             { new: true }
-        ).populate('user', 'firstName lastName');
+        ).populate('user', 'firstName lastName')
+         .populate('item', 'title brand model'); // <-- MODIFIED: Added populate for item
+
         if (!review) {
             return res.status(404).json({ success: false, message: 'Review not found.' });
         }
@@ -168,6 +171,19 @@ export const approveReview = async (req, res) => {
             if (newLog) io.to('admin').emit('activity-log-update', newLog);
         }
         // *** END MODIFICATION ***
+
+        // --- ADDED: Notify customer of approval ---
+        if (io && review.user) {
+            const itemName = review.item ? (review.item.title || `${review.item.brand} ${review.item.model}`) : 'your reviewed item';
+            const customerMessage = `Your review for "${itemName}" has been approved!`;
+            await createNotification(
+              io,
+              { user: review.user._id },
+              customerMessage,
+              '/my-bookings?tab=reviews' // Link to 'My Reviews' tab
+            );
+        }
+        // --- END ADDED BLOCK ---
 
         res.json({ success: true, data: review });
     } catch (error) {

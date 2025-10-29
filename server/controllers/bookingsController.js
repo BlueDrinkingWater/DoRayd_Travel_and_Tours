@@ -566,7 +566,7 @@ export const updateBookingStatus = async (req, res) => {
         io,
         { user: updatedBooking.user._id }, // Use populated user ID
         customerMessage,
-        '/my-bookings',
+        '/my-bookings?tab=bookings',
         req.user.id // Exclude the updater
       );
     }
@@ -648,7 +648,7 @@ export const cancelBooking = async (req, res) => {
         io,
         { user: populatedBooking.user._id },
         customerMessage,
-        '/my-bookings',
+        '/my-bookings?tab=bookings',
         req.user.id
       );
     }

@@ -169,7 +169,7 @@ export const replyToMessage = async (req, res, next) => {
       await createNotification(message.user, {
         message: `You have a new reply for your message: "${message.subject}".`,
         type: 'message',
-        link: `/customer-dashboard` // Link to their dashboard
+        link: `/my-bookings?tab=feedback` // Link to their dashboard
       });
     }
 

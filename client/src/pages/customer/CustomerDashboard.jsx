@@ -203,6 +203,24 @@ const CustomerDashboard = () => {
     const { data: feedbackData, loading: feedbackLoading, refetch: refetchFeedback } = useApi(() => DataService.getMyFeedback(), [user]);
     const { data: publicFeedbackData, loading: publicFeedbackLoading } = useApi(() => DataService.getPublicFeedback(), []);
 
+    useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        const tabFromQuery = params.get('tab');
+        
+        const validTabIds = [
+            'overview', 'bookings', 'reviews', 'feedback', 
+            'leave-review', 'leave-feedback', 'public-feedback', 'settings'
+        ];
+
+        if (tabFromQuery && validTabIds.includes(tabFromQuery)) {
+            setActiveTab(tabFromQuery);
+        } else if (location.pathname.includes('my-bookings') && !tabFromQuery) {
+            setActiveTab('bookings');
+        } else {
+            setActiveTab('overview');
+        }
+    }, 
+    [location.search, location.pathname]);
     const bookings = bookingsData?.data || [];
     const myReviews = reviewsData?.data || [];
     const myFeedback = feedbackData?.data || [];

@@ -73,10 +73,10 @@ const Reports = () => {
 
   return (
     <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mb-6 text-white">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Reports & Analytics</h1>
-          <p className="text-gray-600">Real-time performance from your database</p>
+          <h1 className="text-3xl font-bold text-white">Reports & Analytics</h1>
+          <p className="text-white">Real-time performance from your database</p>
         </div>
         <div className="flex items-center gap-3">
           <button 

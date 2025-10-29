@@ -186,10 +186,10 @@ const ContentManagement = () => {
 
   return (
     <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6 text-white">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Content Management</h1>
-          <p className="text-gray-600">Manage website content, policies, and information</p>
+          <h1 className="text-3xl font-bold text-white">Content Management</h1>
+          <p className="text-white">Manage website content, policies, and information</p>
         </div>
       </div>
 

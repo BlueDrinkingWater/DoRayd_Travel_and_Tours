@@ -7,7 +7,12 @@ import { createActivityLog } from './activityLogController.js';
 // @access  Public
 export const getAllPromotions = async (req, res) => {
   try {
-    const promotions = await Promotion.find({ isActive: true, endDate: { $gte: new Date() } });
+    const now = new Date(); // Get current server time
+    const promotions = await Promotion.find({ 
+      isActive: true, 
+      startDate: { $lte: now }, // <-- FIXED: Ensures promo has started
+      endDate: { $gte: now }   // <-- FIXED: Ensures promo has not ended
+    });
     res.json({ success: true, data: promotions });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server Error' });
@@ -26,6 +31,44 @@ export const getAllPromotionsAdmin = async (req, res) => {
     }
   };
 
+// Helper function for conflict checking
+const checkPromotionConflict = async (promotionData, editingId = null) => {
+  const { applicableTo, itemIds, startDate, endDate } = promotionData;
+
+  const conflictQuery = {
+    startDate: { $lte: new Date(endDate) },
+    endDate: { $gte: new Date(startDate) },
+  };
+
+  if (editingId) {
+    conflictQuery._id = { $ne: editingId };
+  }
+
+  let itemScopeQuery;
+  if (applicableTo === 'all') {
+    itemScopeQuery = {};
+  } else if (applicableTo === 'car' || applicableTo === 'tour' || applicableTo === 'transport') {
+    if (!itemIds || itemIds.length === 0) {
+      throw new Error('Please select at least one item for this type of promotion.');
+    }
+    itemScopeQuery = {
+      $or: [
+        { applicableTo: 'all' },
+        { itemIds: { $in: itemIds } }
+      ]
+    };
+  } else {
+    throw new Error('Invalid "applicableTo" value.');
+  }
+
+  const finalConflictQuery = { $and: [conflictQuery, itemScopeQuery] };
+  const conflictingPromo = await Promotion.findOne(finalConflictQuery);
+
+  if (conflictingPromo) {
+    throw new Error(`This promotion conflicts with an existing promotion: '${conflictingPromo.title}'.`);
+  }
+};
+
 // @desc    Create a promotion
 // @route   POST /api/promotions
 // @access  Admin
@@ -36,17 +79,20 @@ export const createPromotion = async (req, res) => {
     if (isNaN(promotionData.discountValue)) {
       promotionData.discountValue = 0;
     }
+    
+    // REMOVED: description field is no longer used
+    delete promotionData.description;
+
+    await checkPromotionConflict(promotionData);
 
     const promotion = new Promotion(promotionData);
     await promotion.save();
 
     const io = req.app.get('io');
-    // *** MODIFIED: Added check for req.user.role before logging ***
     if (io && req.user && req.user.role === 'employee') {
         const newLog = await createActivityLog(req.user.id, 'CREATE_PROMOTION', `Promotion: ${promotion.title}`, '/owner/manage-promotions');
         if (newLog) io.to('admin').emit('activity-log-update', newLog);
     }
-    // *** END MODIFICATION ***
 
     res.status(201).json({ success: true, data: promotion });
   } catch (error) {
@@ -65,6 +111,11 @@ export const updatePromotion = async (req, res) => {
     if (isNaN(promotionData.discountValue)) {
       promotionData.discountValue = 0;
     }
+    
+    // REMOVED: description field is no longer used
+    delete promotionData.description;
+
+    await checkPromotionConflict(promotionData, req.params.id);
 
     const promotion = await Promotion.findByIdAndUpdate(req.params.id, promotionData, {
       new: true,
@@ -75,15 +126,14 @@ export const updatePromotion = async (req, res) => {
     }
 
     const io = req.app.get('io');
-    // *** MODIFIED: Added check for req.user.role before logging ***
     if (io && req.user && req.user.role === 'employee') {
         const newLog = await createActivityLog(req.user.id, 'UPDATE_PROMOTION', `Promotion: ${promotion.title}`, '/owner/manage-promotions');
         if (newLog) io.to('admin').emit('activity-log-update', newLog);
     }
-    // *** END MODIFICATION ***
 
     res.json({ success: true, data: promotion });
   } catch (error) {
+    console.error("PROMOTION UPDATE ERROR:", error);
     res.status(400).json({ success: false, message: error.message });
   }
 };
@@ -99,12 +149,10 @@ export const deletePromotion = async (req, res) => {
     }
 
     const io = req.app.get('io');
-    // *** MODIFIED: Added check for req.user.role before logging ***
     if (io && req.user && req.user.role === 'employee') {
         const newLog = await createActivityLog(req.user.id, 'DELETE_PROMOTION', `Promotion: ${promotion.title}`, '/owner/manage-promotions');
         if (newLog) io.to('admin').emit('activity-log-update', newLog);
     }
-    // *** END MODIFICATION ***
 
     res.json({ success: true, message: 'Promotion deleted' });
   } catch (error) {

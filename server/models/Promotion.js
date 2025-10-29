@@ -2,7 +2,6 @@ import mongoose from 'mongoose';
 
 const promotionSchema = new mongoose.Schema({
   title: { type: String, required: true, trim: true },
-  description: { type: String, required: true, trim: true },
   discountType: { type: String, enum: ['percentage', 'fixed'], required: true },
   discountValue: { type: Number, required: true, min: 0 },
   applicableTo: { type: String, enum: ['all', 'car', 'tour', 'transport'], required: true }, // Added 'transport'

@@ -44,7 +44,7 @@ const CustomerManagement = () => {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold mb-6">Customer Management</h2>
+      <h2 className="text-2xl font-bold mb-6 text-white">Customer Management</h2>
       <div className="bg-white shadow-md rounded-lg overflow-x-auto">
         <table className="min-w-full">
           <thead className="bg-gray-100">

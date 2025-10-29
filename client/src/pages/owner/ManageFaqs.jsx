@@ -54,10 +54,10 @@ const ManageFaqs = () => {
 
     return (
         <div className="p-6">
-            <div className="flex justify-between items-center mb-6">
+              <div className="flex items-center justify-between mb-6 text-white">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-900">Manage FAQs</h1>
-                    <p className="text-gray-600">Create, edit, and delete frequently asked questions.</p>
+                    <h1 className="text-3xl font-bold text-white">Manage FAQs</h1>
+                    <p className="text-white">Create, edit, and delete frequently asked questions.</p>
                 </div>
                 <button onClick={() => handleOpenModal()} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2">
                     <Plus size={18} /> Add FAQ

@@ -238,10 +238,10 @@ const handleDelete = async (carId, carName) => {
 
   return (
     <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6 text-white">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Manage Cars</h1>
-          <p className="text-gray-600">Add, edit, and manage your car fleet</p>
+          <h1 className="text-3xl font-bold text-white-900">Manage Cars</h1>
+          <p className="text-white-600">Add, edit, and manage your car fleet</p>
         </div>
         <button
           onClick={() => { resetForm(); setShowModal(true); }}

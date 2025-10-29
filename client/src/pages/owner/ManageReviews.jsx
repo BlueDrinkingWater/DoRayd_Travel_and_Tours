@@ -23,8 +23,9 @@ const ManageReviews = () => {
     if (error) return <div className="text-center p-10 text-red-500">{error.message}</div>;
 
     return (
-        <div className="space-y-6">
+          <div className="justify-between mb-6 text-white">
             <h1 className="text-3xl font-bold">Manage Reviews</h1>
+            <p className="text-white">Aprrove or delete reviews here</p>
             <div className="bg-white p-4 rounded-lg shadow-md">
                 <div className="space-y-4">
                     {reviews.map(review => (

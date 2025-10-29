@@ -53,10 +53,10 @@ const ManageQRCode = () => {
 
     return (
         <div className="p-6">
-            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center justify-between mb-6 text-white">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-900">Manage Payment QR Code</h1>
-                    <p className="text-gray-600">Upload and update the QR code used for customer payments.</p>
+                    <h1 className="text-3xl font-bold text-white">Manage Payment QR Code</h1>
+                    <p className="text-white">Upload and update the QR code used for customer payments.</p>
                 </div>
                 <div>
                     {editMode ? (

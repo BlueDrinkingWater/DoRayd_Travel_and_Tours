@@ -108,7 +108,7 @@ const EmployeeManagement = () => {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">Employee Management</h2>
+        <h2 className="text-2xl font-bold text-white">Employee Management</h2>
         <button onClick={() => { setEditingEmployee(null); setFormData(initialFormState); setShowModal(true); }} className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center">
           <Plus size={20} className="mr-2"/> Add Employee
         </button>

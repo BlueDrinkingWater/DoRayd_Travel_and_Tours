@@ -8,56 +8,119 @@ const ManagePromotions = () => {
     const promotions = promotionsData?.data || [];
     const [cars, setCars] = useState([]);
     const [tours, setTours] = useState([]);
-    const [transportServices, setTransportServices] = useState([]); // Added state for transport
+    const [transportServices, setTransportServices] = useState([]);
     const [submitting, setSubmitting] = useState(false);
 
     const [showModal, setShowModal] = useState(false);
     const [editingPromotion, setEditingPromotion] = useState(null);
+    
+    // --- MODIFIED: Removed description, added time fields ---
     const [formData, setFormData] = useState({
-        title: '', description: '', discountType: 'percentage', discountValue: '',
-        applicableTo: 'all', itemIds: [], startDate: '', endDate: '', isActive: true
+        title: '',
+        discountType: 'percentage',
+        discountValue: '',
+        applicableTo: 'all',
+        itemIds: [],
+        startDate: '',
+        startTime: '', // Added
+        endDate: '',
+        endTime: '',   // Added
+        isActive: true
     });
 
     useEffect(() => {
         if (showModal) {
             const fetchServices = async () => {
-                // Fetch transport services along with cars and tours
                 const [carsResponse, toursResponse, transportResponse] = await Promise.all([
-                    DataService.fetchAllCars({ limit: 1000 }), // fetch all for selection
+                    DataService.fetchAllCars({ limit: 1000 }),
                     DataService.fetchAllTours({ limit: 1000 }),
-                    DataService.fetchAllTransportAdmin({ limit: 1000 }) // Added transport fetch
+                    DataService.fetchAllTransportAdmin({ limit: 1000 })
                 ]);
                 if (carsResponse.success) setCars(carsResponse.data);
                 if (toursResponse.success) setTours(toursResponse.data);
-                if (transportResponse.success) setTransportServices(transportResponse.data); // Set transport state
+                if (transportResponse.success) setTransportServices(transportResponse.data);
             };
             fetchServices();
         }
     }, [showModal]);
+    
+    // --- NEW: Helper function to format timestamp into local date and time ---
+    const formatISODateToInput = (isoString) => {
+        if (!isoString) return { date: '', time: '' };
+        // Use local date/time for the user's inputs
+        const dateObj = new Date(isoString);
+        
+        const year = dateObj.getFullYear();
+        const month = (dateObj.getMonth() + 1).toString().padStart(2, '0');
+        const day = dateObj.getDate().toString().padStart(2, '0');
+        const hours = dateObj.getHours().toString().padStart(2, '0');
+        const minutes = dateObj.getMinutes().toString().padStart(2, '0');
 
+        const date = `${year}-${month}-${day}`; // YYYY-MM-DD
+        const time = `${hours}:${minutes}`; // HH:MM
+        
+        return { date, time };
+    };
+
+    // --- MODIFIED: To handle splitting date/time ---
     const handleOpenModal = (promo = null) => {
         if (promo) {
+            // Split timestamps back into local date and time for the inputs
+            const { date: sDate, time: sTime } = formatISODateToInput(promo.startDate);
+            const { date: eDate, time: eTime } = formatISODateToInput(promo.endDate);
+            
             setEditingPromotion(promo);
+            // --- FIX: Populate all fields from the promo object ---
             setFormData({
-                ...promo,
-                startDate: promo.startDate.split('T')[0],
-                endDate: promo.endDate.split('T')[0],
+                title: promo.title,
+                discountType: promo.discountType,
+                discountValue: promo.discountValue,
+                applicableTo: promo.applicableTo,
                 itemIds: promo.itemIds || [],
+                isActive: promo.isActive,
+                startDate: sDate,
+                startTime: sTime,
+                endDate: eDate,
+                endTime: eTime,
             });
         } else {
             setEditingPromotion(null);
             setFormData({
-                title: '', description: '', discountType: 'percentage', discountValue: '',
-                applicableTo: 'all', itemIds: [], startDate: '', endDate: '', isActive: true
+                title: '',
+                discountType: 'percentage',
+                discountValue: '',
+                applicableTo: 'all',
+                itemIds: [],
+                startDate: '',
+                startTime: '',
+                endDate: '',
+                endTime: '',
+                isActive: true
             });
         }
         setShowModal(true);
     };
 
+    // --- MODIFIED: To combine date/time and remove description ---
     const handleSave = async () => {
         setSubmitting(true);
         try {
-            const payload = { ...formData, discountValue: Number(formData.discountValue) || 0 };
+            // Combine local date and time.
+            const fullStartDate = new Date(`${formData.startDate}T${formData.startTime || '00:00:00'}`);
+            const fullEndDate = new Date(`${formData.endDate}T${formData.endTime || '23:59:59'}`);
+
+            // Create a clean payload with only fields the model expects
+            const payload = { 
+                title: formData.title,
+                discountType: formData.discountType,
+                discountValue: Number(formData.discountValue) || 0,
+                applicableTo: formData.applicableTo,
+                itemIds: formData.itemIds,
+                isActive: formData.isActive,
+                startDate: fullStartDate.toISOString(), // Convert to UTC timestamp
+                endDate: fullEndDate.toISOString(),     // Convert to UTC timestamp
+            };
+
             if (editingPromotion) {
                 await DataService.updatePromotion(editingPromotion._id, payload);
             } else {
@@ -66,7 +129,9 @@ const ManagePromotions = () => {
             fetchPromotions();
             setShowModal(false);
         } catch (err) {
-            alert('Failed to save promotion: ' + (err.message || 'Please check your inputs'));
+            // Show the specific error message from the server (like the conflict error)
+            const errorMessage = err.response?.data?.message || err.message || 'Please check your inputs';
+            alert('Failed to save promotion: ' + errorMessage);
         } finally {
             setSubmitting(false);
         }
@@ -113,8 +178,8 @@ const ManagePromotions = () => {
                                             {promo.isActive ? 'Active' : 'Inactive'}
                                         </span>
                                     </div>
-                                    <p className="text-sm text-gray-600 mb-4">{promo.description}</p>
-                                    <div className="text-sm space-y-2">
+                                    {/* description field is removed */}
+                                    <div className="text-sm space-y-2 mt-2">
                                         <div className="flex items-center gap-2 text-blue-700">
                                             {promo.discountType === 'percentage' ? <Percent size={14}/> : <Tag size={14}/>}
                                             <span>
@@ -127,7 +192,10 @@ const ManagePromotions = () => {
                                         </div>
                                         <div className="flex items-center gap-2 text-gray-700">
                                             <Calendar size={14}/>
-                                            <span>{new Date(promo.startDate).toLocaleDateString()} - {new Date(promo.endDate).toLocaleDateString()}</span>
+                                            {/* --- MODIFIED: Show time as well --- */}
+                                            <span>
+                                                {new Date(promo.startDate).toLocaleString()} - {new Date(promo.endDate).toLocaleString()}
+                                            </span>
                                         </div>
                                     </div>
                                 </div>
@@ -156,7 +224,9 @@ const ManagePromotions = () => {
                         </div>
                         <div className="space-y-4">
                             <div><label className="text-sm font-medium">Title</label><input value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })} className="w-full p-2 border rounded-md mt-1" /></div>
-                            <div><label className="text-sm font-medium">Description</label><textarea value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} className="w-full p-2 border rounded-md mt-1" rows="3"></textarea></div>
+                            
+                            {/* --- REMOVED DESCRIPTION TEXTAREA --- */}
+                            
                             <div className="grid grid-cols-2 gap-4">
                                 <div><label className="text-sm font-medium">Discount Type</label><select value={formData.discountType} onChange={e => setFormData({ ...formData, discountType: e.target.value })} className="w-full p-2 border rounded-md mt-1"><option value="percentage">Percentage</option><option value="fixed">Fixed Amount</option></select></div>
                                 <div><label className="text-sm font-medium">Discount Value</label><input type="number" value={formData.discountValue} onChange={e => setFormData({ ...formData, discountValue: e.target.value })} className="w-full p-2 border rounded-md mt-1" /></div>
@@ -167,7 +237,7 @@ const ManagePromotions = () => {
                                     <option value="all">All Services</option>
                                     <option value="car">Specific Cars</option>
                                     <option value="tour">Specific Tours</option>
-                                    <option value="transport">Specific Transport</option> {/* Added option */}
+                                    <option value="transport">Specific Transport</option>
                                 </select>
                             </div>
                             {formData.applicableTo === 'car' && (<>
@@ -178,7 +248,6 @@ const ManagePromotions = () => {
                                 <label className="text-sm font-medium">Select Tours</label>
                                 <select multiple value={formData.itemIds} onChange={handleItemIdsChange} className="w-full p-2 border rounded-md h-40 mt-1">{tours.map(tour => (<option key={tour._id} value={tour._id}>{tour.title}</option>))}</select>
                             </>)}
-                            {/* Added conditional rendering for transport */}
                             {formData.applicableTo === 'transport' && (<>
                                 <label className="text-sm font-medium">Select Transport Services</label>
                                 <select multiple value={formData.itemIds} onChange={handleItemIdsChange} className="w-full p-2 border rounded-md h-40 mt-1">
@@ -189,10 +258,30 @@ const ManagePromotions = () => {
                                     ))}
                                 </select>
                             </>)}
+                            
+                            {/* --- MODIFIED: Added time inputs --- */}
                             <div className="grid grid-cols-2 gap-4">
-                                <div><label className="text-sm font-medium">Start Date</label><input type="date" value={formData.startDate} onChange={e => setFormData({ ...formData, startDate: e.target.value })} className="w-full p-2 border rounded-md mt-1" /></div>
-                                <div><label className="text-sm font-medium">End Date</label><input type="date" value={formData.endDate} onChange={e => setFormData({ ...formData, endDate: e.target.value })} className="w-full p-2 border rounded-md mt-1" /></div>
+                                <div>
+                                    <label className="text-sm font-medium">Start Date</label>
+                                    <input type="date" value={formData.startDate} onChange={e => setFormData({ ...formData, startDate: e.target.value })} className="w-full p-2 border rounded-md mt-1" />
+                                </div>
+                                <div>
+                                    <label className="text-sm font-medium">Start Time</label>
+                                    <input type="time" value={formData.startTime} onChange={e => setFormData({ ...formData, startTime: e.target.value })} className="w-full p-2 border rounded-md mt-1" />
+                                </div>
                             </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-sm font-medium">End Date</label>
+                                    <input type="date" value={formData.endDate} onChange={e => setFormData({ ...formData, endDate: e.target.value })} className="w-full p-2 border rounded-md mt-1" />
+                                </div>
+                                <div>
+                                    <label className="text-sm font-medium">End Time</label>
+                                    <input type="time" value={formData.endTime} onChange={e => setFormData({ ...formData, endTime: e.target.value })} className="w-full p-2 border rounded-md mt-1" />
+                                </div>
+                            </div>
+                            {/* --- END MODIFICATION --- */}
+
                         </div>
                         <div className="mt-6 flex justify-end gap-3 border-t pt-4">
                             <button onClick={() => setShowModal(false)} className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300">Cancel</button>

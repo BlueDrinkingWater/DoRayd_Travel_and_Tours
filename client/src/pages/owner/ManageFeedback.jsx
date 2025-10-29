@@ -23,10 +23,10 @@ const ManageFeedback = () => {
     if (error) return <div className="text-center p-10 text-red-500">{error.message}</div>;
 
     return (
-        <div className="p-6">
-            <div className="mb-6">
-                <h1 className="text-3xl font-bold text-gray-900">Manage Customer Feedback</h1>
-                <p className="text-gray-600">Approve or delete feedback submitted by customers.</p>
+        <div className="p-6 text-white">
+            <div className="mb-6 text-white">
+                <h1 className="text-3xl font-bold text-white">Manage Customer Feedback</h1>
+                <p className="text-white">Approve or delete feedback submitted by customers.</p>
             </div>
 
             {feedbacks.length > 0 ? (

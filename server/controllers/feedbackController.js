@@ -1,5 +1,4 @@
 import Feedback from '../models/Feedback.js';
-// ... existing code ...
 import Booking from '../models/Booking.js';
 import { createNotification } from './notificationController.js';
 import { createActivityLog } from './activityLogController.js';
@@ -94,12 +93,9 @@ export const getMyFeedback = async (req, res) => {
 };
 
 // Approve feedback (Admin only)
-// Approve feedback (Admin only)
 export const approveFeedback = async (req, res) => {
     try {
-        const feedback = await Feedback.findByIdAndUpdate(req.params.id, { isApproved: true }, { new: true })
-            .populate('user', '_id'); // <-- MODIFIED: Added populate for user
-
+        const feedback = await Feedback.findByIdAndUpdate(req.params.id, { isApproved: true }, { new: true });
         if (!feedback) {
             return res.status(404).json({ success: false, message: 'Feedback not found.' });
         }
@@ -111,18 +107,6 @@ export const approveFeedback = async (req, res) => {
             if (newLog) io.to('admin').emit('activity-log-update', newLog);
         }
         // *** END MODIFICATION ***
-
-        // --- ADDED: Notify customer of approval ---
-        if (io && feedback.user) {
-            const customerMessage = `Your feedback (Rating: ${feedback.rating}/5) has been approved. Thank you!`;
-            await createNotification(
-              io,
-              { user: feedback.user._id },
-              customerMessage,
-              '/my-bookings?tab=feedback' // Link to 'My Feedback' tab
-            );
-        }
-        // --- END ADDED BLOCK ---
 
         res.json({ success: true, data: feedback });
     } catch (error) {

@@ -1,11 +1,8 @@
 import Review from '../models/Reviews.js';
-import Feedback from '../models/Feedback.js';
 import Booking from '../models/Booking.js';
 import { createNotification } from './notificationController.js';
 import { createActivityLog } from './activityLogController.js';
 
-
-// Submit a review for a specific item (car/tour)
 export const submitReview = async (req, res) => {
     try {
         const { bookingId, rating, comment, isAnonymous } = req.body;
@@ -78,21 +75,6 @@ export const getReviewsForItem = async (req, res) => {
     }
 };
 
-// Get public feedback for dashboard
-export const getPublicFeedback = async (req, res) => {
-    try {
-        const feedback = await Feedback.find({ isApproved: true })
-            .populate('user', 'firstName lastName')
-            .sort({ createdAt: -1 })
-            .limit(20);
-
-        res.json({ success: true, data: feedback });
-    } catch (error) {
-        console.error('Error fetching public feedback:', error);
-        res.status(500).json({ success: false, message: 'Failed to fetch feedback.' });
-    }
-};
-
 // Get user's own reviews
 export const getMyReviews = async (req, res) => {
     try {
@@ -106,17 +88,6 @@ export const getMyReviews = async (req, res) => {
     }
 };
 
-// Get user's own feedback
-export const getMyFeedback = async (req, res) => {
-    try {
-        const feedback = await Feedback.find({ user: req.user.id })
-            .sort({ createdAt: -1 });
-        res.json({ success: true, data: feedback });
-    } catch (error) {
-        console.error('Error fetching user feedback:', error);
-        res.status(500).json({ success: false, message: 'Failed to fetch your feedback.' });
-    }
-};
 
 // ADMIN: Get all reviews
 export const getAllReviews = async (req, res) => {
@@ -133,21 +104,6 @@ export const getAllReviews = async (req, res) => {
     }
 };
 
-// ADMIN: Get all feedback
-export const getAllFeedback = async (req, res) => {
-    try {
-        const feedback = await Feedback.find()
-            .populate('user', 'firstName lastName')
-            .sort({ createdAt: -1 });
-
-        res.json({ success: true, data: feedback });
-    } catch (error) {
-        console.error('Error fetching all feedback:', error);
-        res.status(500).json({ success: false, message: 'Failed to fetch feedback.' });
-    }
-};
-
-// ADMIN: Approve review
 // ADMIN: Approve review
 export const approveReview = async (req, res) => {
     try {
@@ -155,9 +111,7 @@ export const approveReview = async (req, res) => {
             req.params.id,
             { isApproved: true },
             { new: true }
-        ).populate('user', 'firstName lastName')
-         .populate('item', 'title brand model'); // <-- MODIFIED: Added populate for item
-
+        ).populate('user', 'firstName lastName');
         if (!review) {
             return res.status(404).json({ success: false, message: 'Review not found.' });
         }
@@ -172,41 +126,10 @@ export const approveReview = async (req, res) => {
         }
         // *** END MODIFICATION ***
 
-        // --- ADDED: Notify customer of approval ---
-        if (io && review.user) {
-            const itemName = review.item ? (review.item.title || `${review.item.brand} ${review.item.model}`) : 'your reviewed item';
-            const customerMessage = `Your review for "${itemName}" has been approved!`;
-            await createNotification(
-              io,
-              { user: review.user._id },
-              customerMessage,
-              '/my-bookings?tab=reviews' // Link to 'My Reviews' tab
-            );
-        }
-        // --- END ADDED BLOCK ---
-
         res.json({ success: true, data: review });
     } catch (error) {
         console.error('Error approving review:', error);
         res.status(500).json({ success: false, message: 'Failed to approve review.' });
-    }
-};
-
-// ADMIN: Approve feedback
-export const approveFeedback = async (req, res) => {
-    try {
-        const feedback = await Feedback.findByIdAndUpdate(
-            req.params.id,
-            { isApproved: true },
-            { new: true }
-        );
-        if (!feedback) {
-            return res.status(404).json({ success: false, message: 'Feedback not found.' });
-        }
-        res.json({ success: true, data: feedback });
-    } catch (error) {
-        console.error('Error approving feedback:', error);
-        res.status(500).json({ success: false, message: 'Failed to approve feedback.' });
     }
 };
 
@@ -236,24 +159,6 @@ export const disapproveReview = async (req, res) => {
     } catch (error) {
         console.error('Error disapproving review:', error);
         res.status(500).json({ success: false, message: 'Failed to disapprove review.' });
-    }
-};
-
-// ADMIN: Disapprove feedback
-export const disapproveFeedback = async (req, res) => {
-    try {
-        const feedback = await Feedback.findByIdAndUpdate(
-            req.params.id,
-            { isApproved: false },
-            { new: true }
-        );
-        if (!feedback) {
-            return res.status(404).json({ success: false, message: 'Feedback not found.' });
-        }
-        res.json({ success: true, data: feedback });
-    } catch (error) {
-        console.error('Error disapproving feedback:', error);
-        res.status(500).json({ success: false, message: 'Failed to disapprove feedback.' });
     }
 };
 

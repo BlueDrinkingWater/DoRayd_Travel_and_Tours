@@ -28,7 +28,12 @@ const CalendarBooking = ({ serviceId, onDateSelect, onBookedDatesChange }) => {
   };
 
   const isDateBooked = (date) => {
-    const dateString = date.toISOString().split('T')[0];
+    // --- UPDATED FIX: Create a timezone-safe YYYY-MM-DD string ---
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    const dateString = `${year}-${month}-${day}`;
+    // --- END OF FIX ---
     return bookedDates.includes(dateString);
   };
 

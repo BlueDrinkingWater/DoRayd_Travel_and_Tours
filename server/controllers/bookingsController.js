@@ -13,42 +13,44 @@ import { createActivityLog } from './activityLogController.js';
 
 // Get all bookings for a specific service
 export const getBookingAvailability = async (req, res) => {
-  try {
-    const { serviceId } = req.params;
-    // Find confirmed or pending bookings for the item
-    const bookings = await Booking.find({
-      itemId: serviceId,
-      status: { $in: ['confirmed', 'pending', 'fully_paid'] } // Include fully_paid
-    }).select('startDate endDate');
+  try {
+    const { serviceId } = req.params;
+    // Find confirmed or pending bookings for the item
+    const bookings = await Booking.find({
+      itemId: serviceId,
+      status: { $in: ['confirmed', 'pending', 'fully_paid'] } // Include fully_paid
+    }).select('startDate endDate');
 
-    const bookedDates = bookings.reduce((acc, booking) => {
-      // Ensure dates are valid before processing
-      const startDate = booking.startDate ? new Date(booking.startDate) : null;
-      // *** MODIFIED: Use startDate if endDate is invalid or missing ***
-      const endDate = booking.endDate && !isNaN(new Date(booking.endDate)) ? new Date(booking.endDate) : startDate;
+    const bookedDates = bookings.reduce((acc, booking) => {
+      // Ensure dates are valid before processing
+      const startDate = booking.startDate ? new Date(booking.startDate) : null;
+      // *** MODIFIED: Use startDate if endDate is invalid or missing ***
+      const endDate = booking.endDate && !isNaN(new Date(booking.endDate)) ? new Date(booking.endDate) : startDate;
 
-      if (!startDate || isNaN(startDate.getTime())) return acc; // Skip invalid entries
+      if (!startDate || isNaN(startDate.getTime())) return acc; // Skip invalid entries
 
-      let currentDate = new Date(startDate);
-      currentDate.setUTCHours(0, 0, 0, 0); // Normalize to UTC start of day
+    let currentDate = new Date(startDate);
+    currentDate.setUTCHours(0, 0, 0, 0);
 
-      const finalEndDate = new Date(endDate);
-      finalEndDate.setUTCHours(0, 0, 0, 0); // Normalize to UTC start of day
+    const finalEndDate = new Date(endDate);
+    finalEndDate.setUTCHours(0, 0, 0, 0); 
 
-      // Loop through dates inclusively
-      while (currentDate <= finalEndDate) {
-        acc.push(currentDate.toISOString().split('T')[0]);
-        currentDate.setUTCDate(currentDate.getUTCDate() + 1); // Increment day correctly in UTC
-      }
-      return acc;
-    }, []);
+     while (currentDate < finalEndDate) {
+   acc.push(currentDate.toISOString().split('T')[0]);
+   currentDate.setUTCDate(currentDate.getUTCDate() + 1);
+    }
 
-    // Return unique dates
-    res.json({ success: true, data: { bookedDates: [...new Set(bookedDates)] } });
-  } catch (error) {
-    console.error('Error fetching availability:', error);
-    res.status(500).json({ success: false, message: 'Server Error fetching availability.' });
-  }
+ if (startDate.getTime() === endDate.getTime()) {
+    acc.push(startDate.toISOString().split('T')[0]);
+ }
+      return acc;
+    }, []);
+
+    res.json({ success: true, data: { bookedDates: [...new Set(bookedDates)] } });
+  } catch (error) {
+    console.error('Error fetching availability:', error);
+    res.status(500).json({ success: false, message: 'Server Error fetching availability.' });
+  }
 };
 
 // Get all bookings (for admin/employee) with filtering and searching

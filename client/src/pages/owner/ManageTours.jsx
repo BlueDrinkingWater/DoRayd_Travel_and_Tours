@@ -3,6 +3,7 @@ import { Plus, Edit3, Archive, Eye, EyeOff, Search, MapPin, X, RotateCcw, Dollar
 import DataService, { getImageUrl } from '../../components/services/DataService.jsx';
 import ImageUpload from '../../components/ImageUpload.jsx';
 import { useApi } from '../../hooks/useApi.jsx';
+import { toast } from 'react-toastify';
 
 const ManageTours = () => {
   const [showModal, setShowModal] = useState(false);
@@ -211,7 +212,20 @@ const handleEdit = (tour) => {
 
   const handleArchive = async (tourId) => { if (window.confirm('Are you sure you want to archive this tour?')) { try { await DataService.archiveTour(tourId); alert('Tour archived successfully!'); fetchTours(); } catch (error) { alert('Failed to archive tour.'); } } };
   const handleRestore = async (tourId) => { if (window.confirm('Are you sure you want to restore this tour?')) { try { await DataService.unarchiveTour(tourId); alert('Tour restored successfully!'); fetchTours(); } catch (error) { alert('Failed to restore tour.'); } } };
-  const handleDelete = async (tourId, tourTitle) => { if (window.confirm(`Are you sure you want to PERMANENTLY DELETE (${tourTitle})? This action cannot be undone and will fail if there are active bookings.`)) { try { await DataService.deleteTour(tourId); alert('Tour permanently deleted!'); fetchTours(); } catch (error) { const message = error.response?.data?.message || error.message || 'Unknown error'; alert(`Failed to delete tour: ${message}`); } } };
+  const handleDelete = async (tourId, tourTitle) => {
+    if (window.confirm(`Are you sure you want to PERMANENTLY DELETE (${tourTitle})? This action cannot be undone and will fail if there are active bookings.`)) {
+      try {
+        await DataService.deleteTour(tourId);
+        toast.success('Tour permanently deleted!'); // Changed from alert()
+        fetchTours();
+      } catch (error) {
+        console.error('Failed to delete tour:', error);
+        // This will display the specific error from the server
+        const errorMessage = error.response?.data?.message || `Failed to delete tour: ${error.message || 'Unknown error'}`;
+        toast.error(errorMessage); // Changed from alert()
+      }
+    }
+  };
   const handleToggleAvailability = async (tour) => { const action = tour.isAvailable ? 'unavailable' : 'available'; if (window.confirm(`Are you sure you want to mark this tour as ${action}?`)) { try { await DataService.updateTour(tour._id, { isAvailable: !tour.isAvailable }); fetchTours(); } catch (error) { alert('Failed to toggle availability.'); } } };
 
   const filteredTours = Array.isArray(tours) ? tours.filter(tour => {

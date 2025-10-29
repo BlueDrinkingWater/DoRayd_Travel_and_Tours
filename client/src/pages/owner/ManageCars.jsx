@@ -196,14 +196,19 @@ const ManageCars = () => {
     }
   };
 
-  const handleDelete = async (carId, carName) => {
+const handleDelete = async (carId, carName) => {
     if (window.confirm(`Are you sure you want to PERMANENTLY DELETE (${carName})? This action cannot be undone and will fail if there are active bookings.`)) {
       try {
         await DataService.deleteCar(carId);
         toast.success('Car permanently deleted!');
         fetchCars();
       } catch (error) {
-        toast.error(`Failed to delete car: ${error.message || 'Server error'}`);
+        console.error('Failed to delete car:', error);
+        
+        // This is the important part: it reads the message from the server
+        const errorMessage = error.response?.data?.message || `Failed to delete car: ${error.message || 'Server error'}`;
+        
+        toast.error(errorMessage); // This will show the "Cannot delete car..." message
       }
     }
   };

@@ -316,14 +316,17 @@ const ManageTransport = () => {
   };
 
   // Delete Handler (from previous step)
-  const handleDelete = async (transportId, transportName) => {
+ const handleDelete = async (transportId, transportName) => {
     if (window.confirm(`Are you sure you want to PERMANENTLY DELETE (${transportName})? This action cannot be undone and will fail if there are active bookings.`)) {
       try {
         await DataService.deleteTransport(transportId);
         toast.success('Transport permanently deleted!');
         fetchTransport();
       } catch (error) {
-        toast.error(`Failed to delete: ${error.message || 'Server error'}`);
+        console.error('Failed to delete transport:', error);
+        // This will display the specific error from the server
+        const errorMessage = error.response?.data?.message || `Failed to delete: ${error.message || 'Server error'}`;
+        toast.error(errorMessage);
       }
     }
   };

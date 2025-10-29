@@ -505,6 +505,11 @@ const ManageBookings = () => {
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Service</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
+                {/* --- ADDED THIS HEADER --- */}
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('createdAt')}>
+                   <span className="flex items-center gap-1">Booked On <SortIcon column="createdAt" /></span>
+                </th>
+                {/* --- END OF ADDED HEADER --- */}
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('startDate')}>
                   <span className="flex items-center gap-1">Start Date <SortIcon column="startDate" /></span>
                 </th>
@@ -519,9 +524,10 @@ const ManageBookings = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {loading && <tr><td colSpan="7" className="text-center py-8 text-gray-500">Loading bookings...</td></tr>}
-              {error && <tr><td colSpan="7" className="text-center py-8 text-red-500">{error.message || 'Failed to load data.'}</td></tr>}
-              {!loading && bookings.length === 0 && <tr><td colSpan="7" className="text-center py-8 text-gray-500">No bookings found matching criteria.</td></tr>}
+              {/* --- UPDATED colSpan to 8 --- */}
+              {loading && <tr><td colSpan="8" className="text-center py-8 text-gray-500">Loading bookings...</td></tr>}
+              {error && <tr><td colSpan="8" className="text-center py-8 text-red-500">{error.message || 'Failed to load data.'}</td></tr>}
+              {!loading && bookings.length === 0 && <tr><td colSpan="8" className="text-center py-8 text-gray-500">No bookings found matching criteria.</td></tr>}
               
               {!loading && bookings.map(booking => (
                 <tr key={booking._id} className="hover:bg-gray-50">
@@ -543,6 +549,9 @@ const ManageBookings = () => {
                     <div className="text-sm text-gray-900">{booking.firstName} {booking.lastName}</div>
                     <div className="text-xs text-gray-500">{booking.email}</div>
                   </td>
+                  {/* --- ADDED THIS CELL --- */}
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{formatDateTime(booking.createdAt)}</td>
+                  {/* --- END OF ADDED CELL --- */}
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{formatDateOnly(booking.startDate)}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">{formatPrice(booking.totalPrice)}</td>
                   <td className="px-6 py-4 whitespace-nowrap">

@@ -126,7 +126,7 @@ export const createBooking = async (req, res) => {
         const userId = isUserLoggedIn ? req.user.id : null;
 
         const {
-            itemType, itemId, itemName, startDate, endDate, time, dropoffCoordinates,
+            itemType, itemId, itemName, startDate, endDate, time, dropoffCoordinates, pickupCoordinates, // *** FIX: ADDED pickupCoordinates HERE ***
             paymentReference, manualPaymentReference, amountPaid, paymentOption,
             firstName, lastName, email, phone, address,
             numberOfGuests, specialRequests, agreedToTerms, deliveryMethod,

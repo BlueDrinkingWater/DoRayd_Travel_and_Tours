@@ -7,11 +7,11 @@ import { createActivityLog } from './activityLogController.js';
 // @access  Public
 export const getAllPromotions = async (req, res) => {
   try {
-    const now = new Date(); // Get current server time
-    const promotions = await Promotion.find({ 
-      isActive: true, 
-      startDate: { $lte: now }, // <-- FIXED: Ensures promo has started
-      endDate: { $gte: now }   // <-- FIXED: Ensures promo has not ended
+    const now = new Date();
+    const promotions = await Promotion.find({
+      isActive: true,
+      startDate: { $lte: now }, // <-- ADD THIS LINE
+      endDate: { $gte: now }
     });
     res.json({ success: true, data: promotions });
   } catch (error) {

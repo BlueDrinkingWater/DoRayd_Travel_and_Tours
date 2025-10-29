@@ -51,7 +51,11 @@ export const getAllTours = async (req, res) => {
       .skip((parseInt(page) - 1) * parseInt(limit))
       .sort({ createdAt: -1 });
 
-    const promotions = await Promotion.find({ isActive: true, endDate: { $gte: new Date() } });
+    const promotions = await Promotion.find({
+  isActive: true,
+  startDate: { $lte: new Date() }, // <-- ADD THIS LINE
+  endDate: { $gte: new Date() }
+});
 
     const toursWithPromotions = tours.map(tour => {
         const tourObj = tour.toObject();
@@ -107,7 +111,11 @@ export const getTourById = async (req, res) => {
     const tour = await Tour.findById(req.params.id);
     if (!tour) return res.status(404).json({ success: false, message: 'Tour not found' });
 
-    const promotions = await Promotion.find({ isActive: true, endDate: { $gte: new Date() } });
+    const promotions = await Promotion.find({
+  isActive: true,
+  startDate: { $lte: new Date() }, // <-- ADD THIS LINE
+  endDate: { $gte: new Date() }
+});
     const tourObj = tour.toObject();
     tourObj.originalPrice = tourObj.price;
 

@@ -36,8 +36,11 @@ export const getAllTransportServicesPublic = async (req, res) => {
   try {
     const services = await TransportService.find({ archived: false, isAvailable: true }).sort({ vehicleType: 1, name: 1 });
     // Fetch active promotions
-    const promotions = await Promotion.find({ isActive: true, endDate: { $gte: new Date() } });
-
+    const promotions = await Promotion.find({
+  isActive: true,
+  startDate: { $lte: new Date() }, // <-- ADD THIS LINE
+  endDate: { $gte: new Date() }
+});
     // Map through services and apply promotions
     const servicesWithPromotions = services.map(service => {
         const serviceObj = service.toObject();
@@ -108,7 +111,11 @@ export const getTransportServiceById = async (req, res) => {
     }
 
     // Fetch active promotions
-    const promotions = await Promotion.find({ isActive: true, endDate: { $gte: new Date() } });
+const promotions = await Promotion.find({
+  isActive: true,
+  startDate: { $lte: new Date() }, // <-- ADD THIS LINE
+  endDate: { $gte: new Date() }
+});
     const serviceObj = service.toObject();
 
     // Apply promotion logic (similar to getAllTransportServicesPublic)

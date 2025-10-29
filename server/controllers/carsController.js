@@ -49,8 +49,11 @@ export const getAllCars = async (req, res) => {
       .skip((parseInt(page) - 1) * parseInt(limit))
       .sort({ createdAt: -1 });
 
-    const promotions = await Promotion.find({ isActive: true, endDate: { $gte: new Date() } });
-
+    const promotions = await Promotion.find({
+  isActive: true,
+  startDate: { $lte: new Date() }, // <-- ADD THIS LINE
+  endDate: { $gte: new Date() }
+});
     const carsWithPromotions = cars.map(car => {
         const carObj = car.toObject();
         carObj.originalPrice = carObj.pricePerDay;
@@ -347,7 +350,11 @@ export const getCarById = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Car not found' });
     }
 
-    const promotions = await Promotion.find({ isActive: true, endDate: { $gte: new Date() } });
+    const promotions = await Promotion.find({
+  isActive: true,
+  startDate: { $lte: new Date() }, // <-- ADD THIS LINE
+  endDate: { $gte: new Date() }
+});
     const carObj = car.toObject();
     carObj.originalPrice = carObj.pricePerDay;
 

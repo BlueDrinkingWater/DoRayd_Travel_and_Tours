@@ -73,12 +73,11 @@ export const Navbar = ({ onCustomerLogin, onStaffLogin, onRegister }) => {
 
   return (
     <nav className="bg-white/95 backdrop-blur-md shadow-lg sticky top-0 z-50 border-b border-gray-200/50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-20 items-center relative">
+      <div className="w-full px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-20">
 
-          {/* LEFT: Logo/Name - Force to Left Edge */}
-          {/* ... */}
-           <div className="flex items-center flex-shrink-0 z-10">
+          {/* LEFT: Logo/Name - Left Edge */}
+           <div className="flex items-center flex-shrink-0">
             <Link to="/" className="flex-shrink-0 flex items-center group">
               <img src={logo} alt="Do Rayd Travel and Tours Logo" className="h-12 w-auto transition-transform group-hover:scale-105" />
               <span className="ml-3 text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
@@ -87,9 +86,8 @@ export const Navbar = ({ onCustomerLogin, onStaffLogin, onRegister }) => {
             </Link>
           </div>
 
-          {/* CENTER: Desktop Navigation Links - Centered using absolute positioning */}
-          {/* ... */}
-           <div className="hidden lg:flex absolute left-1/2 transform -translate-x-1/2 items-center space-x-1 h-full z-0">
+          {/* CENTER: Desktop Navigation Links - Centered */}
+           <div className="hidden lg:flex absolute left-1/2 transform -translate-x-1/2 items-center space-x-1">
             <div className="flex items-center space-x-1">
               {navigation.map((item) => (
                 <Link
@@ -111,8 +109,8 @@ export const Navbar = ({ onCustomerLogin, onStaffLogin, onRegister }) => {
           </div>
 
 
-          {/* RIGHT: User Actions/Profile - Force to Right Edge */}
-          <div className="flex items-center space-x-2 flex-shrink-0 z-10">
+          {/* RIGHT: User Actions/Profile - Right Edge */}
+          <div className="flex items-center space-x-2 flex-shrink-0">
             {isAuthenticated && user ? (
               <div className="flex items-center space-x-2">
 

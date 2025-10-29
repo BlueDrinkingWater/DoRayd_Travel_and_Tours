@@ -80,18 +80,24 @@ export const useSocket = () => {
   const markOneAsRead = useCallback(async (id) => {
     try {
       await DataService.markNotificationAsRead(id);
-      setAllNotifications(prev => prev.map(n => (n._id === id ? { ...n, read: true } : n)));
+      const response = await DataService.fetchMyNotifications();
+      if (response.success) {
+        setAllNotifications(response.data);
+      }
     } catch (error) {
-      // Handle error silently in production
+      console.error('Failed to mark notification as read:', error);
     }
-  }, []);
+  }, []); 
 
   const markAllAsRead = useCallback(async () => {
     try {
       await DataService.markAllNotificationsAsRead();
-      setAllNotifications(prev => prev.map(n => ({ ...n, read: true })));
+      const response = await DataService.fetchMyNotifications();
+      if (response.success) {
+        setAllNotifications(response.data);
+      }
     } catch (error) {
-      // Handle error silently in production
+       console.error('Failed to mark all notifications as read:', error);
     }
   }, []);
 
@@ -108,4 +114,4 @@ export const useSocket = () => {
     markAllAsRead,
     removeToast,
   };
-};
+}; 

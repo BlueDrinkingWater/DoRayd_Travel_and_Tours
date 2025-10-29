@@ -80,7 +80,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 if (process.env.NODE_ENV === "production") {
-  app.set("trust proxy", true);
+  app.set("trust proxy", 1);
 }
 // Security Middleware
 app.use(helmet());

@@ -22,16 +22,22 @@ export const submitReview = async (req, res) => {
             return res.status(400).json({ success: false, message: 'You have already reviewed this booking.' });
         }
 
+        // --- CORRECTION: Reverted the previous fix ---
+        // We no longer need the 'switch' statement because the
+        // Review model's enum now correctly accepts the booking.itemModel
+        // values (e.g., 'Car', 'Tour', 'TransportService') directly.
+        
         const review = new Review({
             user: req.user.id,
             booking: bookingId,
             item: booking.itemId,
-            itemModel: booking.itemModel,
+            itemModel: booking.itemModel, // Use the value directly from the booking
             type: 'review',
             rating,
             comment,
             isAnonymous: isAnonymous || false,
         });
+        // --- END CORRECTION ---
 
         await review.save();
 
@@ -76,6 +82,8 @@ export const getReviewsForItem = async (req, res) => {
 };
 
 // Get user's own reviews
+// *** NO CHANGE NEEDED HERE ***
+// This function was failing but will now work once the model enum is fixed.
 export const getMyReviews = async (req, res) => {
     try {
         const reviews = await Review.find({ user: req.user.id, type: 'review' })

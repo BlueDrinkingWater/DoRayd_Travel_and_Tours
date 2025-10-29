@@ -70,24 +70,6 @@ export const getAllTransportServicesPublic = async (req, res) => {
                     discountType: bestPromo.discountType,
                 };
                 
-                // --- IMPORTANT ---
-                // Applying discounts to transport's complex pricing (per destination/type)
-                // is complex. We are just attaching the promo info.
-                // The frontend will need to interpret this and apply the discount
-                // to the relevant pricing field (e.g., dayTour, overnight, etc.)
-                // For example, you could apply it to each pricing entry:
-                /*
-                serviceObj.pricing = serviceObj.pricing.map(p => {
-                    const originalPrice = p.price;
-                    let discountedPrice = originalPrice;
-                    if (bestPromo.discountType === 'percentage') {
-                        discountedPrice = originalPrice * (1 - bestPromo.discountValue / 100);
-                    } else { // fixed
-                        discountedPrice = originalPrice - bestPromo.discountValue;
-                    }
-                    return { ...p, originalPrice, price: Math.max(0, discountedPrice) };
-                });
-                */
              }
         }
         return serviceObj;
@@ -141,20 +123,6 @@ const promotions = await Promotion.find({
                 discountType: bestPromo.discountType,
             };
             
-            // Again, just attaching promo info. Frontend must apply discount.
-            // Example of applying discount to pricing array:
-            /*
-            serviceObj.pricing = serviceObj.pricing.map(p => {
-                const originalPrice = p.price;
-                let discountedPrice = originalPrice;
-                if (bestPromo.discountType === 'percentage') {
-                    discountedPrice = originalPrice * (1 - bestPromo.discountValue / 100);
-                } else { // fixed
-                    discountedPrice = originalPrice - bestPromo.discountValue;
-                }
-                return { ...p, originalPrice, price: Math.max(0, discountedPrice) };
-            });
-            */
         }
     }
 

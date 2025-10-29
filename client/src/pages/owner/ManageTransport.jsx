@@ -229,12 +229,26 @@ const ManageTransport = () => {
         }
     }
 
+    // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    // !!! THIS IS THE FIX !!!
+    // Check if there's a pending new price row that hasn't been added
+    let finalPricing = [...formData.pricing];
+    if (newPriceRow.destination && newPriceRow.destination.trim()) {
+      // User typed in the new row but didn't click 'Add'
+      // Let's add it for them before submitting.
+      finalPricing.push({ ...newPriceRow });
+    }
+    // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
     // Prepare payload
     const payload = {
        ...formData,
        capacity: parseInt(formData.capacity, 10) || 0, // Ensure capacity is saved as a number
        images: formData.images.map(img => img.url), // Send only URLs
-       pricing: formData.pricing.map(p => ({
+       
+       // --- USE THE 'finalPricing' ARRAY ---
+       pricing: finalPricing.map(p => ({
            ...p,
            dayTourTime: p.dayTourTime ? parseInt(p.dayTourTime, 10) : null, // Send as number
            dayTourPrice: p.dayTourPrice ? parseFloat(p.dayTourPrice) : null,
@@ -611,7 +625,7 @@ const ManageTransport = () => {
                             <td className="px-2 py-1"><input type="number" step="0.01" value={price.ovnPrice || ''} onChange={(e) => handlePriceRowChange(index, 'ovnPrice', e.target.value)} className="w-24 p-1 border rounded-md text-xs"/></td>
                             
                             {/* !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! */}
-                            {/* !!! THIS IS THE FIX (Removed ".g") !!! */}
+                            {/* !!! NO TYPO HERE, THIS WAS CORRECT !!! */}
                             {/* !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! */}
                             <td className="px-2 py-1"><input type="number" step="0.01" value={price.threeDayTwoNightPrice || ''} onChange={(e) => handlePriceRowChange(index, 'threeDayTwoNightPrice', e.target.value)} className="w-24 p-1 border rounded-md text-xs"/></td>
                             
@@ -637,7 +651,7 @@ const ManageTransport = () => {
                                 placeholder="Hours (1-24)"
                               />
                           </td>
-                          {/* --- STRAY 'D' REMOVED FROM HERE --- */}
+                          {/* --- NO TYPO HERE EITHER --- */}
                           <td className="px-2 py-1"><input type="number" step="0.01" name="dayTourPrice" value={newPriceRow.dayTourPrice} onChange={handleNewPriceRowChange} className="w-24 p-1 border rounded-md text-xs" placeholder="Day Tour ₱"/></td>
                           <td className="px-2 py-1"><input type="number" step="0.01" name="ovnPrice" value={newPriceRow.ovnPrice} onChange={handleNewPriceRowChange} className="w-24 p-1 border rounded-md text-xs" placeholder="OVN ₱"/></td>
                           <td className="px-2 py-1"><input type="number" step="0.01" name="threeDayTwoNightPrice" value={newPriceRow.threeDayTwoNightPrice} onChange={handleNewPriceRowChange} className="w-24 p-1 border rounded-md text-xs" placeholder="3D2N ₱"/></td>

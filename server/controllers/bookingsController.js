@@ -132,7 +132,6 @@ export const createBooking = async (req, res) => {
             numberOfGuests, specialRequests, agreedToTerms, deliveryMethod,
             pickupLocation, dropoffLocation, totalPrice,
             originalPrice, discountApplied, promotionTitle,
-            // *** ADDED: Receive transport fields directly ***
             transportDestination, transportServiceType
         } = req.body;
 
@@ -279,13 +278,17 @@ export const createBooking = async (req, res) => {
         }
         // *** END OF SERVER-SIDE PRICE CALCULATION ***
 
-        // *** REMOVED: Parsing logic for specialRequests. Data now comes directly. ***
-
         // --- Prepare Booking Data ---
         let coords = null;
         if (dropoffCoordinates) {
             try { coords = typeof dropoffCoordinates === 'string' ? JSON.parse(dropoffCoordinates) : dropoffCoordinates; }
             catch (error) { console.warn('Invalid dropoff coordinates format.'); }
+        }
+
+        let pickupCoords = null;
+        if (pickupCoordinates) {
+            try { pickupCoords = typeof pickupCoordinates === 'string' ? JSON.parse(pickupCoordinates) : pickupCoordinates; }
+            catch (error) { console.warn('Invalid pickup coordinates format.'); }
         }
 
         const finalFirstName = isUserLoggedIn ? req.user.firstName : firstName;
@@ -304,6 +307,7 @@ export const createBooking = async (req, res) => {
             time,
             itemModel: itemModelName,
             dropoffCoordinates: coords,
+            pickupCoordinates: pickupCoords, // ADDED
             paymentOption,
             firstName: finalFirstName,
             lastName: finalLastName,
@@ -311,7 +315,7 @@ export const createBooking = async (req, res) => {
             phone: finalPhone,
             address: finalAddress,
             numberOfGuests: (itemType === 'tour' || itemType === 'transport') ? Number(numberOfGuests) : undefined,
-            specialRequests: specialRequests, // Use the original specialRequests
+            specialRequests: specialRequests,
             agreedToTerms: true,
             deliveryMethod: itemType === 'car' ? deliveryMethod : undefined,
             pickupLocation: itemType === 'car' && deliveryMethod === 'pickup' ? pickupLocation : undefined,

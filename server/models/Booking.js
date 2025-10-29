@@ -1,5 +1,3 @@
-// server/models/Booking.js
-
 import mongoose from "mongoose";
 const { Schema } = mongoose;
 
@@ -70,6 +68,10 @@ const bookingSchema = new mongoose.Schema(
     // Delivery & Location (Mainly for cars)
     deliveryMethod: { type: String, enum: ['pickup', 'dropoff'] },
     pickupLocation: { type: String, trim: true },
+    pickupCoordinates: {
+      lat: Number,
+      lng: Number,
+    },
     dropoffLocation: { type: String, trim: true },
     dropoffCoordinates: {
       lat: Number,

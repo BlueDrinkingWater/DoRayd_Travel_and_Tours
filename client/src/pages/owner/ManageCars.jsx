@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
-// --- ADDED Trash ---
 import { Plus, Edit3, Archive, Eye, EyeOff, Search, Car, Users, Fuel, Settings2, X, MapPin, RotateCcw, DollarSign, Percent, Info, Trash } from 'lucide-react';
 import DataService, { getImageUrl } from '../../components/services/DataService';
 import ImageUpload from '../../components/ImageUpload';
 import { useApi } from '../../hooks/useApi';
-import { toast } from 'react-toastify'; // Import toast
+import { toast } from 'react-toastify';
 
 const ManageCars = () => {
   const [showModal, setShowModal] = useState(false);
@@ -13,9 +12,6 @@ const ManageCars = () => {
   const [filterStatus, setFilterStatus] = useState('active');
   const [submitting, setSubmitting] = useState(false);
 
-  // --- THIS IS THE FIX for "All Cars" ---
-  // It now calls the correct DataService.fetchAllCars
-  // and sends the correct parameters based on your carsController.js logic
   const { data: carsData, loading, refetch: fetchCars } = useApi(
     () => {
         const params = {};
@@ -24,84 +20,67 @@ const ManageCars = () => {
         } else if (filterStatus === 'all') {
             params.includeArchived = true;
         } else {
-            // 'active' or default
             params.archived = false;
         }
-        return DataService.fetchAllCars(params); // Use correct function
+        return DataService.fetchAllCars(params);
     },
     [filterStatus]
   );
-  // --- END FIX ---
 
   const cars = carsData?.data || [];
 
   const initialFormState = {
     brand: '', model: '', year: new Date().getFullYear(), seats: 5,
     transmission: 'automatic', fuelType: 'gasoline', pricePerDay: '',
-    location: '', description: '', features: [], images: [], // Keep features as array
+    location: '', description: '', features: [], images: [],
     isAvailable: true,
-    pickupLocations: [], // Keep pickupLocations as array
+    // Removed pickupLocations - customers now select pickup via map in booking modal
     paymentType: 'full',
     downpaymentType: 'percentage',
     downpaymentValue: 20,
-    // Internal state for managing new/deleted images (Handled by ImageUpload component)
   };
 
   const [formData, setFormData] = useState(initialFormState);
   const [newFeature, setNewFeature] = useState('');
-  const [newPickupLocation, setNewPickupLocation] = useState('');
 
   const resetForm = () => {
     setFormData(initialFormState);
     setNewFeature('');
-    setNewPickupLocation('');
     setEditingCar(null);
   };
 
-  // --- UPDATED: handleInputChange ---
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
 
-    // --- ADDED VALIDATION for pricePerDay ---
     if (name === 'pricePerDay') {
-      // This regex allows numbers, an empty string, and a single decimal point.
-      // It prevents 'e', '-', '+' etc. from being typed.
       if (value === '' || /^[0-9]*(\.[0-9]*)?$/.test(value)) {
         setFormData(prev => ({ ...prev, [name]: value }));
       }
-      return; // Prevent default action for this specific input
+      return;
     }
-    // --- END ADDED VALIDATION ---
 
     setFormData(prev => ({
         ...prev,
         [name]: type === 'checkbox' ? checked : value
     }));
   };
-  // --- END: handleInputChange ---
 
-  // Handle changes specifically for payment type radio buttons
   const handlePaymentTypeChange = (e) => {
      const { value } = e.target;
       setFormData(prev => ({
         ...prev,
         paymentType: value,
-        // Reset downpayment fields if switching to 'full'
         downpaymentType: value === 'full' ? prev.downpaymentType : (prev.downpaymentType || 'percentage'),
         downpaymentValue: value === 'full' ? '' : prev.downpaymentValue,
       }));
   };
 
-   // This function is specifically for the <ImageUpload> component prop
-   // It receives the full list of image objects { url, serverId, name }
    const handleImageUploadChange = (uploadedImages) => {
      setFormData(prev => ({ ...prev, images: uploadedImages }));
    };
 
-
   const addFeature = () => {
     if (newFeature.trim()) {
-      // Ensure formData.features is always treated as an array
       setFormData(prev => ({ ...prev, features: [...(Array.isArray(prev.features) ? prev.features : []), newFeature.trim()] }));
       setNewFeature('');
     }
@@ -111,23 +90,10 @@ const ManageCars = () => {
     setFormData(prev => ({ ...prev, features: prev.features.filter((_, i) => i !== index) }));
   };
 
-  const addPickupLocation = () => {
-    if (newPickupLocation.trim()) {
-      // Ensure formData.pickupLocations is always treated as an array
-      setFormData(prev => ({ ...prev, pickupLocations: [...(Array.isArray(prev.pickupLocations) ? prev.pickupLocations : []), newPickupLocation.trim()] }));
-      setNewPickupLocation('');
-    }
-  };
-
-  const removePickupLocation = (index) => {
-    setFormData(prev => ({ ...prev, pickupLocations: prev.pickupLocations.filter((_, i) => i !== index) }));
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
 
-    // Downpayment validation
      if (formData.paymentType === 'downpayment') {
         if (!formData.downpaymentType || !formData.downpaymentValue || parseFloat(formData.downpaymentValue) <= 0) {
             toast.error('Downpayment Type and a positive Value are required when downpayment is enabled.');
@@ -141,27 +107,18 @@ const ManageCars = () => {
         }
     }
 
-     // --- Payload preparation ---
      const simplePayload = { ...formData };
 
-     // Ensure `images` is just an array of strings (URLs) before sending
      if (simplePayload.images && Array.isArray(simplePayload.images)) {
          simplePayload.images = simplePayload.images.map(img => (typeof img === 'string' ? img : img.url)).filter(Boolean);
      }
 
-     // Ensure features and pickupLocations are arrays (Safety Check)
      if (typeof simplePayload.features === 'string') {
         simplePayload.features = simplePayload.features.split(',').map(s => s.trim()).filter(Boolean);
      } else if (!Array.isArray(simplePayload.features)) {
-        simplePayload.features = []; // Default to empty array if invalid
-     }
-     if (typeof simplePayload.pickupLocations === 'string') {
-        simplePayload.pickupLocations = simplePayload.pickupLocations.split(',').map(s => s.trim()).filter(Boolean);
-     } else if (!Array.isArray(simplePayload.pickupLocations)) {
-        simplePayload.pickupLocations = []; // Default to empty array if invalid
+        simplePayload.features = [];
      }
 
-     // Clean up payment fields if 'full'
      if (simplePayload.paymentType === 'full') {
          delete simplePayload.downpaymentType;
          delete simplePayload.downpaymentValue;
@@ -169,11 +126,9 @@ const ManageCars = () => {
 
     try {
       if (editingCar) {
-        // Update uses simplePayload (JSON) as ImageUpload handled uploads/deletions
         await DataService.updateCar(editingCar._id, simplePayload);
         toast.success('Car updated successfully!');
       } else {
-        // Create uses simplePayload (JSON)
         await DataService.createCar(simplePayload);
         toast.success('Car created successfully!');
       }
@@ -187,11 +142,9 @@ const ManageCars = () => {
     }
   };
 
-
   const handleEdit = (car) => {
     setEditingCar(car);
 
-    // Ensure images are in the { url, serverId, name } format for ImageUpload
     const processedImages = Array.isArray(car.images)
       ? car.images.map((img, index) => {
           if (typeof img === 'string') {
@@ -210,14 +163,11 @@ const ManageCars = () => {
     setFormData({
       ...initialFormState,
       ...car,
-      images: processedImages, // Use the processed image objects
+      images: processedImages,
       paymentType: car.paymentType || 'full',
       downpaymentType: car.downpaymentType || 'percentage',
       downpaymentValue: car.downpaymentValue || (car.paymentType === 'downpayment' ? 20 : ''),
-      // --- FIX: Keep features and pickupLocations as arrays ---
       features: Array.isArray(car.features) ? car.features : (car.features ? String(car.features).split(',').map(f => f.trim()).filter(Boolean) : []),
-      pickupLocations: Array.isArray(car.pickupLocations) ? car.pickupLocations : (car.pickupLocations ? String(car.pickupLocations).split(',').map(f => f.trim()).filter(Boolean) : []),
-      // --- END FIX ---
     });
     setShowModal(true);
   };
@@ -246,11 +196,10 @@ const ManageCars = () => {
     }
   };
 
-  // --- ADDED: Delete Handler ---
   const handleDelete = async (carId, carName) => {
     if (window.confirm(`Are you sure you want to PERMANENTLY DELETE (${carName})? This action cannot be undone and will fail if there are active bookings.`)) {
       try {
-        await DataService.deleteCar(carId); // This function needs to be added to DataService
+        await DataService.deleteCar(carId);
         toast.success('Car permanently deleted!');
         fetchCars();
       } catch (error) {
@@ -258,7 +207,6 @@ const ManageCars = () => {
       }
     }
   };
-  // --- END: Delete Handler ---
 
   const handleToggleAvailability = async (car) => {
     const action = car.isAvailable ? 'unavailable' : 'available';
@@ -275,7 +223,6 @@ const ManageCars = () => {
 
   const filteredCars = Array.isArray(cars) ? cars.filter(car => {
     const lowerSearchTerm = searchTerm.toLowerCase();
-    // No need to filter by status here, as `useApi` hook now does it
     const matchesSearch = (
       car.brand?.toLowerCase().includes(lowerSearchTerm) ||
       car.model?.toLowerCase().includes(lowerSearchTerm) ||
@@ -283,7 +230,6 @@ const ManageCars = () => {
     );
     return matchesSearch;
   }) : [];
-
 
   return (
     <div className="p-6">
@@ -341,12 +287,10 @@ const ManageCars = () => {
                   alt={`${car.brand} ${car.model}`}
                   className="w-full h-full object-cover"
                 />
-                {/* --- MODIFIED: Action Buttons --- */}
                 <div className="absolute top-2 right-2 flex gap-1">
                   {car.archived ? (
                     <>
                       <button onClick={() => handleRestore(car._id, `${car.brand} ${car.model}`)} className="p-2 bg-white rounded-full shadow-md" title="Restore Car"><RotateCcw className="w-4 h-4 text-green-600" /></button>
-                      {/* --- ADDED Delete Button --- */}
                       <button onClick={() => handleDelete(car._id, `${car.brand} ${car.model}`)} className="p-2 bg-white rounded-full shadow-md" title="PERMANENTLY DELETE"><Trash className="w-4 h-4 text-red-700" /></button>
                     </>
                   ) : (
@@ -387,7 +331,7 @@ const ManageCars = () => {
                 <h2 className="text-2xl font-bold text-gray-900">{editingCar ? 'Edit Car' : 'Add New Car'}</h2>
                 <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600"><X className="w-6 h-6" /></button>
             </div>
-            <form id="carForm" onSubmit={handleSubmit} className="space-y-6 overflow-y-auto p-6 scrollbar-thin"> {/* Added scrollbar-thin */}
+            <form id="carForm" onSubmit={handleSubmit} className="space-y-6 overflow-y-auto p-6 scrollbar-thin">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div><label className="block text-sm font-medium text-gray-700 mb-1">Brand *</label><input type="text" name="brand" required value={formData.brand} onChange={handleInputChange} className="w-full p-2 border rounded-lg" placeholder="Toyota, Honda, etc." /></div>
                     <div><label className="block text-sm font-medium text-gray-700 mb-1">Model *</label><input type="text" name="model" required value={formData.model} onChange={handleInputChange} className="w-full p-2 border rounded-lg" placeholder="Camry, Civic, etc." /></div>
@@ -402,7 +346,6 @@ const ManageCars = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                      <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Price Per Day (₱) *</label>
-                        {/* --- MODIFIED: Added onChange listener for new logic --- */}
                         <input type="text" name="pricePerDay" required value={formData.pricePerDay} onChange={handleInputChange} className="w-full p-2 border rounded-lg" placeholder="2500.00" inputMode="decimal" />
                      </div>
                      <div>
@@ -414,7 +357,7 @@ const ManageCars = () => {
                      </div>
                 </div>
 
-                 {/* --- Payment Configuration --- */}
+                 {/* Payment Configuration */}
                  <div className="border p-4 rounded-md bg-gray-50">
                     <h3 className="text-lg font-semibold mb-3 flex items-center gap-2"><DollarSign size={18}/> Payment Options</h3>
                     <div className="flex gap-6 mb-4">
@@ -467,12 +410,22 @@ const ManageCars = () => {
                         </div>
                     )}
                  </div>
-                 {/* --- End Payment Configuration --- */}
 
                 <div><label className="block text-sm font-medium text-gray-700 mb-1">Description</label><textarea name="description" rows="4" value={formData.description} onChange={handleInputChange} className="w-full p-2 border rounded-lg" placeholder="Describe the car features, condition, etc." /></div>
+                
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Features</label>
-                  <div className="flex gap-2 mb-2"><input type="text" value={newFeature} onChange={(e) => setNewFeature(e.target.value)} className="flex-1 px-3 py-2 border border-gray-300 rounded-lg" placeholder="Add a feature (e.g., Air Conditioning)" onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addFeature())} /><button type="button" onClick={addFeature} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Add</button></div>
+                  <div className="flex gap-2 mb-2">
+                    <input 
+                      type="text" 
+                      value={newFeature} 
+                      onChange={(e) => setNewFeature(e.target.value)} 
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg" 
+                      placeholder="Add a feature (e.g., Air Conditioning)" 
+                      onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addFeature())} 
+                    />
+                    <button type="button" onClick={addFeature} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Add</button>
+                  </div>
                   {Array.isArray(formData.features) && formData.features.length > 0 && (
                     <div className="flex flex-wrap gap-2">
                         {formData.features.map((feature, index) => (
@@ -487,26 +440,10 @@ const ManageCars = () => {
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Pickup Locations</label>
-                  <div className="flex gap-2 mb-2"><input type="text" value={newPickupLocation} onChange={(e) => setNewPickupLocation(e.target.value)} className="flex-1 px-3 py-2 border border-gray-300 rounded-lg" placeholder="Add a pickup location" onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addPickupLocation())} /><button type="button" onClick={addPickupLocation} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Add</button></div>
-                  {Array.isArray(formData.pickupLocations) && formData.pickupLocations.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                        {formData.pickupLocations.map((location, index) => (
-                          <span key={index} className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
-                            {location}
-                            <button type="button" onClick={() => removePickupLocation(index)} className="text-blue-600 hover:text-blue-800">
-                              <X className="w-3 h-3" />
-                            </button>
-                          </span>
-                        ))}
-                    </div>
-                  )}
-                </div>
-                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Images (First image is main)</label>
                   <ImageUpload
                     onImagesChange={handleImageUploadChange}
-                    existingImages={formData.images} // Pass the array of image objects
+                    existingImages={formData.images}
                     maxImages={5}
                     category="cars"
                   />

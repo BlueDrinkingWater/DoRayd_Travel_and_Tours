@@ -1,10 +1,11 @@
 // client/src/components/BookingModal.jsx
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { X, Calendar, Users, Upload, CheckCircle, Shield, FileText, AlertTriangle, Tag, User as UserIcon, Mail, Phone, Home, Info, Bus } from 'lucide-react'; // Added Bus and Info
+import { X, Calendar, Users, Upload, CheckCircle, Shield, FileText, AlertTriangle, Tag, User as UserIcon, Mail, Phone, Home, Info, Bus } from 'lucide-react';
 import DataService, { SERVER_URL } from './services/DataService.jsx';
 import CalendarBooking from './CalendarBooking.jsx';
 import DropoffMap from './DropoffMap.jsx';
+import PickupMap from './PickupMap.jsx'; // ADDED
 import { useAuth } from './Login.jsx';
 import { Link, useNavigate } from 'react-router-dom';
 
@@ -29,14 +30,13 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
   // Helper to get today's date in YYYY-MM-DD format
   const getTodayString = () => {
     const today = new Date();
-    today.setHours(0, 0, 0, 0); // Normalize to the start of the day
+    today.setHours(0, 0, 0, 0);
     return today.toISOString().split('T')[0];
   };
 
   useEffect(() => {
     if (isOpen) {
       const fetchContent = async () => {
-        // --- MODIFIED: Fetch QR Code for ALL item types (including transport) ---
         try {
           setQrLoading(true);
           const qrResponse = await DataService.fetchContent('paymentQR');
@@ -50,7 +50,6 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
           setQrLoading(false);
         }
         
-        // Fetch Booking Disclaimer
         try {
             const disclaimerResponse = await DataService.fetchContent('bookingDisclaimer');
             if (disclaimerResponse.success && disclaimerResponse.data.content) {
@@ -62,15 +61,15 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
       };
       fetchContent();
     }
-  }, [isOpen]); // itemType dependency was already here, which is good.
+  }, [isOpen]);
 
   const [formData, setFormData] = useState({
     firstName: '', lastName: '', email: '', phone: '', address: '',
     startDate: '', time: '', numberOfDays: 1, numberOfGuests: 1,
     specialRequests: '', agreedToTerms: false, paymentProof: null,
     pickupLocation: '', dropoffLocation: '', dropoffCoordinates: null,
+    pickupCoordinates: null, // ADDED
     deliveryMethod: 'pickup', amountPaid: '', manualPaymentReference: '',
-    // --- Fields for Transport ---
     transportDestination: '', transportServiceType: '',
   });
 
@@ -82,8 +81,6 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
 
   useEffect(() => {
     if (isOpen) {
-      // Default to 'downpayment' ONLY if the user is logged in AND the item allows it.
-      // Otherwise, default to 'full'.
       if (user && item?.paymentType === 'downpayment' && item?.downpaymentValue > 0) {
           setSelectedPaymentOption('downpayment');
       } else {
@@ -94,30 +91,29 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
       const initialState = {
           firstName: user?.firstName || '', lastName: user?.lastName || '',
           email: user?.email || '', phone: user?.phone || '', address: user?.address || '',
-          startDate: '', // Reset start date
+          startDate: '',
           time: '', numberOfDays: 1, numberOfGuests: 1,
           specialRequests: '', agreedToTerms: false, paymentProof: null,
-          pickupLocation: '', // Reset pickup location
-          dropoffLocation: '', dropoffCoordinates: null, deliveryMethod: 'pickup',
+          pickupLocation: '',
+          dropoffLocation: '', dropoffCoordinates: null, 
+          pickupCoordinates: null, // ADDED
+          deliveryMethod: 'pickup',
           amountPaid: '', manualPaymentReference: '',
-          transportDestination: '', transportServiceType: '', // Reset transport fields
+          transportDestination: '', transportServiceType: '',
       };
 
-      // Set defaults based on itemType
       if (itemType === 'tour' && item) {
           initialState.startDate = item.startDate ? new Date(item.startDate).toISOString().split('T')[0] : '';
-          initialState.time = '09:00'; // Default tour time
+          initialState.time = '09:00';
       } else if (itemType === 'car') {
-           initialState.startDate = todayStr; // Default to today for cars
-           initialState.time = '08:00'; // Default car time
-           initialState.pickupLocation = item?.pickupLocations?.[0] || ''; // Default pickup for cars
+           initialState.startDate = todayStr;
+           initialState.time = '08:00';
       } else if (itemType === 'transport') {
-          initialState.startDate = todayStr; // Default to today for transport
-          initialState.time = '08:00'; // Default transport time
+          initialState.startDate = todayStr;
+          initialState.time = '08:00';
       }
       
       setFormData(initialState);
-      // Reset dependent states; they will be recalculated in the next effect
       setTotalPrice(0);
       setCalculatedEndDate(null);
       setSubmitError('');
@@ -126,53 +122,41 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
   }, [isOpen, item, itemType, user]);
 
   useEffect(() => {
-    // This effect calculates price and end date whenever relevant form data changes
     if (itemType === 'car' && formData.startDate && formData.numberOfDays > 0) {
       const startDate = new Date(formData.startDate);
       const endDate = new Date(startDate);
-      endDate.setDate(startDate.getDate() + parseInt(formData.numberOfDays, 10)); // End date is start + days
+      endDate.setDate(startDate.getDate() + parseInt(formData.numberOfDays, 10));
       setCalculatedEndDate(endDate);
       
-      // --- APPLY CAR PROMOTION ---
       let carPrice = formData.numberOfDays * (item?.pricePerDay || 0);
+      
       if (item.promotion && carPrice > 0) {
         const { discountType, discountValue } = item.promotion;
         if (discountType === 'percentage') {
             carPrice = carPrice - (carPrice * (discountValue / 100));
-        } else { // fixed
-            // Note: Fixed discount for cars applies PER DAY in this logic.
-            // If it should apply ONCE, this logic needs changing.
-            // Assuming per day to match original pricePerDay logic.
-            // For a one-time fixed discount, change to:
-            // carPrice = carPrice - discountValue;
-            carPrice = (formData.numberOfDays * Math.max(0, (item?.pricePerDay || 0) - discountValue));
+        } else {
+            carPrice = carPrice - discountValue;
         }
         carPrice = Math.max(0, carPrice);
       }
       setTotalPrice(carPrice);
       
     } else if (itemType === 'tour') {
-      // --- APPLY TOUR PROMOTION ---
       let tourPrice = formData.numberOfGuests * (item?.price || 0);
+      
       if (item.promotion && tourPrice > 0) {
          const { discountType, discountValue } = item.promotion;
          if (discountType === 'percentage') {
             tourPrice = tourPrice - (tourPrice * (discountValue / 100));
-         } else { // fixed
-            // Fixed discount for tours could be per guest or per booking.
-            // Assuming per guest to match original logic.
-            // For a one-time fixed discount, change to:
-            // tourPrice = tourPrice - discountValue;
-            tourPrice = (formData.numberOfGuests * Math.max(0, (item?.price || 0) - discountValue));
+         } else {
+            tourPrice = tourPrice - discountValue;
          }
          tourPrice = Math.max(0, tourPrice);
       }
       setTotalPrice(tourPrice);
       
-      // Tours have fixed end dates from item data
       setCalculatedEndDate(item.endDate ? new Date(item.endDate) : (formData.startDate ? new Date(formData.startDate) : null));
     
-    // --- MODIFIED: Transport Price Calculation ---
     } else if (itemType === 'transport') {
       let newPrice = 0;
       let newEndDate = formData.startDate ? new Date(formData.startDate) : null;
@@ -181,8 +165,8 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
         const priceRule = item.pricing.find(p => p.destination === formData.transportDestination);
         
         if (priceRule) {
-          if (newEndDate) { // Ensure newEndDate is valid before setting time
-            newEndDate.setHours(0, 0, 0, 0); // Normalize date
+          if (newEndDate) {
+            newEndDate.setHours(0, 0, 0, 0);
           }
           switch (formData.transportServiceType) {
             case 'Day Tour':
@@ -190,11 +174,11 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
               break;
             case 'Overnight':
               newPrice = priceRule.ovnPrice || 0;
-              if (newEndDate) newEndDate.setDate(newEndDate.getDate() + 1); // Add 1 day for OVN
+              if (newEndDate) newEndDate.setDate(newEndDate.getDate() + 1);
               break;
             case '3D2N':
               newPrice = priceRule.threeDayTwoNightPrice || 0;
-              if (newEndDate) newEndDate.setDate(newEndDate.getDate() + 2); // Add 2 days for 3D2N
+              if (newEndDate) newEndDate.setDate(newEndDate.getDate() + 2);
               break;
             case 'Drop & Pick':
               newPrice = priceRule.dropAndPickPrice || 0;
@@ -205,19 +189,15 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
         }
       }
       
-      // --- ADDED PROMOTION LOGIC FOR TRANSPORT ---
-      // Apply promotion if it exists (passed in the 'item' prop)
-      // This applies the discount ONCE to the final calculated price.
       if (item.promotion && newPrice > 0) {
         const { discountType, discountValue } = item.promotion;
         if (discountType === 'percentage') {
           newPrice = newPrice - (newPrice * (discountValue / 100));
-        } else { // fixed
+        } else {
           newPrice = newPrice - discountValue;
         }
-        newPrice = Math.max(0, newPrice); // Ensure price isn't negative
+        newPrice = Math.max(0, newPrice);
       }
-      // --- END OF ADDED BLOCK ---
       
       setTotalPrice(newPrice);
       setCalculatedEndDate(newEndDate);
@@ -228,49 +208,59 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
     formData.numberOfGuests, 
     item, 
     itemType, 
-    formData.transportDestination, // ADDED dependency
-    formData.transportServiceType  // ADDED dependency
+    formData.transportDestination,
+    formData.transportServiceType
   ]);
   
   const handleFileChange = (e) => setFormData(prev => ({ ...prev, paymentProof: e.target.files[0] }));
-  const handleLocationSelect = useCallback((location) => setFormData(prev => ({ ...prev, dropoffLocation: location.address, dropoffCoordinates: { lat: location.latitude, lng: location.longitude } })), []);
+  
+  const handleLocationSelect = useCallback((location) => setFormData(prev => ({ 
+    ...prev, 
+    dropoffLocation: location.address, 
+    dropoffCoordinates: { lat: location.latitude, lng: location.longitude } 
+  })), []);
+  
+  // ADDED: Handler for pickup location
+  const handlePickupLocationSelect = useCallback((location) => {
+    setFormData(prev => ({ 
+      ...prev, 
+      pickupLocation: location.address, 
+      pickupCoordinates: { lat: location.latitude, lng: location.longitude }
+    }));
+  }, []);
+  
   const handleDateSelect = useCallback((date) => setFormData(prev => ({ ...prev, startDate: date })), []);
   const combineDateAndTime = (date, time) => date && time ? new Date(`${date}T${time}`).toISOString() : '';
 
   const calculatedDownpayment = useMemo(() => {
-    // --- MODIFIED: Removed transport exclusion ---
     if (!item || item.paymentType !== 'downpayment' || !totalPrice) return 0;
     
     if (item.downpaymentType === 'percentage') {
       return (totalPrice * item.downpaymentValue) / 100;
     }
     
-    // Fixed DP calculation
     if (item.downpaymentType === 'fixed') {
-       // Assume fixed DP is per booking
        return item.downpaymentValue;
     }
     
     return 0;
-  }, [item, totalPrice]); // Removed formData dependencies as fixed logic is simplified
+  }, [item, totalPrice]);
 
   const requiredPayment = useMemo(() => {
-    // --- MODIFIED: Removed transport exclusion ---
     if (selectedPaymentOption === 'downpayment') {
       return calculatedDownpayment;
     }
     return totalPrice;
-  }, [selectedPaymentOption, calculatedDownpayment, totalPrice, itemType]); // itemType is still here just in case, no harm
+  }, [selectedPaymentOption, calculatedDownpayment, totalPrice, itemType]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitError('');
 
-    // --- DATE OVERLAP VALIDATION (Only for Cars) ---
     if (itemType === 'car' && formData.startDate && formData.numberOfDays > 0) {
         const start = new Date(formData.startDate);
         const end = new Date(start);
-        end.setDate(start.getDate() + parseInt(formData.numberOfDays, 10) - 1); // Inclusive end date
+        end.setDate(start.getDate() + parseInt(formData.numberOfDays, 10) - 1);
 
         for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
             const dateString = d.toISOString().split('T')[0];
@@ -279,14 +269,11 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
             }
         }
     }
-    // --- ADDED: DATE OVERLAP VALIDATION for Transport ---
     else if (itemType === 'transport' && formData.startDate && calculatedEndDate) {
         const start = new Date(formData.startDate);
-        // calculatedEndDate is already set by your useEffect hook
         const end = new Date(calculatedEndDate); 
-        end.setHours(0, 0, 0, 0); // Normalize just in case
+        end.setHours(0, 0, 0, 0);
 
-        // Loop from start date to the calculated end date
         for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
             const dateString = d.toISOString().split('T')[0];
             if (bookedDates.includes(dateString)) {
@@ -295,18 +282,15 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
         }
     }
 
-    // --- FORM VALIDATION ---
     const requiredBaseFields = {
       firstName: "First Name", lastName: "Last Name", email: "Email Address",
       phone: "Phone Number", address: "Address", startDate: "Start Date", time: "Time"
     };
 
-    // Fields required for payment
     const requiredPaymentFields = {
       paymentProof: "Payment Proof", amountPaid: "Amount Paid"
     };
 
-    // --- MODIFIED: Payment fields are now required for ALL types ---
     let fieldsToCheck = {...requiredBaseFields, ...requiredPaymentFields};
 
     for (const field in fieldsToCheck) {
@@ -315,7 +299,6 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
       }
     }
     
-    // Specific validations
     if (!formData.manualPaymentReference && !paymentReferenceCode) {
         return setSubmitError("A payment reference (either generated or manual) is required.");
     }
@@ -326,19 +309,16 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
     if (itemType === 'transport') {
         if (!formData.transportDestination) return setSubmitError("Destination is required for transport.");
         if (!formData.transportServiceType) return setSubmitError("Service Type is required for transport.");
-        // --- ADDED: Price validation for transport ---
         if (totalPrice <= 0 && !(formData.transportDestination && formData.transportServiceType)) { 
             return setSubmitError("Please select a valid Destination and Service Type to calculate the price.");
         }
     }
     if (!formData.agreedToTerms) return setSubmitError('You must agree to the terms to proceed.');
     
-    // --- MODIFIED: Payment amount check for ALL types ---
     if (parseFloat(formData.amountPaid) !== requiredPayment) {
       return setSubmitError(`The amount paid must be exactly ${formatPrice(requiredPayment)}.`);
     }
     
-    // --- MODIFIED: Login check for downpayment for ALL types ---
     if (selectedPaymentOption === 'downpayment' && !user) {
         setSubmitError("You must be logged in to choose the downpayment option. Please log in or create an account.");
         return;
@@ -350,41 +330,62 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
         Object.keys(formData).forEach(key => {
          if (key === 'dropoffCoordinates' && formData[key]) {
            bookingData.append(key, JSON.stringify(formData[key]));
-         } else if (key !== 'manualPaymentReference' && formData[key]) { // Exclude manual ref initially
+         } else if (key === 'pickupCoordinates' && formData[key]) { // ADDED
+           bookingData.append(key, JSON.stringify(formData[key]));
+         } else if (key !== 'manualPaymentReference' && formData[key]) {
            bookingData.append(key, formData[key]);
          }
        });
       
-      // --- MODIFIED: Adjust end date logic for Transport ---
       const fullStartDate = combineDateAndTime(formData.startDate, formData.time);
-      let fullEndDate = fullStartDate; // Default end date
+      let fullEndDate = fullStartDate;
       
       if (itemType === 'car' && calculatedEndDate) {
-          // For cars, end date is calculated based on numberOfDays
           const carEndDate = new Date(formData.startDate);
           carEndDate.setDate(carEndDate.getDate() + parseInt(formData.numberOfDays, 10));
-          fullEndDate = combineDateAndTime(carEndDate.toISOString().split('T')[0], formData.time); // Use same time
+          fullEndDate = combineDateAndTime(carEndDate.toISOString().split('T')[0], formData.time);
       } else if (itemType === 'tour' && item.endDate) {
-          // For tours, end date comes from item data
-          fullEndDate = combineDateAndTime(new Date(item.endDate).toISOString().split('T')[0], formData.time); // Use same time
+          fullEndDate = combineDateAndTime(new Date(item.endDate).toISOString().split('T')[0], formData.time);
       } else if (itemType === 'transport' && calculatedEndDate) {
-          // --- ADDED: Use calculatedEndDate for transport (OVN, 3D2N) ---
           fullEndDate = combineDateAndTime(calculatedEndDate.toISOString().split('T')[0], formData.time);
       }
-      // Set references, dates, price, item details
+      
       bookingData.set('paymentReference', paymentReferenceCode);
       if (formData.manualPaymentReference.trim()) {
           bookingData.set('manualPaymentReference', formData.manualPaymentReference.trim());
       }
       bookingData.set('startDate', fullStartDate);
       bookingData.set('endDate', fullEndDate);
-      bookingData.set('totalPrice', totalPrice); // Send CALCULATED price for transport
+      bookingData.set('totalPrice', totalPrice);
       bookingData.set('itemName', itemType === 'car' ? `${item.brand} ${item.model}` : (itemType === 'tour' ? item.title : `${item.vehicleType} ${item.name || ''}`));
       bookingData.set('itemId', item._id);
       bookingData.set('itemType', itemType);
-      bookingData.set('paymentOption', selectedPaymentOption); // Send selected payment option
+      bookingData.set('paymentOption', selectedPaymentOption);
 
-      // For car/tour/transport, ensure amountPaid matches required payment
+      if (item.promotion) {
+        let originalPrice = 0;
+        if (itemType === 'car') {
+          originalPrice = formData.numberOfDays * (item?.pricePerDay || 0);
+        } else if (itemType === 'tour') {
+          originalPrice = formData.numberOfGuests * (item?.price || 0);
+        } else if (itemType === 'transport' && formData.transportDestination && formData.transportServiceType) {
+          const priceRule = item.pricing.find(p => p.destination === formData.transportDestination);
+          if (priceRule) {
+            switch (formData.transportServiceType) {
+              case 'Day Tour': originalPrice = priceRule.dayTourPrice || 0; break;
+              case 'Overnight': originalPrice = priceRule.ovnPrice || 0; break;
+              case '3D2N': originalPrice = priceRule.threeDayTwoNightPrice || 0; break;
+              case 'Drop & Pick': originalPrice = priceRule.dropAndPickPrice || 0; break;
+            }
+          }
+        }
+        
+        const discountApplied = originalPrice - totalPrice;
+        bookingData.set('originalPrice', originalPrice.toString());
+        bookingData.set('discountApplied', discountApplied.toString());
+        bookingData.set('promotionTitle', item.promotion.title);
+      }
+
       bookingData.set('amountPaid', requiredPayment.toString());
 
       const result = await DataService.createBooking(bookingData);
@@ -392,8 +393,8 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
         setSubmitSuccess(true);
         if (user) {
           setTimeout(() => {
-            onClose(); // Close modal first
-            navigate('/my-bookings'); // Then navigate
+            onClose();
+            navigate('/my-bookings');
           }, 2000);
         } else {
              setTimeout(() => {
@@ -416,7 +417,7 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
     if (!time) return 'N/A';
     const [hours, minutes] = time.split(':');
     const date = new Date();
-    date.setHours(parseInt(hours), parseInt(minutes)); // Ensure parsing as integers
+    date.setHours(parseInt(hours), parseInt(minutes));
     return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
   }
 
@@ -424,11 +425,10 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
   
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-scale-in">
-      <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto scrollbar-thin"> {/* Added scrollbar-thin */}
+      <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto scrollbar-thin">
         <div className="p-6">
           <div className="flex items-start justify-between mb-4">
             <div>
-              {/* --- MODIFIED: Title --- */}
               <h2 className="text-2xl font-bold">Book Your Trip</h2>
               <p className="text-gray-600">
                 {itemType === 'car' ? `${item.brand} ${item.model}` : (itemType === 'tour' ? item.title : `${item.vehicleType} ${item.name || ''}`)}
@@ -440,7 +440,6 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
           {submitSuccess ? (
             <div className="text-center p-8">
               <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-              {/* --- MODIFIED: Success Message --- */}
               <h3 className="text-2xl font-bold">Booking Submitted!</h3>
               <p className="text-gray-600 mt-2">
                 You will receive a confirmation email shortly.
@@ -448,21 +447,18 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
             </div>
           ) : (
             <form onSubmit={handleSubmit} noValidate className="space-y-6">
-              {submitError && <div className="bg-red-100 text-red-700 p-3 rounded-lg text-sm flex items-center gap-2"><AlertTriangle size={16}/> {submitError}</div>} {/* Added Icon */}
+              {submitError && <div className="bg-red-100 text-red-700 p-3 rounded-lg text-sm flex items-center gap-2"><AlertTriangle size={16}/> {submitError}</div>}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <div className="space-y-6">
                   {/* User Information */}
                   <div className="bg-gray-50 p-4 rounded-lg">
                     <h3 className="font-semibold mb-3">Your Information</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {/* --- FIX: Added replace() to filter numbers --- */}
-                        <div className="relative"><UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16}/><input type="text" name="firstName" placeholder="First Name *" required value={formData.firstName} onChange={(e) => setFormData({ ...formData, firstName: e.target.value.replace(/[0-9]/g, '') })} className="w-full pl-10 p-2 border rounded-md"/></div>
-                        {/* --- FIX: Added replace() to filter numbers --- */}
-                        <div className="relative"><UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16}/><input type="text" name="lastName" placeholder="Last Name *" required value={formData.lastName} onChange={(e) => setFormData({ ...formData, lastName: e.target.value.replace(/[0-9]/g, '') })} className="w-full pl-10 p-2 border rounded-md"/></div>
-                        <div className="md:col-span-2 relative"><Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16}/><input type="email" name="email" placeholder="Email Address *" required value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="w-full pl-10 p-2 border rounded-md"/></div>
-                        {/* --- FIX: Added replace() to filter letters (allow +) --- */}
-                        <div className="md:col-span-2 relative"><Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16}/><input type="tel" name="phone" required value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value.replace(/[^0-9+]/g, '') })} className="w-full pl-10 p-2 border rounded-md" placeholder="e.g., 09171234567 or +639171234567"/></div>
-                        <div className="md:col-span-2 relative"><Home className="absolute left-3 top-4 -translate-y-1/2 text-gray-400" size={16}/><textarea name="address" required value={formData.address} onChange={(e) => setFormData({ ...formData, address: e.target.value })} className="w-full pl-10 p-2 border rounded-md" placeholder="Your Address" rows="2"></textarea></div>
+                        <div className="relative"><UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16}/><input type="text" name="firstName" placeholder="First Name" required value={formData.firstName} onChange={(e) => setFormData({ ...formData, firstName: e.target.value.replace(/[0-9]/g, '') })} className="w-full p-2 pl-10 border rounded-md"/></div>
+                        <div className="relative"><UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16}/><input type="text" name="lastName" placeholder="Last Name" required value={formData.lastName} onChange={(e) => setFormData({ ...formData, lastName: e.target.value.replace(/[0-9]/g, '') })} className="w-full p-2 pl-10 border rounded-md"/></div>
+                        <div className="md:col-span-2 relative"><Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16}/><input type="email" name="email" placeholder="Email Address" required value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="w-full p-2 pl-10 border rounded-md"/></div>
+                        <div className="md:col-span-2 relative"><Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16}/><input type="tel" name="phone" required value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value.replace(/[^0-9+]/g, '') })} placeholder="Phone Number" className="w-full p-2 pl-10 border rounded-md"/></div>
+                        <div className="md:col-span-2 relative"><Home className="absolute left-3 top-4 -translate-y-1/2 text-gray-400" size={16}/><textarea name="address" required value={formData.address} onChange={(e) => setFormData({ ...formData, address: e.target.value })} placeholder="Full Address" className="w-full p-2 pl-10 border rounded-md" rows="2"></textarea></div>
                     </div>
                   </div>
                   
@@ -477,7 +473,7 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
                       </div>
                        <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 mt-4">
                         <h3 className="font-semibold text-blue-800">Fixed Tour Schedule</h3>
-                        <p className="text-sm text-blue-700">{formatDate(item.startDate)} - {formatDate(item.endDate)}</p> {/* Use formatDate */}
+                        <p className="text-sm text-blue-700">{formatDate(item.startDate)} - {formatDate(item.endDate)}</p>
                        </div>
                     </div>
                   )}
@@ -487,8 +483,8 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
                       <CalendarBooking
                         serviceId={item._id}
                         onDateSelect={handleDateSelect}
-                        initialDate={formData.startDate} // Pass initial date
-                        onBookedDatesChange={setBookedDates} // Get booked dates
+                        initialDate={formData.startDate}
+                        onBookedDatesChange={setBookedDates}
                       />
                       <div className="bg-gray-50 p-4 rounded-lg">
                           <h3 className="font-semibold mb-3">Rental Details</h3>
@@ -504,47 +500,55 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
                           </div>
                       </div>
 
+                      {/* UPDATED SECTION: Delivery Method with Maps */}
                       <div className="bg-gray-50 p-4 rounded-lg">
                         <h3 className="font-semibold mb-3">Delivery Method</h3>
                         <div className="flex gap-4 mb-4">
-                          <label className="flex items-center"><input type="radio" name="deliveryMethod" value="pickup" checked={formData.deliveryMethod === 'pickup'} onChange={(e) => setFormData({ ...formData, deliveryMethod: e.target.value })}/><span className="ml-2">Origin</span></label>
-                          <label className="flex items-center"><input type="radio" name="deliveryMethod" value="dropoff" checked={formData.deliveryMethod === 'dropoff'} onChange={(e) => setFormData({ ...formData, deliveryMethod: e.target.value })}/><span className="ml-2">Destination</span></label>
+                          <label className="flex items-center"><input type="radio" name="deliveryMethod" value="pickup" checked={formData.deliveryMethod === 'pickup'} onChange={(e) => setFormData({ ...formData, deliveryMethod: e.target.value })} className="mr-2"/> Pickup</label>
+                          <label className="flex items-center"><input type="radio" name="deliveryMethod" value="dropoff" checked={formData.deliveryMethod === 'dropoff'} onChange={(e) => setFormData({ ...formData, deliveryMethod: e.target.value })} className="mr-2"/> Drop-off</label>
                         </div>
                         {formData.deliveryMethod === 'pickup' ? (
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Pickup Location *</label>
-                            <select name="pickupLocation" required value={formData.pickupLocation} onChange={(e) => setFormData({ ...formData, pickupLocation: e.target.value })} className="w-full p-2 border rounded-md">
-                              <option value="">Select a location</option>
-                              {item.pickupLocations?.map((location, index) => (<option key={index} value={location}>{location}</option>))}
-                            </select>
+                            <PickupMap onLocationSelect={handlePickupLocationSelect} />
+                            {formData.pickupLocation && (
+                              <div className="mt-2 p-2 bg-blue-50 rounded text-sm text-blue-800">
+                                <strong>Selected:</strong> {formData.pickupLocation}
+                              </div>
+                            )}
                           </div>
                         ) : (
-                          <DropoffMap onLocationSelect={handleLocationSelect} />
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Drop-off Location *</label>
+                            <DropoffMap onLocationSelect={handleLocationSelect} />
+                            {formData.dropoffLocation && (
+                              <div className="mt-2 p-2 bg-blue-50 rounded text-sm text-blue-800">
+                                <strong>Selected:</strong> {formData.dropoffLocation}
+                              </div>
+                            )}
+                          </div>
                         )}
                       </div>
                     </>
                   )}
 
-                  {/* --- MODIFIED: Transport Details Block --- */}
                   {itemType === 'transport' && (
                     <div className="bg-gray-50 p-4 rounded-lg">
                       <h3 className="font-semibold mb-3">Booking Details</h3>
                       
-                      {/* --- MODIFIED: Replaced date input with Calendar --- */}
                       <CalendarBooking
                         serviceId={item._id}
                         onDateSelect={handleDateSelect}
-                        initialDate={formData.startDate} // Pass initial date
-                        onBookedDatesChange={setBookedDates} // Get booked dates
+                        initialDate={formData.startDate}
+                        onBookedDatesChange={setBookedDates}
                       />
                       
-                      <div className="space-y-4 mt-4"> {/* Added mt-4 for spacing */}
+                      <div className="space-y-4 mt-4">
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">Number of Passengers *</label>
-                          {/* --- FIX: Parse item.capacity to ensure dropdown populates --- */}
                           <select value={formData.numberOfGuests} onChange={(e) => setFormData({ ...formData, numberOfGuests: parseInt(e.target.value) })} className="w-full p-2 border rounded-md">
                             {(() => {
-                                const maxGuests = parseInt(item.capacity, 10) || 10; // Parse capacity string
+                                const maxGuests = parseInt(item.capacity, 10) || 10;
                                 return Array.from({ length: maxGuests }, (_, i) => (
                                     <option key={i + 1} value={i + 1}>{i + 1} {i > 0 ? 'passengers' : 'passenger'}</option>
                                 ));
@@ -553,7 +557,6 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">Destination *</label>
-                          {/* --- MODIFIED: Changed from text input to select --- */}
                           <select 
                             name="transportDestination" 
                             required 
@@ -571,7 +574,6 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">Service Type *</label>
-                          {/* --- MODIFIED: Removed "Other" --- */}
                           <select name="transportServiceType" required value={formData.transportServiceType} onChange={(e) => setFormData({ ...formData, transportServiceType: e.target.value })} className="w-full p-2 border rounded-md">
                             <option value="">Select service type...</option>
                             <option value="Day Tour">Day Tour</option>
@@ -591,14 +593,12 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
                   {/* Special Requests (Common) */}
                    <div className="bg-gray-50 p-4 rounded-lg">
                        <label htmlFor="specialRequests" className="block text-sm font-medium text-gray-700 mb-1">Special Requests (Optional)</label>
-                       <textarea id="specialRequests" name="specialRequests" value={formData.specialRequests} onChange={(e) => setFormData({ ...formData, specialRequests: e.target.value })} rows="3" className="w-full p-2 border border-gray-300 rounded-md" placeholder="e.g., Child seat, specific pick-up instructions..."></textarea>
+                       <textarea id="specialRequests" name="specialRequests" value={formData.specialRequests} onChange={(e) => setFormData({ ...formData, specialRequests: e.target.value })} rows="3" className="w-full p-2 border rounded-md" placeholder="Any special requirements or notes..."></textarea>
                    </div>
 
                 </div>
 
                 <div className="space-y-6">
-                  {/* --- MODIFIED: Conditional Payment Block REMOVED --- */}
-                  {/* This block will now show for car, tour, AND transport */}
                   <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
                     <h3 className="font-semibold mb-3 text-blue-800">Payment Details</h3>
                     
@@ -614,12 +614,10 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
                       </div>
                     )}
 
-                    {/* Payment Option Selection */}
                     {item.paymentType === 'downpayment' && item.downpaymentValue > 0 && (
                       <div className="mb-4">
                         <label className="block text-sm font-medium text-gray-700 mb-2">Payment Option</label>
                         <div className="flex gap-4">
-                          {/* --- MODIFIED: Added price to label and changed name --- */}
                           <label className={`flex-1 p-3 border rounded-lg text-center cursor-pointer ${selectedPaymentOption === 'downpayment' ? 'bg-blue-600 text-white border-blue-700' : 'bg-white hover:bg-gray-50'}`}>
                             <input 
                               type="radio" 
@@ -628,11 +626,9 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
                               checked={selectedPaymentOption === 'downpayment'} 
                               onChange={(e) => setSelectedPaymentOption(e.target.value)} 
                               className="sr-only"
-                              
                             />
                             Downpayment ({formatPrice(calculatedDownpayment)})
                           </label>
-                          {/* --- MODIFIED: Added price to label and changed name --- */}
                           <label className={`flex-1 p-3 border rounded-lg text-center cursor-pointer ${selectedPaymentOption === 'full' ? 'bg-blue-600 text-white border-blue-700' : 'bg-white hover:bg-gray-50'}`}>
                             <input 
                               type="radio" 
@@ -645,8 +641,6 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
                             Full Payment ({formatPrice(totalPrice)})
                           </label>
                         </div>
-                        {/* --- THIS IS THE WARNING MESSAGE YOU WANTED --- */}
-                        {/* It will now appear when a non-logged-in user *selects* downpayment */}
                         {!user && selectedPaymentOption === 'downpayment' && (
                           <div className="mt-2 text-sm text-yellow-800 bg-yellow-100 p-3 rounded-md flex items-center gap-2">
                             <Info size={14} /> You must be logged in to make a downpayment.
@@ -655,9 +649,8 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
                       </div>
                     )}
 
-                    {/* QR Code and Payment Inputs */}
                     <div className="flex flex-col items-center">
-                        {qrLoading ? <p>Loading QR...</p> : paymentQR ? <img src={paymentQR} alt="Payment QR Code" className="w-48 h-48 object-contain mb-4 border rounded-md" /> : <p className="text-sm text-gray-500 mb-4">QR code not available.</p>}
+                        {qrLoading ? <p>Loading QR...</p> : paymentQR ? <img src={paymentQR} alt="Payment QR Code" className="w-48 h-48 object-contain mb-4 border rounded-md" /> : <p className="text-sm text-gray-600 mb-4">Payment QR code not available.</p>}
                         <div className="w-full space-y-4">
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Your Payment Reference Code *</label>
@@ -665,7 +658,7 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
                           </div>
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Or Enter Your Bank Reference Number</label>
-                            <input type="text" name="manualPaymentReference" value={formData.manualPaymentReference} onChange={(e) => setFormData({ ...formData, manualPaymentReference: e.target.value })} className="w-full p-2 border rounded-md" placeholder="e.g., from your bank receipt"/>
+                            <input type="text" name="manualPaymentReference" value={formData.manualPaymentReference} onChange={(e) => setFormData({ ...formData, manualPaymentReference: e.target.value })} className="w-full p-2 border rounded-md" placeholder="Optional bank ref"/>
                           </div>
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Amount to Pay *</label>
@@ -676,19 +669,17 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
                             <label htmlFor="paymentProof" className="w-3/4 text-center cursor-pointer bg-white border-2 border-dashed rounded-lg p-4 hover:bg-gray-50">
                                 <Upload className="w-8 h-8 mx-auto text-gray-400 mb-2"/>
                                 <span className="text-sm font-medium text-gray-700">{formData.paymentProof ? formData.paymentProof.name : 'Upload Payment Proof *'}</span>
-                                <input id="paymentProof" type="file" name="paymentProof" required onChange={handleFileChange} accept="image/*" className="hidden"/> {/* Added accept */}
+                                <input id="paymentProof" type="file" name="paymentProof" required onChange={handleFileChange} accept="image/*" className="hidden"/>
                             </label>
                           </div>
                         </div>
                     </div>
                   </div>
-                  {/* --- MODIFIED: REMOVED the 'else' block for transport quote info --- */}
                   
                   {/* Summary */}
                   <div className="bg-gray-50 p-4 rounded-lg">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">Booking Summary</h3>
                     <div className="space-y-2 text-sm">
-                      {/* Personal Info */}
                       <div className="flex justify-between"><span className="text-gray-600">Name:</span><span className="font-medium text-right">{formData.firstName} {formData.lastName}</span></div>
                       <div className="flex justify-between"><span className="text-gray-600">Address:</span><span className="font-medium text-right">{formData.address}</span></div>
                       <div className="flex justify-between"><span className="text-gray-600">Email:</span><span className="font-medium text-right">{formData.email}</span></div>
@@ -696,20 +687,17 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
                       
                       <hr className="my-2"/>
 
-                      {/* Booking Details */}
                       <div className="flex justify-between"><span className="text-gray-600">From:</span><span className="font-medium text-right">{formatDate(formData.startDate)}</span></div>
-                      {/* --- MODIFIED: Show 'To' date conditionally for transport too --- */}
                       {(itemType === 'car' || itemType === 'tour' || (itemType === 'transport' && formData.transportServiceType !== 'Day Tour' && formData.transportServiceType !== 'Drop & Pick')) && (
                         <div className="flex justify-between"><span className="text-gray-600">To:</span><span className="font-medium text-right">{formatDate(calculatedEndDate)}</span></div>
                       )}
                       <div className="flex justify-between"><span className="text-gray-600">Time:</span><span className="font-medium text-right">{formatTime(formData.time)}</span></div>
                       {itemType === 'car' && (
-                        <div className="flex justify-between"><span className="text-gray-600">Delivery:</span><span className="font-medium capitalize text-right">{formData.deliveryMethod === 'pickup' ? formData.pickupLocation : formData.dropoffLocation}</span></div>
+                        <div className="flex justify-between"><span className="text-gray-600">Delivery:</span><span className="font-medium capitalize text-right">{formData.deliveryMethod === 'pickup' ? `Pickup at ${formData.pickupLocation || 'Selected Location'}` : `Drop-off at ${formData.dropoffLocation || 'Selected Location'}`}</span></div>
                       )}
-                      {(itemType === 'tour' || itemType === 'transport') && ( // Show guests/passengers
+                      {(itemType === 'tour' || itemType === 'transport') && (
                         <div className="flex justify-between"><span className="text-gray-600">{itemType === 'tour' ? 'Guests:' : 'Passengers:'}</span><span className="font-medium text-right">{formData.numberOfGuests}</span></div>
                       )}
-                       {/* --- Transport specific summary (unchanged) --- */}
                       {itemType === 'transport' && (
                          <>
                             <div className="flex justify-between"><span className="text-gray-600">Destination:</span><span className="font-medium text-right">{formData.transportDestination}</span></div>
@@ -717,7 +705,6 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
                          </>
                       )}
                       
-                      {/* --- MODIFIED: Conditional Payment Info --- */}
                       <>
                           <hr className="my-2"/>
                           <div className="flex justify-between"><span className="text-gray-600">Payment Ref:</span><span className="font-medium text-right">{paymentReferenceCode}</span></div>
@@ -727,11 +714,9 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
                       
                       <div className="flex justify-between items-center mt-4 pt-2 border-t">
                         <span className="font-semibold text-gray-900">Total Amount:</span>
-                        {/* --- MODIFIED: Handle transport price display --- */}
                         <span className="font-bold text-lg text-blue-600">{formatPrice(totalPrice)}</span>
                       </div>
 
-                      {/* --- MODIFIED: Conditional Payment Due Display --- */}
                       {selectedPaymentOption === 'downpayment' && (
                         <div className="flex justify-between">
                           <span className="font-semibold text-gray-900">Downpayment Due:</span>
@@ -772,8 +757,6 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
               </div>
               <div className="flex justify-end gap-3 pt-6 border-t mt-6">
                 <button type="button" onClick={onClose} className="px-6 py-2 bg-gray-200 rounded-lg text-gray-700 hover:bg-gray-300">Cancel</button>
-                {/* --- THIS BUTTON'S LOGIC IS STILL CORRECT --- */}
-                {/* It will be disabled if user is not logged in AND downpayment is selected */}
                 <button
                   type="submit"
                   disabled={submitting || !formData.agreedToTerms || (selectedPaymentOption === 'downpayment' && !user)}

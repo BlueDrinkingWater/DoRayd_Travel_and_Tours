@@ -130,30 +130,16 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
       
       let carPrice = formData.numberOfDays * (item?.pricePerDay || 0);
       
-      if (item.promotion && carPrice > 0) {
-        const { discountType, discountValue } = item.promotion;
-        if (discountType === 'percentage') {
-            carPrice = carPrice - (carPrice * (discountValue / 100));
-        } else {
-            carPrice = carPrice - discountValue;
-        }
-        carPrice = Math.max(0, carPrice);
-      }
-      setTotalPrice(carPrice);
+      // THIS IS THE FIX: Removed the if(item.promotion) block that was re-applying the discount.
+      
+      setTotalPrice(Math.max(0, carPrice));
       
     } else if (itemType === 'tour') {
       let tourPrice = formData.numberOfGuests * (item?.price || 0);
       
-      if (item.promotion && tourPrice > 0) {
-         const { discountType, discountValue } = item.promotion;
-         if (discountType === 'percentage') {
-            tourPrice = tourPrice - (tourPrice * (discountValue / 100));
-         } else {
-            tourPrice = tourPrice - discountValue;
-         }
-         tourPrice = Math.max(0, tourPrice);
-      }
-      setTotalPrice(tourPrice);
+      // THIS IS THE FIX: Removed the if(item.promotion) block that was re-applying the discount.
+      
+      setTotalPrice(Math.max(0, tourPrice));
       
       setCalculatedEndDate(item.endDate ? new Date(item.endDate) : (formData.startDate ? new Date(formData.startDate) : null));
     
@@ -189,6 +175,7 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
         }
       }
       
+      // This logic is correct for transport, as the price is dynamic.
       if (item.promotion && newPrice > 0) {
         const { discountType, discountValue } = item.promotion;
         if (discountType === 'percentage') {
@@ -196,10 +183,9 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
         } else {
           newPrice = newPrice - discountValue;
         }
-        newPrice = Math.max(0, newPrice);
       }
       
-      setTotalPrice(newPrice);
+      setTotalPrice(Math.max(0, newPrice));
       setCalculatedEndDate(newEndDate);
     }
   }, [
@@ -236,11 +222,12 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
     if (!item || item.paymentType !== 'downpayment' || !totalPrice) return 0;
     
     if (item.downpaymentType === 'percentage') {
-      return (totalPrice * item.downpaymentValue) / 100;
+      const downpayment = (totalPrice * item.downpaymentValue) / 100;
+      return Math.max(0, downpayment); // Ensure non-negative
     }
     
     if (item.downpaymentType === 'fixed') {
-       return item.downpaymentValue;
+       return Math.max(0, item.downpaymentValue); // Ensure non-negative
     }
     
     return 0;
@@ -365,9 +352,9 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
       if (item.promotion) {
         let originalPrice = 0;
         if (itemType === 'car') {
-          originalPrice = formData.numberOfDays * (item?.pricePerDay || 0);
+          originalPrice = formData.numberOfDays * (item?.originalPrice || item?.pricePerDay || 0);
         } else if (itemType === 'tour') {
-          originalPrice = formData.numberOfGuests * (item?.price || 0);
+          originalPrice = formData.numberOfGuests * (item?.originalPrice || item?.price || 0);
         } else if (itemType === 'transport' && formData.transportDestination && formData.transportServiceType) {
           const priceRule = item.pricing.find(p => p.destination === formData.transportDestination);
           if (priceRule) {
@@ -412,7 +399,7 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
   };
 
   const formatPrice = (price) => new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(price);
-  const formatDate = (date) => date ? new Date(date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'N/A';
+  const formatDate = (date) => date ? new Date(date).toLocaleString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'N/A';
   const formatTime = (time) => {
     if (!time) return 'N/A';
     const [hours, minutes] = time.split(':');

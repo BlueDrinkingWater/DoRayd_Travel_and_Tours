@@ -244,8 +244,9 @@ const InfoRow = ({ label, value, icon: Icon }) => (
 
 // --- Main Calendar Component ---
 const BookingCalendar = () => {
-  const { data: bookingsData, loading, refetch: fetchBookings } = useApi(DataService.fetchAllBookings);
-  // Fix: Correctly access the bookings array from the API response data.
+const { data: bookingsData, loading, refetch: fetchBookings } = useApi(() => 
+  DataService.fetchAllBookings({ page: 1, limit: 1000 }) // Request 1000 bookings
+);
   const bookings = useMemo(() => bookingsData?.data?.bookings || [], [bookingsData]); // Changed from bookingsData?.data
 
   const [modalState, setModalState] = useState({ isOpen: false, date: null, events: [] });

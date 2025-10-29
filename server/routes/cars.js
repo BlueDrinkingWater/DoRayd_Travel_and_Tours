@@ -12,7 +12,6 @@ router.route('/')
 router.route('/:id')
     .get(getCarById)
     .put(auth, checkPermission('cars', 'write'), updateCar)
-    // --- ADD DELETE route ---
     .delete(auth, checkPermission('cars', 'full'), deleteCar);
 
 router.route('/:id/archive')

@@ -36,7 +36,7 @@ const feedbackSchema = new mongoose.Schema({
   },
   serviceType: {
     type: String,
-    enum: ['car', 'tour'],
+    enum: ['tour', 'car', 'general', 'transport'],
     required: true
   }
 }, { 

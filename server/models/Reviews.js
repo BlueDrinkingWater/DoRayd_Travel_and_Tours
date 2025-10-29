@@ -17,11 +17,11 @@ const reviewSchema = new mongoose.Schema({
   },
   itemModel: { 
     type: String, 
-    enum: ['Car', 'Tour'] 
+    enum: ['tour', 'car', 'general', 'transport'],
   },
   type: {
     type: String,
-    enum: ['review', 'feedback'], // NEW: Distinguish between reviews and feedback
+    enum: ['review', 'feedback'],
     required: true
   },
   rating: { 

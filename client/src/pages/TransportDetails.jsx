@@ -6,8 +6,55 @@ import useApi from '../hooks/useApi';
 import DataService, { getImageUrl } from '../components/services/DataService';
 import BookingModal from '../components/BookingModal';
 import { toast } from 'react-toastify';
-import { ChevronLeft, ChevronRight, CheckCircle, Tag } from 'lucide-react'; // Added Tag
+import { ChevronLeft, ChevronRight, CheckCircle, Tag, Star } from 'lucide-react'; // Added Star
 import { formatPrice } from '../utils/helpers';
+import { useApi as useApiHook } from '../hooks/useApi'; // Renamed for clarity within ReviewsSection if needed
+
+// --- Reviews Section Component (Copied from CarDetails.jsx) ---
+const ReviewsSection = ({ itemId }) => {
+  // Using 'useApiHook' to avoid naming conflict if this component was inside TransportDetails
+  const { data: reviewsData, loading: reviewsLoading } = useApiHook(() => DataService.fetchReviewsForItem(itemId), [itemId]);
+  const reviews = reviewsData?.data || [];
+
+  if (reviewsLoading) return <div className="text-center p-4">Loading reviews...</div>;
+
+  return (
+    <div className="mt-8">
+      <h3 className="text-2xl font-bold mb-6">Customer Reviews</h3>
+      {reviews.length > 0 ? (
+        <div className="space-y-4">
+          {reviews.map(review => (
+            <div key={review._id} className="bg-white p-6 rounded-lg shadow-md border">
+              <div className="flex justify-between items-start mb-3">
+                <div>
+                  <h4 className="font-semibold">
+                    {review.isAnonymous ? 'Anonymous User' : `${review.user?.firstName} ${review.user?.lastName}`}
+                  </h4>
+                  <div className="flex items-center space-x-2 mt-1">
+                    <div className="flex">
+                      {[...Array(5)].map((_, i) => (
+                        <Star key={i} className={`w-4 h-4 ${i < review.rating ? 'text-yellow-400 fill-current' : 'text-gray-300'}`} />
+                      ))}
+                    </div>
+                    <span className="text-sm text-gray-500">({review.rating}/5)</span>
+                  </div>
+                </div>
+                <p className="text-sm text-gray-500">{new Date(review.createdAt).toLocaleDateString()}</p>
+              </div>
+              <p className="text-gray-700">{review.comment}</p>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="bg-gray-50 p-8 rounded-lg text-center">
+          <Star className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+          {/* Changed "this car" to "this service" */}
+          <p className="text-gray-600">No reviews yet. Be the first to review this service!</p>
+        </div>
+      )}
+    </div>
+  );
+};
 
 const TransportDetails = () => {
   const { id } = useParams();
@@ -305,6 +352,13 @@ const TransportDetails = () => {
             </p> {/* <-- FIX 2: was </WELCOME> */}
           </div>
         )}
+
+        {/* --- ADDED REVIEWS SECTION --- */}
+        <div className="p-6 border-t border-gray-200">
+          <ReviewsSection itemId={id} />
+        </div>
+        {/* --- END OF ADDED BLOCK --- */}
+
       </div>
 
       <BookingModal

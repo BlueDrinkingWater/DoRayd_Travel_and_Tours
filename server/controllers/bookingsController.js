@@ -461,121 +461,139 @@ export const addPayment = async (req, res) => {
         res.status(500).json({ success: false, message: 'Failed to add payment.' });
     }
 };
-
-// Update booking status (Admin/Employee action)
+// Update booking status (Admin/Employee action) - REVISED
 export const updateBookingStatus = async (req, res) => {
   try {
-    // *** MODIFIED: Removed newTotalPrice from destructuring ***
     const { status, adminNotes, paymentDueDuration, paymentDueUnit } = req.body;
-    const booking = await Booking.findById(req.params.id);
+    const { id: bookingId } = req.params;
 
-    if (!booking) {
+    const bookingToUpdate = await Booking.findById(bookingId); // Fetch to get previous state
+
+    if (!bookingToUpdate) {
       return res.status(404).json({ success: false, message: 'Booking not found' });
     }
 
-    const previousStatus = booking.status;
-
-    // *** REMOVED: Logic to update transport price. Price is now set on creation. ***
-    // The admin's job is to confirm the payment, not set the price.
+    // Prepare fields to update
+    const updateFields = {
+      status: status,
+      $unset: {}, // Use $unset to remove fields conditionally
+    };
+    const pushNote = {}; // Prepare potential note to push
 
     // Handle payment due date setting
-    if (status === 'confirmed') {
-      if (booking.paymentOption === 'downpayment') {
-        if (paymentDueDuration && paymentDueUnit) {
-            const duration = parseInt(paymentDueDuration, 10);
-            if (!isNaN(duration) && duration > 0) {
-                const now = new Date();
-                if (paymentDueUnit === 'days') {
-                    now.setDate(now.getDate() + duration);
-                } else {
-                    now.setHours(now.getHours() + duration);
-                }
-                booking.paymentDueDate = now;
-                console.log(`Payment due date set for booking ${booking.bookingReference}: ${booking.paymentDueDate}`);
-            } else {
-               console.warn(`Invalid payment due duration received: ${paymentDueDuration} ${paymentDueUnit} for booking ${booking.bookingReference}`);
-            }
+    if (status === 'confirmed' && bookingToUpdate.paymentOption === 'downpayment') {
+      if (paymentDueDuration && paymentDueUnit) {
+        const duration = parseInt(paymentDueDuration, 10);
+        if (!isNaN(duration) && duration > 0) {
+          const now = new Date();
+          if (paymentDueUnit === 'days') {
+            now.setDate(now.getDate() + duration);
+          } else { // Assume hours
+            now.setHours(now.getHours() + duration);
+          }
+          updateFields.paymentDueDate = now;
+          console.log(`Payment due date set for booking ${bookingToUpdate.bookingReference}: ${updateFields.paymentDueDate}`);
         } else {
-          console.warn(`Missing payment due duration/unit for confirming downpayment booking ${booking.bookingReference}`);
+          console.warn(`Invalid payment due duration received: ${paymentDueDuration} ${paymentDueUnit} for booking ${bookingToUpdate.bookingReference}`);
         }
+      } else {
+        console.warn(`Missing payment due duration/unit for confirming downpayment booking ${bookingToUpdate.bookingReference}`);
       }
-       booking.pendingExpiresAt = undefined; // Remove pending expiration
-       booking.adminConfirmationDueDate = undefined; // *** ADDED: Clear admin timer on confirmation ***
+      updateFields.$unset.pendingExpiresAt = ""; // Remove pending expiration
+      updateFields.$unset.adminConfirmationDueDate = ""; // Clear admin timer
+    } else {
+      // Clear paymentDueDate if status changes from confirmed or moves to final states
+      if (bookingToUpdate.status === 'confirmed') {
+        updateFields.$unset.paymentDueDate = "";
+      }
+      if (status === 'fully_paid' || status === 'completed' || status === 'cancelled' || status === 'rejected') {
+        updateFields.$unset.paymentDueDate = "";
+        updateFields.$unset.pendingExpiresAt = "";
+        updateFields.$unset.adminConfirmationDueDate = ""; // Clear admin timer
+      }
     }
 
-    // Clear paymentDueDate if status changes from confirmed or moves to final states
-    if (previousStatus === 'confirmed' && status !== 'confirmed') {
-        booking.paymentDueDate = undefined;
-    }
-    if (status === 'fully_paid' || status === 'completed' || status === 'cancelled' || status === 'rejected') {
-        booking.paymentDueDate = undefined;
-        booking.pendingExpiresAt = undefined;
-        booking.adminConfirmationDueDate = undefined; // *** ADDED: Clear admin timer on final states ***
-    }
-
-    booking.status = status;
-
-    if (adminNotes || req.file) { // Add note if text or attachment exists
+    // Add note if text or attachment exists
+    if (adminNotes || req.file) {
       const newNote = {
-        note: adminNotes ? adminNotes.trim() : 'Attachment added.', // Default note if only file
-        author: req.user.id,
+        note: adminNotes ? adminNotes.trim() : 'Attachment added.',
+        author: req.user.id, // Assumes auth middleware sets req.user
         date: new Date(),
       };
       if (req.file) {
-        newNote.attachment = req.file.filename;
+        // Using .filename to match your file's 'cancelBooking' and 'addPayment' logic
+        newNote.attachment = req.file.filename; 
         newNote.attachmentOriginalName = req.file.originalname;
       }
-      booking.notes.push(newNote);
+      // Use $push to add to the notes array atomically
+      pushNote.$push = { notes: newNote };
     }
 
-    await booking.save();
+    // *** FIX: Perform the update *without* population first ***
+    const updateResult = await Booking.findByIdAndUpdate(
+      bookingId,
+      {
+        $set: updateFields,
+        ...(Object.keys(pushNote).length > 0 && pushNote), // Conditionally add $push
+        ...(Object.keys(updateFields.$unset).length > 0 ? { $unset: updateFields.$unset } : {}) 
+      },
+      { new: true, runValidators: false } // Get the updated doc, bypass save() hooks
+    );
 
-    const populatedBooking = await Booking.findById(booking._id)
-                                    .populate('user', 'firstName email')
-                                    .populate('itemId', 'brand model title vehicleType name');
+    if (!updateResult) {
+        return res.status(404).json({ success: false, message: 'Booking not found after update attempt.' });
+    }
 
+    // *** FIX: Now, re-fetch the document to *ensure* it's populated correctly ***
+    // This mimics the original code's logic and guarantees a populated object.
+    const updatedBooking = await Booking.findById(updateResult._id)
+        .populate('user', 'firstName email')
+        .populate('itemId', 'brand model title vehicleType name'); 
+
+    // --- Notifications and Activity Log ---
     const io = req.app.get('io');
 
-    // *** MODIFIED: Added check for req.user.role before logging ***
+    // Activity Log (Employee only)
     if (io && req.user && req.user.role === 'employee') {
-        const newLog = await createActivityLog(req.user.id, 'UPDATE_BOOKING_STATUS', `Booking ${populatedBooking.bookingReference} status changed to ${status}`, '/owner/manage-bookings');
+        const newLog = await createActivityLog(req.user.id, 'UPDATE_BOOKING_STATUS', `Booking ${updatedBooking.bookingReference} status changed to ${status}`, '/owner/manage-bookings');
         if (newLog) io.to('admin').emit('activity-log-update', newLog);
     }
-    // *** END MODIFICATION ***
 
-    if (io && populatedBooking.user) {
-      const customerMessage = `Your booking ${populatedBooking.bookingReference} status updated to: ${status}. ${adminNotes ? 'Note: ' + adminNotes : ''}`;
+    // Notifications (Customer and Admin/Employee)
+    if (io && updatedBooking.user) {
+      const customerMessage = `Your booking ${updatedBooking.bookingReference} status updated to: ${status}. ${adminNotes ? 'Note: ' + adminNotes : ''}`;
       await createNotification(
         io,
-        { user: populatedBooking.user._id },
+        { user: updatedBooking.user._id }, // Use populated user ID
         customerMessage,
         '/my-bookings',
-        req.user.id
+        req.user.id // Exclude the updater
       );
     }
     if (io) {
-      const adminMessage = `Booking ${populatedBooking.bookingReference} status changed to ${status} by ${req.user.firstName}.`;
+      const adminMessage = `Booking ${updatedBooking.bookingReference} status changed to ${status} by ${req.user.firstName}.`;
         await createNotification(
             io,
             { roles: ['admin', 'employee'], module: 'bookings' },
             adminMessage,
             { admin: '/owner/manage-bookings', employee: '/employee/manage-bookings' },
-            req.user.id
+            req.user.id // Exclude the updater
         );
-        io.to('admin').to('employee').emit('booking-updated', populatedBooking);
+        
+        // This event now sends the *fully populated* document
+        io.to('admin').to('employee').emit('booking-updated', updatedBooking);
     }
 
+    // --- Send Email ---
     try {
         if (['confirmed', 'rejected', 'completed', 'cancelled', 'fully_paid'].includes(status)) {
-            // *** MODIFIED: Email logic ***
-            // We no longer send a "Quote" email. All bookings get a status update.
-            await EmailService.sendStatusUpdate(populatedBooking);
+            await EmailService.sendStatusUpdate(updatedBooking); 
         }
     } catch (emailError) {
-        console.error(`Failed to send status update email for booking ${populatedBooking.bookingReference}:`, emailError.message);
+        console.error(`Failed to send status update email for booking ${updatedBooking.bookingReference}:`, emailError.message);
     }
 
-    res.json({ success: true, data: populatedBooking });
+    res.json({ success: true, data: updatedBooking });
   } catch (error) {
     console.error('Error updating booking status:', error);
     res.status(500).json({ success: false, message: `Failed to update status: ${error.message}` });

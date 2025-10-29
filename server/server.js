@@ -42,6 +42,7 @@ import { createNotification } from './controllers/notificationController.js';
 dotenv.config();
 
 const app = express();
+app.set("trust proxy", 1);
 const PORT = process.env.PORT || 5000;
 
 const __filename = fileURLToPath(import.meta.url);
@@ -80,7 +81,6 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 if (process.env.NODE_ENV === "production") {
-  app.set("trust proxy", 1);
 }
 // Security Middleware
 app.use(helmet());

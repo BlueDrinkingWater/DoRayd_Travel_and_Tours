@@ -193,6 +193,21 @@ mongoose
               // Notify admins/employees about the cancellation
               io.to('admin').to('employee').emit('bookings-updated-by-system', { cancelledCount: result.modifiedCount });
 
+              const adminMessage = `${result.modifiedCount} booking(s) were automatically cancelled due to expiration or missed payments.`;
+              try {
+                  await createNotification(
+                      io,
+                      { roles: ['admin', 'employee'], module: 'bookings' }, 
+                      adminMessage,
+                      {
+                          admin: '/owner/manage-bookings',
+                          employee: '/employee/manage-bookings'
+                      }
+                  );
+              } catch (notificationError) {
+                  console.error('Failed to create admin auto-cancellation notification:', notificationError);
+              }
+
               for (const booking of expiredBookings) {
                  if (booking.user) {
                      // Determine the correct message for the user

@@ -93,22 +93,44 @@ export const getMyFeedback = async (req, res) => {
 };
 
 // Approve feedback (Admin only)
+// Approve feedback (Admin only)
 export const approveFeedback = async (req, res) => {
     try {
-        const feedback = await Feedback.findByIdAndUpdate(req.params.id, { isApproved: true }, { new: true });
+        const feedback = await Feedback.findByIdAndUpdate(
+            req.params.id, 
+            { isApproved: true }, 
+            { new: true }
+        ).populate('user', '_id'); // Populated user
+
         if (!feedback) {
             return res.status(404).json({ success: false, message: 'Feedback not found.' });
         }
 
-        // *** MODIFIED: Added check for req.user.role before logging ***
+        const io = req.app.get('io');
+
+        // --- ACTIVITY LOGGING ---
         if (req.user && req.user.role === 'employee') {
-            const io = req.app.get('io');
             const newLog = await createActivityLog(req.user.id, 'APPROVE_FEEDBACK', `Feedback ID: ${feedback._id}`, '/owner/manage-feedback');
             if (newLog) io.to('admin').emit('activity-log-update', newLog);
         }
-        // *** END MODIFICATION ***
+
+        // --- START: CUSTOMER NOTIFICATION ---
+        if (io && feedback.user && feedback.user._id) {
+            try {
+                await createNotification(
+                    io,
+                    { user: feedback.user._id }, 
+                    'Your feedback has been approved and is now public.',
+                    '/my-bookings?tab=feedback' // FIX: Use correct link
+                );
+            } catch (notificationError) {
+                console.error('Failed to create feedback approval notification:', notificationError);
+            }
+        }
+        // --- END: CUSTOMER NOTIFICATION ---
 
         res.json({ success: true, data: feedback });
+        
     } catch (error) {
         res.status(500).json({ success: false, message: 'Failed to approve feedback.' });
     }

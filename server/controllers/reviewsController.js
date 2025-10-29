@@ -113,28 +113,46 @@ export const getAllReviews = async (req, res) => {
 };
 
 // ADMIN: Approve review
+// ADMIN: Approve review
 export const approveReview = async (req, res) => {
     try {
         const review = await Review.findByIdAndUpdate(
             req.params.id,
             { isApproved: true },
             { new: true }
-        ).populate('user', 'firstName lastName');
+        ).populate('user', 'firstName lastName _id'); // Populated user
+
         if (!review) {
             return res.status(404).json({ success: false, message: 'Review not found.' });
         }
 
-        // --- ACTIVITY LOGGING ---
         const io = req.app.get('io');
-        // *** MODIFIED: Added check for req.user.role before logging ***
+
+        // --- ACTIVITY LOGGING ---
         if (io && req.user && req.user.role === 'employee') {
             const userName = review.user ? `${review.user.firstName} ${review.user.lastName}` : 'an unknown user';
             const newLog = await createActivityLog(req.user.id, 'APPROVE_REVIEW', `Approved review from ${userName}`, '/owner/manage-reviews');
             if (newLog) io.to('admin').emit('activity-log-update', newLog);
         }
-        // *** END MODIFICATION ***
+        
+        // --- START: CUSTOMER NOTIFICATION ---
+        // FIX 1: Use 'review.user' (singular) not 'reviews.user'
+        if (io && review.user && review.user._id) {
+            try {
+                await createNotification(
+                    io,
+                    { user: review.user._id }, // FIX 1: Use 'review.user._id'
+                    'Your review has been approved and is now public.',
+                    '/my-bookings?tab=reviews' // FIX 2: Use correct link
+                );
+            } catch (notificationError) {
+                console.error('Failed to create review approval notification:', notificationError);
+            }
+        }
+        // --- END: CUSTOMER NOTIFICATION ---
 
         res.json({ success: true, data: review });
+
     } catch (error) {
         console.error('Error approving review:', error);
         res.status(500).json({ success: false, message: 'Failed to approve review.' });

@@ -20,10 +20,10 @@ router.post('/register',
     body('email').isEmail().normalizeEmail(),
     body('password').isLength({ min: 8 }),
     body('firstName').trim().escape()
-      .notEmpty().withMessage('numbers is not allowed.')
+      .notEmpty().withMessage('First Name: number is not allowed.')
       .matches(/^[^0-9]*$/).withMessage('First Name: number is not allowed'),
     body('lastName').trim().escape()
-      .notEmpty().withMessage('number is not allowed.')
+      .notEmpty().withMessage('Last Name: number is not allowed.')
       .matches(/^[^0-9]*$/).withMessage('Last Name: number is not allowed'),
     register
 );

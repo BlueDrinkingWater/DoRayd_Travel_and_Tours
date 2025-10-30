@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { 
   TrendingUp, 
@@ -7,15 +7,22 @@ import {
   Users, 
   Car, 
   MapPin,
-  RefreshCw
+  // RefreshCw and Printer icons are no longer needed
 } from 'lucide-react';
 import DataService from '../../components/services/DataService';
+import { useReactToPrint } from 'react-to-print';
 
 const Reports = () => {
   const [chartPeriod, setChartPeriod] = useState('monthly');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [reportData, setReportData] = useState(null);
+
+  const componentRef = useRef(null);
+  const handlePrint = useReactToPrint({
+    contentRef: componentRef, // Use contentRef to avoid timing errors
+    documentTitle: 'DoRayd - Reports & Analytics',
+  });
 
   const fetchReportData = async () => {
     try {
@@ -72,8 +79,8 @@ const Reports = () => {
   const chartData = revenueTrend[chartPeriod] || [];
 
   return (
-    <div className="space-y-6 p-6">
-        <div className="flex items-center justify-between mb-6 text-white">
+    <div className="space-y-6 p-6" ref={componentRef}> 
+        <div className="flex items-center justify-between mb-6 text-white print-hide">
         <div>
           <h1 className="text-3xl font-bold text-white">Reports & Analytics</h1>
           <p className="text-white">Real-time performance from your database</p>
@@ -81,9 +88,16 @@ const Reports = () => {
         <div className="flex items-center gap-3">
           <button 
             onClick={fetchReportData} 
-            className="flex items-center gap-2 px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
           >
-            <RefreshCw className="w-4 h-4" /> Refresh
+            Refresh
+          </button>
+          
+          <button 
+            onClick={handlePrint} 
+            className="px-4 py-2 text-white bg-blue-600 border border-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Print PDF
           </button>
         </div>
       </div>
@@ -93,25 +107,25 @@ const Reports = () => {
           title="Total Revenue" 
           value={`₱${parseFloat(summary.totalRevenue || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`} 
           growth={summary.revenueGrowth} 
-          icon={DollarSign} 
+          icon={DollarSign} // Prop is still passed but component won't render it
           color="green" 
         />
         <StatCard 
           title="Completed Bookings" 
           value={(summary.totalBookings || 0).toLocaleString()} 
-          icon={Calendar} 
+          icon={Calendar} // Prop is still passed but component won't render it
           color="blue" 
         />
         <StatCard 
           title="Avg. Revenue/Booking" 
           value={`₱${parseFloat(summary.avgRevenuePerBooking || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`} 
-          icon={TrendingUp} 
+          icon={TrendingUp} // Prop is still passed but component won't render it
           color="purple" 
         />
         <StatCard 
           title="Conversion Rate" 
           value={`${parseFloat(summary.conversionRate || 0).toFixed(1)}%`} 
-          icon={Users} 
+          icon={Users} // Prop is still passed but component won't render it
           color="orange" 
         />
       </div>
@@ -119,7 +133,7 @@ const Reports = () => {
       <div className="bg-white p-6 rounded-lg shadow-md">
         <div className="flex justify-between items-center mb-6">
           <h3 className="text-lg font-semibold text-gray-900">Revenue Trend (Completed Bookings)</h3>
-          <div className="flex items-center gap-2 p-1 bg-gray-100 rounded-lg">
+          <div className="flex items-center gap-2 p-1 bg-gray-100 rounded-lg print-hide">
             {['daily', 'monthly', 'quarterly', 'yearly'].map(period => (
               <button 
                 key={period} 
@@ -193,15 +207,8 @@ const Reports = () => {
 };
 
 // Helper Components
+// --- StatCard: Icon rendering removed ---
 const StatCard = ({ title, value, growth, subtitle, icon: Icon, color }) => {
-  const colors = {
-    green: { bg: 'bg-green-100', text: 'text-green-600' },
-    blue: { bg: 'bg-blue-100', text: 'text-blue-600' },
-    purple: { bg: 'bg-purple-100', text: 'text-purple-600' },
-    orange: { bg: 'bg-orange-100', text: 'text-orange-600' },
-  };
-  const selectedColor = colors[color] || colors.blue;
-  
   return (
     <div className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow">
       <div className="flex items-start justify-between">
@@ -210,9 +217,7 @@ const StatCard = ({ title, value, growth, subtitle, icon: Icon, color }) => {
           <p className="text-2xl font-bold text-gray-900 mt-1">{value}</p>
           {subtitle && <p className="text-sm text-gray-500 mt-1">{subtitle}</p>}
         </div>
-        <div className={`w-12 h-12 ${selectedColor.bg} rounded-lg flex items-center justify-center flex-shrink-0`}>
-          <Icon className={`w-6 h-6 ${selectedColor.text}`} />
-        </div>
+        {/* Icon div removed */}
       </div>
       {growth !== undefined && growth !== null && (
         <p className={`text-sm mt-3 font-medium flex items-center gap-1 ${
@@ -226,10 +231,12 @@ const StatCard = ({ title, value, growth, subtitle, icon: Icon, color }) => {
   );
 };
 
+// --- PopularList: Icon rendering removed ---
 const PopularList = ({ title, items, icon: Icon, type }) => (
   <div className="bg-white p-6 rounded-lg shadow-md">
-    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-      <Icon className="w-5 h-5" /> {title}
+    <h3 className="text-lg font-semibold text-gray-900 mb-4">
+      {/* Icon removed from title */}
+      {title}
     </h3>
     <div className="space-y-3">
       {items && items.length > 0 ? (
@@ -255,9 +262,7 @@ const PopularList = ({ title, items, icon: Icon, type }) => (
         ))
       ) : (
         <div className="text-center py-8">
-          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-            <Icon className="w-8 h-8 text-gray-400" />
-          </div>
+          {/* Icon div removed from placeholder */}
           <p className="text-gray-500 font-medium">No booking data yet</p>
           <p className="text-sm text-gray-400 mt-1">Complete bookings to see popularity rankings</p>
         </div>

@@ -113,3 +113,41 @@ body {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
+
+@media print {
+  .print-hide {
+    display: none !important;
+  }
+
+  nav, aside, .main-sidebar, .main-header {
+    display: none !important;
+  }
+
+  body, #root {
+    background-color: #fff !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  
+  main, .content-wrapper, .main-content {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  * {
+    color: #000 !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  .bg-white.p-6.rounded-lg,
+  .recharts-responsive-container {
+    page-break-inside: avoid;
+  }
+  
+  .recharts-surface {
+    overflow: visible !important;
+  }
+}

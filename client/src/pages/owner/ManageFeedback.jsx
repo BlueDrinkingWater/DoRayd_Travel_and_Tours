@@ -37,7 +37,7 @@ const ManageFeedback = () => {
                                 <div className="flex items-start justify-between mb-3">
                                     <div className="flex items-center gap-3">
                                         <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
-                                            <User className="w-5 h-5 text-gray-500"/>
+                                            <User className="w-5 h-5 text-gray-500" />
                                         </div>
                                         <div>
                                             <span className="font-bold text-gray-800">{feedback.user ? `${feedback.user.firstName} ${feedback.user.lastName}` : 'Anonymous'}</span>
@@ -60,10 +60,17 @@ const ManageFeedback = () => {
                                 )}
                             </div>
                             <div className="bg-gray-50 p-3 border-t flex justify-end items-center gap-2">
-                                <button onClick={() => handleApprove(feedback._id)} disabled={feedback.isApproved} className={`p-2 rounded-lg flex items-center gap-1 text-sm ${feedback.isApproved ? 'text-gray-400 cursor-not-allowed' : 'bg-green-100 text-green-600 hover:bg-green-200'}`}>
+                                <button
+                                    onClick={() => handleApprove(feedback._id)}
+                                    disabled={feedback.isApproved}
+                                    className={`p-2 rounded-lg flex items-center gap-1 text-sm ${feedback.isApproved ? 'text-gray-400 cursor-not-allowed' : 'bg-green-100 text-green-600 hover:bg-green-200'}`}
+                                >
                                     <ThumbsUp size={16} /> Approve
                                 </button>
-                                <button onClick={() => handleDelete(feedback._id)} className="p-2 rounded-lg bg-red-100 text-red-600 hover:bg-red-200 flex items-center gap-1 text-sm">
+                                <button
+                                    onClick={() => handleDelete(feedback._id)}
+                                    className="p-2 rounded-lg bg-red-100 text-red-600 hover:bg-red-200 flex items-center gap-1 text-sm"
+                                >
                                     <Trash2 size={16} /> Delete
                                 </button>
                             </div>
@@ -71,10 +78,11 @@ const ManageFeedback = () => {
                     ))}
                 </div>
             ) : (
-                <div className="text-center py-16 bg-gray-50 rounded-lg">
+                // Updated: removed white background and box, similar to your transport “no data” section
+                <div className="col-span-full text-center py-16">
                     <Heart className="mx-auto h-12 w-12 text-gray-400" />
-                    <h3 className="mt-2 text-lg font-medium text-gray-900">No feedback yet</h3>
-                    <p className="mt-1 text-sm text-gray-500">Customer feedback will appear here once submitted.</p>
+                    <h3 className="mt-2 text-lg font-medium text-gray-200">No feedback yet</h3>
+                    <p className="mt-1 text-sm text-gray-400">Customer feedback will appear here once submitted.</p>
                 </div>
             )}
         </div>

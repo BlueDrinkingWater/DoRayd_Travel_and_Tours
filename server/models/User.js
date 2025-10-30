@@ -6,8 +6,7 @@ const permissionSchema = new mongoose.Schema({
   module: {
     type: String,
     required: true,
-    // *** ADDED 'transport' to the enum ***
-    enum: ['bookings', 'cars', 'tours', 'transport', 'promotions', 'content', 'employees', 'customers', 'reports', 'messages', 'faqs', 'feedback', 'reviews']
+    enum: ['bookings', 'cars', 'tours', 'transport', 'promotions', 'content', 'employees', 'customers', 'reports', 'messages', 'faqs', 'feedback', 'reviews', 'refunds']
   },
   access: {
     type: String,
@@ -27,12 +26,10 @@ const userSchema = new mongoose.Schema({
     select: false
   },
   phone: { type: String, trim: true },
-  // --- ADDED: profilePicture field ---
   profilePicture: {
-    type: String, // Store the Cloudinary public_id (e.g., "dorayd/profiles/xyz123")
+    type: String, 
     trim: true
   },
-  // --- END ADDED ---
   address: { type: String, trim: true, maxlength: 500 },
   role: {
     type: String,
@@ -49,7 +46,6 @@ const userSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Booking'
   }],
-  // Fields for Social Logins
   authProvider: {
     type: String,
     enum: ['local', 'google', 'facebook'],
@@ -68,7 +64,7 @@ userSchema.pre('save', async function(next) {
 
 // Method to compare passwords
 userSchema.methods.correctPassword = async function(candidatePassword, userPassword) {
-   if (!userPassword) return false; // Handle cases where password might not be selected
+   if (!userPassword) return false; 
   return await bcrypt.compare(candidatePassword, userPassword);
 };
 
@@ -76,7 +72,7 @@ userSchema.methods.correctPassword = async function(candidatePassword, userPassw
 userSchema.methods.createPasswordResetToken = function() {
   const resetToken = crypto.randomBytes(32).toString('hex');
   this.resetPasswordToken = crypto.createHash('sha256').update(resetToken).digest('hex');
-  this.resetPasswordExpires = Date.now() + 10 * 60 * 1000; // Token expires in 10 minutes
+  this.resetPasswordExpires = Date.now() + 10 * 60 * 1000; 
   return resetToken;
 };
 

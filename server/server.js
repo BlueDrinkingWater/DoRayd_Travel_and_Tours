@@ -11,7 +11,7 @@ import { fileURLToPath } from 'url';
 // Security Middleware
 import helmet from 'helmet';
 import mongoSanitize from 'express-mongo-sanitize';
-import { defaultLimiter } from './middleware/rateLimiter.js'; // Import the default limiter
+import { defaultLimiter } from './middleware/rateLimiter.js'; 
 
 // Routes
 import authRoutes from './routes/auth.js';
@@ -30,13 +30,12 @@ import notificationRoutes from './routes/notification.js';
 import analyticsRoutes from './routes/analytics.js';
 import activityLogRoutes from './routes/activityLog.js';
 import imageRoutes from './routes/images.js';
-import transportRoutes from './routes/transportRoutes.js'; // <-- IMPORT NEW ROUTES
+import transportRoutes from './routes/transportRoutes.js'; 
 import uploadSignatureRoutes from './routes/uploadSignatures.js';
+import refundRoutes from './routes/refundRoutes.js';
 
-// Error Handler
 import { errorHandler } from './middleware/errorHandler.js';
 import Booking from './models/Booking.js';
-// *** ADDED: Import createNotification to be used in background job ***
 import { createNotification } from './controllers/notificationController.js'; 
 
 dotenv.config();
@@ -141,8 +140,9 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/activity-log', activityLogRoutes);
 app.use('/api/images', imageRoutes);
-app.use('/api/transport', transportRoutes); // <-- REGISTER NEW ROUTES
+app.use('/api/transport', transportRoutes); 
 app.use('/api/upload-signatures', uploadSignatureRoutes);
+app.use('/api/refunds', refundRoutes);
 
 // Error Handling Middleware
 app.use(errorHandler);
@@ -151,16 +151,14 @@ app.use(errorHandler);
 mongoose
   .connect(process.env.MONGODB_URI)
   .then(() => {
-    console.log('✅ MongoDB Connected');
+    console.log('MongoDB Connected');
     server.listen(PORT, () => {
-      console.log(`🚀 Server running on port ${PORT}`);
+      console.log(`Server running on port ${PORT}`);
 
-      // *** MODIFIED: Background job for expired bookings ***
-      console.log('⏰ Starting background job to handle expired bookings...');
+      console.log('Starting background job to handle expired bookings...');
       setInterval(async () => {
         const now = new Date();
         try {
-          // *** MODIFIED: Find pending bookings past expiration, confirmed downpayments past due, OR pending transport past admin confirmation ***
           const expiredBookings = await Booking.find({
             $or: [
               { status: 'pending', itemType: { $in: ['car', 'tour'] }, pendingExpiresAt: { $lt: now } },
@@ -178,19 +176,18 @@ mongoose
                   status: 'cancelled',
                   notes: {
                     note: 'Booking automatically cancelled due to expiration or missed payment deadline.',
-                    author: null, // Indicates system action
+                    author: null, 
                     date: new Date()
                   },
-                  pendingExpiresAt: undefined, // Clear timers
+                  pendingExpiresAt: undefined, 
                   paymentDueDate: undefined,
-                  adminConfirmationDueDate: undefined // *** ADDED: Clear this timer too ***
+                  adminConfirmationDueDate: undefined 
                 }
               }
             );
 
             if (result.modifiedCount > 0) {
               console.log(`🧹 Cancelled ${result.modifiedCount} expired/overdue bookings.`);
-              // Notify admins/employees about the cancellation
               io.to('admin').to('employee').emit('bookings-updated-by-system', { cancelledCount: result.modifiedCount });
 
               const adminMessage = `${result.modifiedCount} booking(s) were automatically cancelled due to expiration or missed payments.`;
@@ -210,7 +207,6 @@ mongoose
 
               for (const booking of expiredBookings) {
                  if (booking.user) {
-                     // Determine the correct message for the user
                      let customerMessage = `Your booking ${booking.bookingReference} was automatically cancelled.`;
                      if (booking.adminConfirmationDueDate && booking.itemType === 'transport') {
                          customerMessage = `Your booking ${booking.bookingReference} was cancelled as it was not confirmed by an admin within the 24-hour window.`;
@@ -219,8 +215,7 @@ mongoose
                      } else if (booking.pendingExpiresAt) {
                          customerMessage = `Your booking ${booking.bookingReference} was automatically cancelled because the initial payment was not completed in time.`;
                      }
-                     
-                     // Use the createNotification function
+
                      try {
                          await createNotification(
                             io,
@@ -237,11 +232,11 @@ mongoose
             }
           }
         } catch (error) {
-          console.error('❌ Error in expired/overdue bookings job:', error);
+          console.error('Error in expired/overdue bookings job:', error);
         }
-      }, 60 * 1000); // Run every minute
+      }, 60 * 1000); 
     });
   })
-  .catch((err) => console.error('❌ MongoDB Connection Error:', err));
+  .catch((err) => console.error('MongoDB Connection Error:', err));
 
 export default app;

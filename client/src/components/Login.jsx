@@ -2,11 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Navigate, useLocation, useNavigate, Link } from 'react-router-dom';
 import { Eye, EyeOff, Shield, User, UserCheck, X } from 'lucide-react';
 import DataService from '../components/services/DataService.jsx';
-
-// --- Load IDs from Vite's import.meta.env object ---
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-// REMOVED: FACEBOOK_APP_ID
-
 const AuthContext = createContext(null);
 
 export const useAuth = () => useContext(AuthContext);
@@ -115,8 +111,6 @@ export const ProtectedRoute = ({ children, requiredRole }) => {
 
   return children;
 };
-
-// --- Unified Login Portal ---
 export const UnifiedLoginPortal = ({ isOpen, onClose, showRegistration = false }) => {
   const { login, register, socialLogin, logout } = useAuth();
   const navigate = useNavigate();
@@ -126,18 +120,15 @@ export const UnifiedLoginPortal = ({ isOpen, onClose, showRegistration = false }
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  // REMOVED: isFbSdkReady state
-  const [loginPrivacyContent, setLoginPrivacyContent] = useState(''); // NEW: State for login privacy content
-  const [agreedToLoginPrivacy, setAgreedToLoginPrivacy] = useState(false); // NEW: State for agreement
+  const [loginPrivacyContent, setLoginPrivacyContent] = useState(''); 
+  const [agreedToLoginPrivacy, setAgreedToLoginPrivacy] = useState(false); 
 
-  // --- REFACTORED GOOGLE LOGIN LOGIC ---
   const handleGoogleCallbackResponse = async (response) => {
     setLoading(true);
     setError('');
     const result = await socialLogin('google', { credential: response.credential });
     if (result.success) {
         onClose();
-        // ... (navigation logic)
     } else {
         setError(result.message || "Login failed.");
     }
@@ -146,8 +137,6 @@ export const UnifiedLoginPortal = ({ isOpen, onClose, showRegistration = false }
 
   const initializeGoogleGSI = () => {
     if (!window.google || !document.getElementById("googleSignInButton")) {
-      // If window.google isn't ready or the button isn't rendered, try again shortly
-      // This handles race conditions
       setTimeout(initializeGoogleGSI, 100);
       return;
     }
@@ -172,8 +161,6 @@ export const UnifiedLoginPortal = ({ isOpen, onClose, showRegistration = false }
         resetForm();
         return;
     };
-
-    // NEW: Fetch login privacy content for registration view
     const fetchLoginPrivacyContent = async () => {
         try {
             const response = await DataService.fetchContent('loginPrivacy');
@@ -181,7 +168,6 @@ export const UnifiedLoginPortal = ({ isOpen, onClose, showRegistration = false }
                 setLoginPrivacyContent(response.data.content);
             }
         } catch (error) {
-            // Log this error, but don't set a form error since the link is primary
             console.warn('Login Privacy content not found. Please create it in admin Content Management.');
         }
     };
@@ -192,9 +178,6 @@ export const UnifiedLoginPortal = ({ isOpen, onClose, showRegistration = false }
         setError('Google Login is not configured by the administrator.');
     }
     
-    // REMOVED: Facebook App ID check
-
-    // --- REFACTORED GOOGLE SCRIPT LOADING ---
     const googleScriptId = 'google-gsi-script';
     if (!document.getElementById(googleScriptId) && GOOGLE_CLIENT_ID) {
         const googleScript = document.createElement('script');
@@ -202,17 +185,13 @@ export const UnifiedLoginPortal = ({ isOpen, onClose, showRegistration = false }
         googleScript.src = 'https://accounts.google.com/gsi/client';
         googleScript.async = true;
         googleScript.defer = true;
-        // The onload callback is the most reliable place to initialize
         googleScript.onload = initializeGoogleGSI; 
         document.body.appendChild(googleScript);
     } else if (GOOGLE_CLIENT_ID) {
-        // If script already exists, just re-initialize the button
         initializeGoogleGSI();
     }
-    
-    // REMOVED: Facebook Script loading logic
 
-  }, [isOpen]); // Removed socialLogin and onClose from dependencies as they are stable
+  }, [isOpen]); 
 
   useEffect(() => {
     setIsLoginView(!showRegistration);
@@ -223,12 +202,12 @@ export const UnifiedLoginPortal = ({ isOpen, onClose, showRegistration = false }
     setFormData({ firstName: '', lastName: '', email: '', password: '' });
     setError('');
     setShowPassword(false);
-    setAgreedToLoginPrivacy(false); // NEW: Reset agreement state
+    setAgreedToLoginPrivacy(false);
   };
 
   const handleTabChange = (tab) => {
     setActiveTab(tab);
-    setIsLoginView(true); // Always default to login view when switching tabs
+    setIsLoginView(true); 
     resetForm();
   };
 
@@ -274,7 +253,6 @@ export const UnifiedLoginPortal = ({ isOpen, onClose, showRegistration = false }
         return;
       }
       
-      // NEW: Registration Policy Check
       if (!agreedToLoginPrivacy && activeTab === 'customer') {
           setError("You must agree to the Privacy Policy to create an account.");
           setLoading(false);
@@ -286,15 +264,25 @@ export const UnifiedLoginPortal = ({ isOpen, onClose, showRegistration = false }
         alert('Registration successful! Please log in.');
         setIsLoginView(true);
         resetForm();
-      } else { setError(result.message); }
+      } else { 
+        if (result.errors && result.errors.length > 0) {
+          setError(result.errors[0].msg);
+        } else {
+          setError(result.message); 
+        }
+      }
     }
     setLoading(false);
   };
   
-  // REMOVED: handleFacebookLoginClick function
-
   const handleInputChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    if (name === 'firstName' || name === 'lastName') {
+      const filteredValue = value.replace(/[0-9]/g, '');
+      setFormData({ ...formData, [name]: filteredValue });
+    } else {
+      setFormData({ ...formData, [name]: value });
+    }
   };
   
   if (!isOpen) return null;
@@ -328,7 +316,7 @@ export const UnifiedLoginPortal = ({ isOpen, onClose, showRegistration = false }
                 <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 px-4 flex items-center text-gray-500"><EyeOff size={18} className={showPassword ? '' : 'hidden'}/><Eye size={18} className={showPassword ? 'hidden' : ''}/></button>
               </div>
               
-              {/* NEW: Policy Checkbox for Registration */}
+              {/* policy Checkbox for Registration */}
               {!isLoginView && activeTab === 'customer' && (
                   <div className="flex items-start mt-4">
                       <input 
@@ -360,10 +348,10 @@ export const UnifiedLoginPortal = ({ isOpen, onClose, showRegistration = false }
                   <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-300"></div></div>
                   <div className="relative flex justify-center text-sm"><span className="px-2 bg-white text-gray-500">Or continue with</span></div>
                 </div>
-                {/* --- REMOVED: Facebook button and wrapper div --- */}
+                {}
                 <div className="space-y-3 flex flex-col items-center">
                   <div id="googleSignInButton" className="flex justify-center"></div>
-                  {/* REMOVED: Facebook Button */}
+                  {}
                 </div>
               </>
             )}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
-    Calendar, Clock, Car, MapPin, Star, MessageSquare, Settings, User, Heart, Award, Upload, Menu, X, ChevronRight, Eye, Check, FileText, Link as LinkIcon, Hash, Package, DollarSign, ImageIcon, Paperclip
-} from 'lucide-react'; // <-- ADDED Paperclip
+    Calendar, Clock, Car, MapPin, Star, MessageSquare, Settings, User, Heart, Award, Upload, Menu, X, ChevronRight, Eye, Check, FileText, Link as LinkIcon, Hash, Package, DollarSign, ImageIcon, Paperclip, Bus
+} from 'lucide-react';
 import { useAuth } from '@/components/Login.jsx';
 import { useApi } from '@/hooks/useApi.jsx';
 import DataService, { getImageUrl, SERVER_URL } from '@/components/services/DataService.jsx';
@@ -10,8 +10,8 @@ import bgTour from '@/assets/bgTour.jpg';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
-import { useLocation } from 'react-router-dom';
-import { useSecureImage } from '@/hooks/useSecureImage.jsx'; // Import the secure image hook
+import { useLocation, Link } from 'react-router-dom'; // <-- IMPORTED Link
+import { useSecureImage } from '@/hooks/useSecureImage.jsx'; 
 
 // --- Helper Functions ---
 const formatDateTime = (dateString) => {
@@ -52,7 +52,6 @@ const InfoRow = ({ label, value, icon: Icon }) => (
   </div>
 );
 
-// --- COMPONENT TO HANDLE SECURE IMAGES (Payment Proofs) ---
 const PaymentProofImage = ({ paymentProofUrl }) => {
   const { secureUrl, loading } = useSecureImage(paymentProofUrl);
   
@@ -81,7 +80,6 @@ const PaymentProofImage = ({ paymentProofUrl }) => {
   );
 };
 
-// --- NEW Secure Attachment Link Component (For Booking Notes) ---
 const SecureAttachmentLink = ({ attachmentPath, originalName }) => {
     const { secureUrl, loading } = useSecureImage(attachmentPath);
 
@@ -100,7 +98,6 @@ const SecureAttachmentLink = ({ attachmentPath, originalName }) => {
         </a>
     );
 };
-// --- END Secure Attachment Link Component ---
 
 // Full Booking Detail Modal
 const BookingDetailModal = ({ booking, onClose }) => {
@@ -188,6 +185,62 @@ const BookingDetailModal = ({ booking, onClose }) => {
         </div>
     );
 };
+
+// --- NEW REUSABLE COMPONENT ---
+// This component displays the lists of services (Cars, Tours, Transport) for selection
+const BookingSelector = ({ carBookings, tourBookings, transportBookings, onSelectBooking, selectedBookingId }) => {
+  
+  const renderBookingList = (bookings, Icon, colorClass) => (
+    <div className="space-y-3">
+      {bookings.map(booking => (
+        <button
+          type="button"
+          key={booking._id}
+          onClick={() => onSelectBooking(booking)}
+          className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
+            selectedBookingId === booking._id
+              ? `border-${colorClass}-500 bg-${colorClass}-50 ring-2 ring-${colorClass}-200`
+              : 'border-gray-200 bg-white hover:border-gray-400'
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            <Icon className={`w-6 h-6 text-${colorClass}-600 flex-shrink-0`} />
+            <div>
+              <p className="font-semibold text-gray-900">{booking.itemName}</p>
+              <p className="text-sm text-gray-500">
+                {booking.bookingReference} | Completed: {formatDate(booking.endDate || booking.startDate)}
+              </p>
+            </div>
+          </div>
+        </button>
+      ))}
+    </div>
+  );
+
+  return (
+    <div className="space-y-6">
+      {carBookings.length > 0 && (
+        <section>
+          <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2"><Car className="text-blue-600" /> Cars</h3>
+          {renderBookingList(carBookings, Car, 'blue')}
+        </section>
+      )}
+      {tourBookings.length > 0 && (
+        <section>
+          <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2"><MapPin className="text-green-600" /> Tours</h3>
+          {renderBookingList(tourBookings, MapPin, 'green')}
+        </section>
+      )}
+      {transportBookings.length > 0 && (
+        <section>
+          <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2"><Bus className="text-purple-600" /> Transport</h3>
+          {renderBookingList(transportBookings, Bus, 'purple')}
+        </section>
+      )}
+    </div>
+  );
+};
+// --- END NEW COMPONENT ---
 
 
 const CustomerDashboard = () => {
@@ -481,7 +534,9 @@ const BookingsTab = ({ bookings, onBookingSelect, onAddPayment }) => (
                         <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-3 rounded-lg shadow-md">
                             {booking.itemType === 'car' ?
                                 <Car className="w-6 h-6 text-white" /> :
-                                <MapPin className="w-6 h-6 text-white" />
+                            (booking.itemType === 'transport' ?
+                                <Bus className="w-6 h-6 text-white" /> :
+                                <MapPin className="w-6 h-6 text-white" />)
                             }
                         </div>
                         <div>
@@ -521,6 +576,18 @@ const BookingsTab = ({ bookings, onBookingSelect, onAddPayment }) => (
                                 <Upload size={14} /> Add Payment
                             </button>
                         )}
+                        
+                        {/* --- THIS IS THE NEW BUTTON --- */}
+                        {['pending', 'confirmed'].includes(booking.status) && (
+                            <Link
+                                to="/refund-request"
+                                className="bg-yellow-100 text-yellow-700 hover:bg-yellow-200 px-3 py-1 rounded-full text-sm font-semibold flex items-center gap-1 mt-2"
+                            >
+                                <DollarSign size={14} /> Request Refund
+                            </Link>
+                        )}
+                        {/* --- END OF NEW BUTTON --- */}
+                        
                     </div>
                 </div>
             </div>
@@ -541,7 +608,7 @@ const MyReviewsTab = ({ reviews }) => (
                 <div className="flex justify-between items-start mb-3">
                     <div>
                         <h3 className="font-semibold text-gray-900">
-                            {review.item?.title || `${review.item?.brand} ${review.item?.model}`}
+                            {review.item?.title || `${review.item?.brand} ${review.item?.model}` || review.itemName}
                         </h3>
                         <div className="flex items-center gap-1 mt-2">
                             {[...Array(5)].map((_, i) => (
@@ -623,26 +690,52 @@ const MyFeedbackTab = ({ feedback }) => (
     </div>
 );
 
-// LeaveReviewTab
+// --- REDESIGNED LeaveReviewTab ---
 const LeaveReviewTab = ({ bookings, reviewedBookingIds, onReviewSubmit }) => {
-    const [selectedBookingId, setSelectedBookingId] = useState('');
+    const [selectedBooking, setSelectedBooking] = useState(null); // Use the full booking object
     const [rating, setRating] = useState(0);
     const [comment, setComment] = useState('');
     const [isAnonymous, setIsAnonymous] = useState(false);
     const [submitting, setSubmitting] = useState(false);
 
-    const availableBookings = useMemo(() => bookings.filter(b => !reviewedBookingIds.has(String(b._id))), [bookings, reviewedBookingIds]);
-    
+    // Filter bookings available for review
+    const availableBookings = useMemo(() => 
+        bookings.filter(b => b.status === 'completed' && !reviewedBookingIds.has(String(b._id))),
+        [bookings, reviewedBookingIds]
+    );
+
+    // Separate them by type
+    const carBookings = useMemo(() => 
+        availableBookings.filter(b => b.itemType === 'car'), 
+        [availableBookings]
+    );
+    const tourBookings = useMemo(() => 
+        availableBookings.filter(b => b.itemType === 'tour'), 
+        [availableBookings]
+    );
+    const transportBookings = useMemo(() => 
+        availableBookings.filter(b => b.itemType === 'transport'), 
+        [availableBookings]
+    );
+
+    const handleSelectBooking = (booking) => {
+        setSelectedBooking(booking);
+        // Clear old form data
+        setRating(0);
+        setComment('');
+        setIsAnonymous(false);
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!selectedBookingId || !rating || !comment.trim()) {
-            alert('Please fill in all required fields.');
+        if (!selectedBooking || !rating || !comment.trim()) {
+            alert('Please select a booking, provide a rating, and write a comment.');
             return;
         }
 
         setSubmitting(true);
         const reviewData = {
-            bookingId: selectedBookingId,
+            bookingId: selectedBooking._id,
             rating,
             comment: comment.trim(),
             isAnonymous
@@ -653,11 +746,8 @@ const LeaveReviewTab = ({ bookings, reviewedBookingIds, onReviewSubmit }) => {
             
             if (response.success) {
                 alert('Review submitted successfully! It will be visible after admin approval.');
-                setSelectedBookingId('');
-                setRating(0);
-                setComment('');
-                setIsAnonymous(false);
-                onReviewSubmit();
+                setSelectedBooking(null); // Deselect booking
+                onReviewSubmit(); // Refetch reviews
             } else {
                 alert('Failed to submit review: ' + response.message);
             }
@@ -673,81 +763,89 @@ const LeaveReviewTab = ({ bookings, reviewedBookingIds, onReviewSubmit }) => {
             {availableBookings.length > 0 ? (
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="bg-white/80 backdrop-blur-md p-6 rounded-xl border border-white/20">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Select a completed booking to review *
+                        <label className="block text-lg font-semibold text-gray-900 mb-4">
+                            Step 1: Select a completed service to review
                         </label>
-                        <select 
-                            value={selectedBookingId}
-                            onChange={(e) => setSelectedBookingId(e.target.value)}
-                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            required
-                        >
-                            <option value="">Choose a service to review...</option>
-                            {availableBookings.map(booking => (
-                                <option key={booking._id} value={booking._id}>
-                                    {booking.itemName} - {booking.bookingReference} ({new Date(booking.startDate).toLocaleDateString()})
-                                </option>
-                            ))}
-                        </select>
+                        <BookingSelector 
+                            carBookings={carBookings}
+                            tourBookings={tourBookings}
+                            transportBookings={transportBookings}
+                            onSelectBooking={handleSelectBooking}
+                            selectedBookingId={selectedBooking ? selectedBooking._id : null}
+                        />
                     </div>
 
-                    <div className="bg-white/80 backdrop-blur-md p-6 rounded-xl border border-white/20">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Rating *
-                        </label>
-                        <div className="flex items-center gap-1">
-                            {[1, 2, 3, 4, 5].map((star) => (
+                    {/* This section only appears after a booking is selected */}
+                    {selectedBooking && (
+                        <>
+                            <div className="bg-white/80 backdrop-blur-md p-6 rounded-xl border border-white/20 animate-in fade-in">
+                                <label className="block text-lg font-semibold text-gray-900 mb-4">
+                                    Step 2: Rate your experience for <span className="text-blue-600">{selectedBooking.itemName}</span>
+                                </label>
+                                <div className="flex items-center gap-1">
+                                    {[1, 2, 3, 4, 5].map((star) => (
+                                        <button
+                                            key={star}
+                                            type="button"
+                                            onClick={() => setRating(star)}
+                                            className="p-1 hover:scale-110 transition-transform"
+                                        >
+                                            <Star 
+                                                className={`w-8 h-8 ${star <= rating ? 'text-yellow-400 fill-current' : 'text-gray-300'}`} 
+                                            />
+                                        </button>
+                                    ))}
+                                    <span className="ml-2 text-sm text-gray-600">({rating}/5)</span>
+                                </div>
+                            </div>
+
+                            <div className="bg-white/80 backdrop-blur-md p-6 rounded-xl border border-white/20 animate-in fade-in">
+                                <label className="block text-lg font-semibold text-gray-900 mb-4">
+                                    Step 3: Write your review *
+                                </label>
+                                <textarea
+                                    value={comment}
+                                    onChange={(e) => setComment(e.target.value)}
+                                    rows={4}
+                                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    placeholder="Share your experience with this service..."
+                                    maxLength={1000}
+                                    required
+                                />
+                                <p className="text-sm text-gray-500 mt-2">{comment.length}/1000 characters</p>
+                            </div>
+
+                            <div className="flex items-center bg-white/80 backdrop-blur-md p-6 rounded-xl border border-white/20 animate-in fade-in">
+                                <input
+                                    type="checkbox"
+                                    id="anonymous-review"
+                                    checked={isAnonymous}
+                                    onChange={(e) => setIsAnonymous(e.target.checked)}
+                                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                />
+                                <label htmlFor="anonymous-review" className="ml-2 text-sm text-gray-700">
+                                    Submit anonymously
+                                </label>
+                            </div>
+
+                            <div className="flex gap-4">
                                 <button
-                                    key={star}
                                     type="button"
-                                    onClick={() => setRating(star)}
-                                    className="p-1 hover:scale-110 transition-transform"
+                                    onClick={() => setSelectedBooking(null)}
+                                    className="w-1/3 bg-gray-200 text-gray-800 py-3 px-6 rounded-lg hover:bg-gray-300 transition-all font-medium"
                                 >
-                                    <Star 
-                                        className={`w-8 h-8 ${star <= rating ? 'text-yellow-400 fill-current' : 'text-gray-300'}`} 
-                                    />
+                                    Change Service
                                 </button>
-                            ))}
-                            <span className="ml-2 text-sm text-gray-600">({rating}/5)</span>
-                        </div>
-                    </div>
-
-                    <div className="bg-white/80 backdrop-blur-md p-6 rounded-xl border border-white/20">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Your Review *
-                        </label>
-                        <textarea
-                            value={comment}
-                            onChange={(e) => setComment(e.target.value)}
-                            rows={4}
-                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="Share your experience with this service..."
-                            maxLength={1000}
-                            required
-                        />
-                        <p className="text-sm text-gray-500 mt-2">{comment.length}/1000 characters</p>
-                    </div>
-
-                    <div className="flex items-center bg-white/80 backdrop-blur-md p-6 rounded-xl border border-white/20">
-                        <input
-                            type="checkbox"
-                            id="anonymous-review"
-                            checked={isAnonymous}
-                            onChange={(e) => setIsAnonymous(e.target.checked)}
-                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                        />
-                        <label htmlFor="anonymous-review" className="ml-2 text-sm text-gray-700">
-                            Submit anonymously
-                        </label>
-                    </div>
-
-                    <button
-                        type="submit"
-                        disabled={submitting}
-                        className="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white py-3 px-6 rounded-lg hover:from-blue-600 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium"
-                    >
-                        {submitting ? 'Submitting...' : 'Submit Review'}
-                    </button>
+                                <button
+                                    type="submit"
+                                    disabled={submitting}
+                                    className="w-2/3 bg-gradient-to-r from-blue-500 to-blue-600 text-white py-3 px-6 rounded-lg hover:from-blue-600 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium"
+                                >
+                                    {submitting ? 'Submitting...' : 'Submit Review'}
+                                </button>
+                            </div>
+                        </>
+                    )}
                 </form>
             ) : (
                 <div className="bg-white/80 backdrop-blur-md text-center py-16 rounded-xl border border-white/20">
@@ -760,39 +858,65 @@ const LeaveReviewTab = ({ bookings, reviewedBookingIds, onReviewSubmit }) => {
     );
 };
 
-// LeaveFeedbackTab
+// --- REDESIGNED LeaveFeedbackTab ---
 const LeaveFeedbackTab = ({ bookings, feedbackBookingIds, onFeedbackSubmit }) => {
-    const [selectedBookingId, setSelectedBookingId] = useState('');
+    const [selectedBooking, setSelectedBooking] = useState(null);
     const [rating, setRating] = useState(0);
     const [comment, setComment] = useState('');
     const [isAnonymous, setIsAnonymous] = useState(false);
     const [submitting, setSubmitting] = useState(false);
 
-    const availableBookings = useMemo(() => bookings.filter(b => !feedbackBookingIds.has(String(b._id))), [bookings, feedbackBookingIds]);
+    // Filter bookings available for feedback
+    const availableBookings = useMemo(() => 
+        bookings.filter(b => b.status === 'completed' && !feedbackBookingIds.has(String(b._id))),
+        [bookings, feedbackBookingIds]
+    );
+
+    // Separate them by type
+    const carBookings = useMemo(() => 
+        availableBookings.filter(b => b.itemType === 'car'), 
+        [availableBookings]
+    );
+    const tourBookings = useMemo(() => 
+        availableBookings.filter(b => b.itemType === 'tour'), 
+        [availableBookings]
+    );
+    const transportBookings = useMemo(() => 
+        availableBookings.filter(b => b.itemType === 'transport'), 
+        [availableBookings]
+    );
+
+    const handleSelectBooking = (booking) => {
+        setSelectedBooking(booking);
+        // Clear old form data
+        setRating(0);
+        setComment('');
+        setIsAnonymous(false);
+    };
     
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!selectedBookingId || !rating || !comment.trim()) {
-            alert('Please fill in all required fields.');
+        if (!selectedBooking || !rating || !comment.trim()) {
+            alert('Please select a booking, provide a rating, and write your feedback.');
             return;
         }
 
         setSubmitting(true);
+        // Feedback uses FormData for image uploads
         const formData = new FormData();
-        formData.append('bookingId', selectedBookingId);
+        formData.append('bookingId', selectedBooking._id);
         formData.append('rating', rating);
         formData.append('comment', comment.trim());
         formData.append('isAnonymous', isAnonymous);
+        // Note: Image upload for feedback is not currently implemented in this form
+        // but the backend (DataService.submitFeedback) supports it.
 
         try {
             const response = await DataService.submitFeedback(formData);
             
             if (response.success) {
                 alert('Feedback submitted successfully! It will be visible after admin approval.');
-                setSelectedBookingId('');
-                setRating(0);
-                setComment('');
-                setIsAnonymous(false);
+                setSelectedBooking(null);
                 onFeedbackSubmit();
             } else {
                 alert('Failed to submit feedback: ' + response.message);
@@ -806,86 +930,93 @@ const LeaveFeedbackTab = ({ bookings, feedbackBookingIds, onFeedbackSubmit }) =>
 
     return (
         <div className="max-w-3xl mx-auto">
-            <p className="text-white/80 mb-6">Share your overall experience with DoRayd Travel & Tours</p>
+            <p className="text-white/80 mb-6">Share your overall experience with DoRayd Travel & Tours for one of your completed services.</p>
             
             {availableBookings.length > 0 ? (
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="bg-white/80 backdrop-blur-md p-6 rounded-xl border border-white/20">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Select a completed booking *
+                        <label className="block text-lg font-semibold text-gray-900 mb-4">
+                            Step 1: Select a service to give feedback on
                         </label>
-                        <select 
-                            value={selectedBookingId}
-                            onChange={(e) => setSelectedBookingId(e.target.value)}
-                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            required
-                        >
-                            <option value="">Choose a service experience...</option>
-                            {availableBookings.map(booking => (
-                                <option key={booking._id} value={booking._id}>
-                                    {booking.itemName} - {booking.bookingReference} ({new Date(booking.startDate).toLocaleDateString()})
-                                </option>
-                            ))}
-                        </select>
+                        <BookingSelector 
+                            carBookings={carBookings}
+                            tourBookings={tourBookings}
+                            transportBookings={transportBookings}
+                            onSelectBooking={handleSelectBooking}
+                            selectedBookingId={selectedBooking ? selectedBooking._id : null}
+                        />
                     </div>
 
-                    <div className="bg-white/80 backdrop-blur-md p-6 rounded-xl border border-white/20">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Overall Rating *
-                        </label>
-                        <div className="flex items-center gap-1">
-                            {[1, 2, 3, 4, 5].map((star) => (
+                    {selectedBooking && (
+                        <>
+                            <div className="bg-white/80 backdrop-blur-md p-6 rounded-xl border border-white/20 animate-in fade-in">
+                                <label className="block text-lg font-semibold text-gray-900 mb-4">
+                                    Step 2: Rate your overall experience with <span className="text-green-600">{selectedBooking.itemName}</span>
+                                </label>
+                                <div className="flex items-center gap-1">
+                                    {[1, 2, 3, 4, 5].map((star) => (
+                                        <button
+                                            key={star}
+                                            type="button"
+                                            onClick={() => setRating(star)}
+                                            className="p-1 hover:scale-110 transition-transform"
+                                        >
+                                            <Star 
+                                                className={`w-8 h-8 ${star <= rating ? 'text-yellow-400 fill-current' : 'text-gray-300'}`} 
+                                            />
+                                        </button>
+                                    ))}
+                                    <span className="ml-2 text-sm text-gray-600">({rating}/5)</span>
+                                </div>
+                            </div>
+
+                            <div className="bg-white/80 backdrop-blur-md p-6 rounded-xl border border-white/20 animate-in fade-in">
+                                <label className="block text-lg font-semibold text-gray-900 mb-4">
+                                    Step 3: Write your feedback *
+                                </label>
+                                <textarea
+                                    value={comment}
+                                    onChange={(e) => setComment(e.target.value)}
+                                    rows={4}
+                                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                                    placeholder="Tell us about your overall experience with our service..."
+                                    maxLength={1000}
+                                    required
+                                />
+                                <p className="text-sm text-gray-500 mt-2">{comment.length}/1000 characters</p>
+                            </div>
+
+                            <div className="flex items-center bg-white/80 backdrop-blur-md p-6 rounded-xl border border-white/20 animate-in fade-in">
+                                <input
+                                    type="checkbox"
+                                    id="anonymous-feedback"
+                                    checked={isAnonymous}
+                                    onChange={(e) => setIsAnonymous(e.target.checked)}
+                                    className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                                />
+                                <label htmlFor="anonymous-feedback" className="ml-2 text-sm text-gray-700">
+                                    Submit anonymously
+                                </label>
+                            </div>
+
+                            <div className="flex gap-4">
                                 <button
-                                    key={star}
                                     type="button"
-                                    onClick={() => setRating(star)}
-                                    className="p-1 hover:scale-110 transition-transform"
+                                    onClick={() => setSelectedBooking(null)}
+                                    className="w-1/3 bg-gray-200 text-gray-800 py-3 px-6 rounded-lg hover:bg-gray-300 transition-all font-medium"
                                 >
-                                    <Star 
-                                        className={`w-8 h-8 ${star <= rating ? 'text-yellow-400 fill-current' : 'text-gray-300'}`} 
-                                    />
+                                    Change Service
                                 </button>
-                            ))}
-                            <span className="ml-2 text-sm text-gray-600">({rating}/5)</span>
-                        </div>
-                    </div>
-
-                    <div className="bg-white/80 backdrop-blur-md p-6 rounded-xl border border-white/20">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Your Feedback *
-                        </label>
-                        <textarea
-                            value={comment}
-                            onChange={(e) => setComment(e.target.value)}
-                            rows={4}
-                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="Tell us about your overall experience with our service..."
-                            maxLength={1000}
-                            required
-                        />
-                        <p className="text-sm text-gray-500 mt-2">{comment.length}/1000 characters</p>
-                    </div>
-
-                    <div className="flex items-center bg-white/80 backdrop-blur-md p-6 rounded-xl border border-white/20">
-                        <input
-                            type="checkbox"
-                            id="anonymous-feedback"
-                            checked={isAnonymous}
-                            onChange={(e) => setIsAnonymous(e.target.checked)}
-                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                        />
-                        <label htmlFor="anonymous-feedback" className="ml-2 text-sm text-gray-700">
-                            Submit anonymously
-                        </label>
-                    </div>
-
-                    <button
-                        type="submit"
-                        disabled={submitting}
-                        className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-3 px-6 rounded-lg hover:from-green-600 hover:to-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium"
-                    >
-                        {submitting ? 'Submitting...' : 'Submit Feedback'}
-                    </button>
+                                <button
+                                    type="submit"
+                                    disabled={submitting}
+                                    className="w-2/3 bg-gradient-to-r from-green-500 to-green-600 text-white py-3 px-6 rounded-lg hover:from-green-600 hover:to-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium"
+                                >
+                                    {submitting ? 'Submitting...' : 'Submit Feedback'}
+                                </button>
+                            </div>
+                        </>
+                    )}
                 </form>
             ) : (
                 <div className="bg-white/80 backdrop-blur-md text-center py-16 rounded-xl border border-white/20">
@@ -897,6 +1028,8 @@ const LeaveFeedbackTab = ({ bookings, feedbackBookingIds, onFeedbackSubmit }) =>
         </div>
     );
 };
+// --- END REDESIGNED TABS ---
+
 
 // PublicFeedbackTab
 const PublicFeedbackTab = ({ feedback }) => (

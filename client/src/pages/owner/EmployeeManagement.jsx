@@ -3,9 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Edit3, Trash2, Key, Shield, Briefcase } from 'lucide-react';
 import DataService from '../../components/services/DataService.jsx';
 import { useApi } from '../../hooks/useApi.jsx';
-
-// <-- ADDED 'transport' HERE
-const permissionModules = ['bookings', 'cars', 'tours', 'transport', 'messages', 'reports', 'content', 'promotions', 'faqs', 'feedback', 'reviews'];
+const permissionModules = ['bookings', 'cars', 'tours', 'transport', 'messages', 'reports', 'content', 'promotions', 'faqs', 'feedback', 'reviews', 'refunds'];
 
 const EmployeeManagement = () => {
   const { data: employeesData, loading, refetch: fetchEmployees } = useApi(DataService.fetchAllEmployees);
@@ -50,25 +48,20 @@ const EmployeeManagement = () => {
     try {
       let response;
       if (editingEmployee) {
-        // Don't send an empty password field on update unless it's being changed
         const { password, ...updateData } = formData;
         const dataToSend = password ? formData : updateData;
         response = await DataService.updateEmployee(editingEmployee._id, dataToSend);
       } else {
         response = await DataService.createEmployee(formData);
       }
-
-      // Check the success flag from the response
       if (response.success) {
         alert(editingEmployee ? 'Employee updated successfully!' : 'Employee created successfully!');
         setShowModal(false);
         fetchEmployees();
       } else {
-        // If the server returns success: false, show the message
         throw new Error(response.message || 'An unknown error occurred.');
       }
     } catch (error) {
-      // Catch errors from the API call itself (e.g., network error, server error)
       console.error("Failed to save employee:", error);
       alert(`Error: ${error.message}`);
     } finally {
@@ -83,7 +76,6 @@ const EmployeeManagement = () => {
       ...employee,
       permissions: employee.permissions || []
     };
-    // Clear password field for editing to avoid showing hashed or old passwords
     setFormData({ ...employeeData, password: '' });
     setShowModal(true);
   };
@@ -94,7 +86,7 @@ const EmployeeManagement = () => {
         const response = await DataService.deleteEmployee(employeeId);
         if (response.success) {
           alert('Employee deleted successfully!');
-          fetchEmployees(); // Refetch the list to show the change
+          fetchEmployees(); 
         } else {
           throw new Error(response.message || 'Failed to delete employee.');
         }

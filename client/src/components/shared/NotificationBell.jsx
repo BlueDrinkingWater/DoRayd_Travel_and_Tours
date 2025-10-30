@@ -36,7 +36,7 @@ const NotificationBell = ({ notifications, markOneAsRead, markAllAsRead }) => {
     markAllAsRead();
   };
 
-  // --- MODIFIED: This function now shows the full date and time ---
+  // --- date and time ---
   const formatNotificationDate = (dateString) => {
     if (!dateString) return '';
     return new Date(dateString).toLocaleString('en-US', {
@@ -84,7 +84,7 @@ const NotificationBell = ({ notifications, markOneAsRead, markAllAsRead }) => {
                     <p className="text-sm font-medium leading-none text-gray-800">
                       {notif.message}
                     </p>
-                    {/* --- MODIFIED: Use the new date formatting function --- */}
+                    {/* Use the new date formatting function --- */}
                     <p className="text-sm text-gray-500">
                       {formatNotificationDate(notif.createdAt)}
                     </p>

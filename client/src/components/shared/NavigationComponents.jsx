@@ -1,4 +1,3 @@
-// client/src/components/shared/NavigationComponents.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Menu, X, User, LogOut, Shield, UserCheck, Phone, Mail, MapPin, Clock, LayoutDashboard, Settings, Bus } from 'lucide-react'; // <-- Imported Bus
@@ -6,8 +5,7 @@ import { useAuth } from '../Login';
 import logo from '../../assets/logo.svg';
 import { useSocket } from '../../hooks/useSocket';
 import NotificationBell from './NotificationBell.jsx';
-// REMOVE: import { getImageUrl } from '../services/DataService.jsx'; // Import getImageUrl
-import { useSecureImage } from '../../hooks/useSecureImage.jsx'; // <-- ADD: Import useSecureImage
+import { useSecureImage } from '../../hooks/useSecureImage.jsx';  
 
 export const Navbar = ({ onCustomerLogin, onStaffLogin, onRegister }) => {
   const { isAuthenticated, user, logout } = useAuth();
@@ -21,20 +19,18 @@ export const Navbar = ({ onCustomerLogin, onStaffLogin, onRegister }) => {
   const { secureUrl: profilePicUrl, loading: profilePicLoading } = useSecureImage(user?.profilePicture);
 
   const navigation = [
-    // ... existing navigation items ...
     { name: 'Home', href: '/' },
     { name: 'Cars', href: '/cars' },
     { name: 'Tours', href: '/tours' },
-    { name: 'Transport', href: '/transport' }, // <-- ADDED
+    { name: 'Transport', href: '/transport' }, 
     { name: 'About', href: '/about' },
     { name: 'Contact', href: '/contact' },
     { name: 'Feedback', href: '/feedback' },
+    { name: 'Request Refund', href: '/refund-request' },
   ];
 
-  // ... existing useEffect and handlers ...
 
   useEffect(() => {
-    // ... existing handleClickOutside logic ...
     const handleClickOutside = (event) => {
       if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
         setUserMenuOpen(false);
@@ -76,7 +72,7 @@ export const Navbar = ({ onCustomerLogin, onStaffLogin, onRegister }) => {
       <div className="w-full px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
 
-          {/* LEFT: Logo/Name - Left Edge */}
+          {/* Logo/Name - Left Edge */}
            <div className="flex items-center flex-shrink-0">
             <Link to="/" className="flex-shrink-0 flex items-center group">
               <img src={logo} alt="Do Rayd Travel and Tours Logo" className="h-12 w-auto transition-transform group-hover:scale-105" />
@@ -86,7 +82,7 @@ export const Navbar = ({ onCustomerLogin, onStaffLogin, onRegister }) => {
             </Link>
           </div>
 
-          {/* CENTER: Desktop Navigation Links - Centered */}
+          {/* Desktop Navigation Links - Centered */}
            <div className="hidden lg:flex absolute left-1/2 transform -translate-x-1/2 items-center space-x-1">
             <div className="flex items-center space-x-1">
               {navigation.map((item) => (
@@ -109,7 +105,7 @@ export const Navbar = ({ onCustomerLogin, onStaffLogin, onRegister }) => {
           </div>
 
 
-          {/* RIGHT: User Actions/Profile - Right Edge */}
+          {/* User Actions/Profile - Right Edge */}
           <div className="flex items-center space-x-2 flex-shrink-0">
             {isAuthenticated && user ? (
               <div className="flex items-center space-x-2">
@@ -126,7 +122,7 @@ export const Navbar = ({ onCustomerLogin, onStaffLogin, onRegister }) => {
                     onClick={() => setUserMenuOpen(!userMenuOpen)}
                     className="flex items-center space-x-2 p-2 rounded-full hover:bg-gray-50 transition-all duration-300"
                   >
-                     {/* --- MODIFIED: Profile Picture Display --- */}
+                     {/* Profile Picture Display --- */}
                     <div className="w-9 h-9 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-md overflow-hidden">
                        {profilePicLoading ? (
                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
@@ -138,19 +134,21 @@ export const Navbar = ({ onCustomerLogin, onStaffLogin, onRegister }) => {
                            </span>
                        )}
                     </div>
-                     {/* --- END MODIFICATION --- */}
+                     {}
                     <div className="hidden md:block text-left">
                       <p className="text-sm font-medium text-gray-900">{user.firstName} {user.lastName}</p>
                       <p className="text-xs text-gray-500 capitalize">{user.role}</p>
                     </div>
                   </button>
 
-                  {/* DESIGN UPDATE: User Dropdown Menu */}
+                  {/* User Dropdown Menu */}
                   {userMenuOpen && (
                     <div className="absolute right-0 mt-3 w-64 bg-white/80 backdrop-blur-lg border border-white/30 rounded-2xl shadow-2xl z-50 overflow-hidden animate-scale-in">
                       <div className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 border-b border-gray-200">
                         <div className="flex items-center space-x-3">
-                             {/* --- MODIFIED: Profile Picture Display (Dropdown) --- */}
+                             {
+                        
+                             }
                             <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center overflow-hidden">
                                {profilePicLoading ? (
                                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
@@ -204,7 +202,7 @@ export const Navbar = ({ onCustomerLogin, onStaffLogin, onRegister }) => {
                 </div>
               </div>
             ) : (
-              // ... Sign In / Get Started buttons ...
+              // Sign In / Get Started buttons ...
                <div className="flex items-center space-x-2">
                 <button
                   onClick={onCustomerLogin}
@@ -258,9 +256,8 @@ export const Navbar = ({ onCustomerLogin, onStaffLogin, onRegister }) => {
   );
 };
 
-// Footer component remains unchanged
+// Footer 
 export const Footer = () => {
-   // ... existing footer code ...
     return (
     <footer className="bg-gradient-to-r from-gray-900 to-gray-800 text-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -296,6 +293,7 @@ export const Footer = () => {
               <li><Link to="/transport" className="text-gray-300 hover:text-white transition-colors">Transport</Link></li> {/* <-- ADDED */}
               <li><Link to="/about" className="text-gray-300 hover:text-white transition-colors">About</Link></li>
               <li><Link to="/contact" className="text-gray-300 hover:text-white transition-colors">Contact</Link></li>
+            <li><Link to="/refund-request" className="text-gray-300 hover:text-white transition-colors">Request Refund</Link></li>
             </ul>
           </div>
 

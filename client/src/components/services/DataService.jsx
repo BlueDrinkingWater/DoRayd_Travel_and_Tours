@@ -1,5 +1,3 @@
-// client/src/components/services/DataService.jsx
-
 import axios from 'axios';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
@@ -7,10 +5,9 @@ export const SERVER_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000
 
 const api = axios.create({
   baseURL: API_BASE_URL,
-  withCredentials: true, // Crucial for sending httpOnly cookies
+  withCredentials: true, // sending httpOnly cookies
 });
 
-// Helper function remains the same
 export const getImageUrl = (path) => {
   if (!path) {
     return 'https://placehold.co/600x400/e2e8f0/475569?text=No+Image';
@@ -24,15 +21,12 @@ export const getImageUrl = (path) => {
 
 const handleError = (error, defaultMessage = 'An unknown error occurred.') => {
   console.error('API Call Failed:', error.response || error);
-  // Prioritize backend error message
   const message = error.response?.data?.message || error.message || defaultMessage;
-  // Include validation errors if present (from express-validator)
   const errors = error.response?.data?.errors;
   return { success: false, data: null, message, errors };
 };
 
 const DataService = {
-  // --- Health Check ---
   checkHealth: async () => {
     try {
       const response = await api.get('/api/health');
@@ -48,7 +42,6 @@ const DataService = {
       const response = await api.post('/api/auth/register', userData);
       return response.data;
     } catch (error) {
-      // Use handleError to standardize error response
       return handleError(error, 'Registration failed.');
     }
   },
@@ -58,7 +51,6 @@ const DataService = {
       const response = await api.post('/api/auth/login', credentials);
       return response.data;
     } catch (error) {
-      // Use specific message from backend if available
        return handleError(error, 'Login failed. Please check credentials.');
     }
   },
@@ -74,12 +66,10 @@ const DataService = {
 
   logout: async () => {
     try {
-      // Still attempt server logout, but don't throw error if it fails
       await api.get('/api/auth/logout');
       return { success: true };
     } catch (error) {
       console.warn('Server logout endpoint failed:', error.message);
-      // Proceed with client-side cleanup regardless
       return { success: true, message: "Server logout failed, cleared client session." };
     }
   },
@@ -87,14 +77,11 @@ const DataService = {
   getCurrentUser: async () => {
     try {
       const response = await api.get('/api/auth/me');
-      // Ensure the response structure is consistent
       if (response.data.success && response.data.user) {
           return { success: true, user: response.data.user };
       }
-      // If backend says success: false or user is missing
       return { success: false, message: response.data.message || 'Failed to get user data.' };
     } catch (error) {
-      // Handle network errors or 401 Unauthorized
       if (error.response?.status === 401) {
           return { success: false, message: 'Unauthorized. Please log in.' };
       }
@@ -114,7 +101,7 @@ const DataService = {
 uploadProfilePicture: async (file) => {
   try {
     console.log('Step 1: Requesting upload signature...');
-    // Step 1: Get upload signature from backend
+    // Get upload signature from backend
     const signatureResponse = await api.post('/api/upload-signatures', {
       folder: 'profiles'
     });
@@ -126,15 +113,13 @@ uploadProfilePicture: async (file) => {
     const { signature, timestamp, cloudName, apiKey, folder } = signatureResponse.data.data;
     console.log('Signature received:', { folder });
 
-    // Step 2: Upload directly to Cloudinary with signature
+    // Upload directly to Cloudinary with signature
     const formData = new FormData();
     formData.append('file', file);
     formData.append('api_key', apiKey);
     formData.append('signature', signature);
     formData.append('timestamp', timestamp);
     formData.append('folder', folder);
-    
-    // ✅ Don't send access_mode - images will be public but accessed via signed URLs
 
     console.log('Step 2: Uploading to Cloudinary...');
     const cloudinaryResponse = await fetch(
@@ -154,7 +139,6 @@ uploadProfilePicture: async (file) => {
     }
 
     console.log('Step 3: Confirming upload with backend...');
-    // Step 3: Notify backend of successful upload
     const response = await api.post('/api/users/profile/picture/confirm', {
       publicId: uploadedData.public_id,
       url: uploadedData.secure_url,
@@ -207,14 +191,7 @@ uploadProfilePicture: async (file) => {
   // --- Secure Image Retrieval ---
   getSecureImageUrl: async (publicId) => {
     try {
-      // --- START OF FIX ---
-      // DO NOT encode the publicId here. The server route /:public_id(*)
-      // is designed to capture the slashes as part of the string.
-      // Axios will handle encoding the full path safely.
       const response = await api.get(`/api/images/secure/${publicId}`);
-      // --- END OF FIX ---
-
-      // Ensure data format is consistent
       if (response.data.success && response.data.data?.url) {
         return { success: true, data: { url: response.data.data.url } };
       }
@@ -253,7 +230,7 @@ uploadProfilePicture: async (file) => {
   },
 
   // --- File Upload ---
-  uploadImage: async (file, category = 'general') => { // Added default category
+  uploadImage: async (file, category = 'general') => { 
     const formData = new FormData();
     formData.append('category', category);
     formData.append('image', file);
@@ -262,7 +239,6 @@ uploadProfilePicture: async (file) => {
       const response = await api.post('/api/upload/image', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      // Ensure data format is consistent
        if (response.data.success && response.data.data?.url && response.data.data?.id) {
           return { success: true, data: { url: response.data.data.url, id: response.data.data.id } };
        }
@@ -274,7 +250,6 @@ uploadProfilePicture: async (file) => {
 
   deleteImage: async (publicId) => {
     try {
-      // No need to encode here, backend controller handles decoding
       const response = await api.delete(`/api/upload/image/${publicId}`);
       return response.data;
     } catch (error) {
@@ -320,10 +295,10 @@ uploadProfilePicture: async (file) => {
   },
 
   // --- Bookings ---
-   createBooking: async (bookingFormData) => { // Expect FormData
+   createBooking: async (bookingFormData) => { 
     try {
       const response = await api.post('/api/bookings', bookingFormData, {
-          headers: { 'Content-Type': 'multipart/form-data' } // Ensure header is set
+          headers: { 'Content-Type': 'multipart/form-data' } 
       });
       return response.data;
     } catch (error) {
@@ -349,13 +324,11 @@ uploadProfilePicture: async (file) => {
     }
   },
 
-  // **MODIFIED:** Expect FormData for status updates to handle attachments and new fields
-  updateBookingStatus: async (id, formData) => { // Expect FormData directly
+  // updates to handle attachments and new fields
+  updateBookingStatus: async (id, formData) => { 
     try {
-      // The formData object already contains status, adminNotes, attachment (if any),
-      // paymentDueDuration, and paymentDueUnit (if applicable).
       const response = await api.put(`/api/bookings/${id}/status`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }, // Important for file uploads
+        headers: { 'Content-Type': 'multipart/form-data' }, 
       });
       return response.data;
     } catch (error) {
@@ -363,12 +336,11 @@ uploadProfilePicture: async (file) => {
     }
   },
 
-  // **MODIFIED:** Expect FormData for cancellation to handle attachments
-  cancelBooking: async (id, formData) => { // Expect FormData
+  // cancellation to handle attachments
+  cancelBooking: async (id, formData) => { 
     try {
-      // The formData object contains adminNotes and attachment (if any)
       const response = await api.patch(`/api/bookings/${id}/cancel`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }, // Important for file uploads
+        headers: { 'Content-Type': 'multipart/form-data' }, 
       });
       return response.data;
     } catch (error) {
@@ -377,7 +349,7 @@ uploadProfilePicture: async (file) => {
   },
 
 
-  addPaymentProof: async (bookingId, paymentData) => { // Expect FormData
+  addPaymentProof: async (bookingId, paymentData) => { 
     try {
         const response = await api.post(`/api/bookings/${bookingId}/add-payment`, paymentData, {
             headers: { 'Content-Type': 'multipart/form-data' },
@@ -426,9 +398,9 @@ uploadProfilePicture: async (file) => {
     }
   },
 
-  fetchAllReviews: async () => { // Renamed from fetchAllReviewsAdmin for clarity
+  fetchAllReviews: async () => { 
     try {
-      const response = await api.get('/api/reviews'); // Uses admin-protected route
+      const response = await api.get('/api/reviews'); 
       return response.data;
     } catch (error) {
       return handleError(error, 'Failed to fetch all reviews.');
@@ -454,10 +426,10 @@ uploadProfilePicture: async (file) => {
   },
 
   // --- Feedback ---
-  submitFeedback: async (feedbackData) => { // Expect FormData
+  submitFeedback: async (feedbackData) => { 
     try {
       const response = await api.post('/api/feedback', feedbackData, {
-          headers: { 'Content-Type': 'multipart/form-data' } // For potential image upload
+          headers: { 'Content-Type': 'multipart/form-data' } 
       });
       return response.data;
     } catch (error) {
@@ -483,9 +455,9 @@ uploadProfilePicture: async (file) => {
     }
   },
 
-  fetchAllFeedback: async () => { // Renamed for clarity
+  fetchAllFeedback: async () => { 
     try {
-      const response = await api.get('/api/feedback'); // Uses admin-protected route
+      const response = await api.get('/api/feedback'); 
       return response.data;
     } catch (error) {
       return handleError(error, 'Failed to fetch feedback.');
@@ -598,11 +570,10 @@ uploadProfilePicture: async (file) => {
       const response = await api.patch(`/api/cars/${id}/unarchive`);
       return response.data;
     } catch (error) {
-      return handleError(error, 'Failed to restore car.'); // Corrected message
+      return handleError(error, 'Failed to restore car.'); 
     }
   },
 
-  // --- NEW FUNCTION ADDED ---
   deleteCar: async (id) => {
     try {
       const response = await api.delete(`/api/cars/${id}`);
@@ -611,7 +582,6 @@ uploadProfilePicture: async (file) => {
       return handleError(error, 'Failed to delete car.');
     }
   },
-  // --- END NEW FUNCTION ---
 
   createTour: async (tourData) => {
     try {
@@ -645,11 +615,10 @@ uploadProfilePicture: async (file) => {
       const response = await api.patch(`/api/tours/${id}/unarchive`);
       return response.data;
     } catch (error) {
-      return handleError(error, 'Failed to restore tour.'); // Corrected message
+      return handleError(error, 'Failed to restore tour.'); 
     }
   },
   
-  // --- NEW FUNCTION ADDED ---
   deleteTour: async (id) => {
     try {
       const response = await api.delete(`/api/tours/${id}`);
@@ -658,9 +627,9 @@ uploadProfilePicture: async (file) => {
       return handleError(error, 'Failed to delete tour.');
     }
   },
-  // --- END NEW FUNCTION ---
+  
 
-  // --- NEW: Transport Service Management ---
+  // Transport Service Management ---
   fetchAllTransportAdmin: async (params = {}) => {
     try {
       const response = await api.get('/api/transport/admin/all', { params });
@@ -732,10 +701,9 @@ uploadProfilePicture: async (file) => {
       return handleError(error, 'Failed to delete transport service.');
     }
   },
-  // --- END: Transport Service Management ---
 
   // --- Messages (Admin/Employee) ---
-  getAllMessages: async (params = {}) => { // Use getAllMessages now
+  getAllMessages: async (params = {}) => { // 
     try {
       const response = await api.get('/api/messages', { params });
       return response.data;
@@ -744,7 +712,7 @@ uploadProfilePicture: async (file) => {
     }
   },
 
-   getMessageById: async (id) => { // Added function to fetch single message
+   getMessageById: async (id) => { 
     try {
       const response = await api.get(`/api/messages/${id}`);
       return response.data;
@@ -753,7 +721,7 @@ uploadProfilePicture: async (file) => {
     }
   },
 
-  // **MODIFIED:** Expect FormData for reply to handle attachments
+  // reply to handle attachments
   replyToMessage: async (messageId, replyText, attachmentFile) => {
     try {
         const formData = new FormData();
@@ -781,7 +749,7 @@ uploadProfilePicture: async (file) => {
     }
   },
 
-   deleteMessage: async (id) => { // Added delete message function
+   deleteMessage: async (id) => { 
     try {
       const response = await api.delete(`/api/messages/${id}`);
       return response.data;
@@ -830,7 +798,7 @@ uploadProfilePicture: async (file) => {
   },
 
   // --- FAQs ---
-  fetchAllFaqs: async () => { // Public fetch
+  fetchAllFaqs: async () => { 
     try {
       const response = await api.get('/api/faq');
       return response.data;
@@ -839,7 +807,7 @@ uploadProfilePicture: async (file) => {
     }
   },
 
-  fetchAllFaqsAdmin: async () => { // Admin fetch
+  fetchAllFaqsAdmin: async () => { 
     try {
       const response = await api.get('/api/faq/admin');
       return response.data;
@@ -876,7 +844,7 @@ uploadProfilePicture: async (file) => {
   },
 
   // --- Promotions ---
-  fetchAllPromotions: async () => { // Public fetch
+  fetchAllPromotions: async () => { 
     try {
       const response = await api.get('/api/promotions');
       return response.data;
@@ -885,7 +853,7 @@ uploadProfilePicture: async (file) => {
     }
   },
 
-  fetchAllPromotionsAdmin: async () => { // Admin fetch
+  fetchAllPromotionsAdmin: async () => { 
     try {
       const response = await api.get('/api/promotions/admin');
       return response.data;
@@ -921,6 +889,35 @@ uploadProfilePicture: async (file) => {
     }
   },
 
+  createRefundRequest: async (requestData) => {
+    try {
+      const response = await api.post('/api/refunds', requestData);
+      return response.data;
+    } catch (error) {
+      return handleError(error, 'Failed to submit refund request.');
+    }
+  },
+
+  fetchAllRefunds: async (params = {}) => {
+    try {
+      const response = await api.get('/api/refunds', { params });
+      return response.data;
+    } catch (error) {
+      return handleError(error, 'Failed to fetch refund requests.');
+    }
+  },
+
+  updateRefundStatus: async (id, formData) => { // Expects FormData
+    try {
+      const response = await api.put(`/api/refunds/${id}/status`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return response.data;
+    } catch (error) {
+      return handleError(error, 'Failed to update refund status.');
+    }
+  },
+  
    // --- Messages (Public/Contact Form) ---
   createMessage: async (messageData) => {
     try {

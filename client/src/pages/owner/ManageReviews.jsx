@@ -37,18 +37,27 @@ const ManageReviews = () => {
                                 <div className="flex items-start justify-between mb-3">
                                     <div className="flex items-center gap-3">
                                         <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
-                                            <User className="w-5 h-5 text-gray-500"/>
+                                            <User className="w-5 h-5 text-gray-500" />
                                         </div>
                                         <div>
-                                            <span className="font-bold text-gray-800">{review.user ? `${review.user.firstName} ${review.user.lastName}` : 'Deleted User'}</span>
+                                            <span className="font-bold text-gray-800">
+                                                {review.user ? `${review.user.firstName} ${review.user.lastName}` : 'Deleted User'}
+                                            </span>
                                             <div className="flex items-center">
                                                 {[...Array(5)].map((_, i) => (
-                                                    <Star key={i} className={`w-4 h-4 ${i < review.rating ? 'text-yellow-400 fill-current' : 'text-gray-300'}`} />
+                                                    <Star
+                                                        key={i}
+                                                        className={`w-4 h-4 ${i < review.rating ? 'text-yellow-400 fill-current' : 'text-gray-300'}`}
+                                                    />
                                                 ))}
                                             </div>
                                         </div>
                                     </div>
-                                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${review.isApproved ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                                    <span
+                                        className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                            review.isApproved ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                                        }`}
+                                    >
                                         {review.isApproved ? 'Approved' : 'Pending'}
                                     </span>
                                 </div>
@@ -60,11 +69,11 @@ const ManageReviews = () => {
                                 )}
                             </div>
                             <div className="bg-gray-50 p-3 border-t flex justify-end items-center gap-2">
-                                <button 
-                                    onClick={() => !review.isApproved && handleApprove(review._id)} 
+                                <button
+                                    onClick={() => !review.isApproved && handleApprove(review._id)}
                                     className={`flex items-center gap-1 px-3 py-1.5 text-white text-sm font-medium rounded transition ${
-                                        review.isApproved 
-                                            ? 'bg-green-300 cursor-not-allowed opacity-60' 
+                                        review.isApproved
+                                            ? 'bg-green-300 cursor-not-allowed opacity-60'
                                             : 'bg-green-500 hover:bg-green-600 cursor-pointer'
                                     }`}
                                     disabled={review.isApproved}
@@ -72,7 +81,10 @@ const ManageReviews = () => {
                                     <ThumbsUp className="w-4 h-4" />
                                     {review.isApproved ? 'Approved' : 'Approve'}
                                 </button>
-                                <button onClick={() => handleDelete(review._id)} className="flex items-center gap-1 px-3 py-1.5 bg-red-500 text-white text-sm font-medium rounded hover:bg-red-600 transition">
+                                <button
+                                    onClick={() => handleDelete(review._id)}
+                                    className="flex items-center gap-1 px-3 py-1.5 bg-red-500 text-white text-sm font-medium rounded hover:bg-red-600 transition"
+                                >
                                     <Trash2 className="w-4 h-4" />
                                     Delete
                                 </button>
@@ -81,8 +93,10 @@ const ManageReviews = () => {
                     ))}
                 </div>
             ) : (
-                <div className="text-center p-10 bg-white rounded-lg">
-                    <p className="text-gray-500">No reviews found.</p>
+                <div className="col-span-full text-center py-16">
+                    <User className="mx-auto h-12 w-12 text-gray-400" />
+                    <h3 className="mt-2 text-lg font-medium text-gray-200">No reviews found.</h3>
+                    <p className="mt-1 text-sm text-gray-400">Customer reviews will appear here once submitted.</p>
                 </div>
             )}
         </div>

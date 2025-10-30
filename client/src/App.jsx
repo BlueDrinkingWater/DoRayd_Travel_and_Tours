@@ -17,8 +17,8 @@ import Cars from './pages/Cars.jsx';
 import CarDetails from './pages/CarDetails.jsx';
 import Tours from './pages/Tours.jsx';
 import TourDetails from './pages/TourDetails.jsx';
-import Transport from './pages/Transport.jsx'; // <-- IMPORT Transport page
-import TransportDetails from './pages/TransportDetails.jsx'; // <-- IMPORT TransportDetails page
+import Transport from './pages/Transport.jsx'; 
+import TransportDetails from './pages/TransportDetails.jsx'; 
 import Contact from './pages/Contact.jsx';
 import NotFound from './pages/NotFound.jsx';
 import ForgotPassword from './pages/auth/ForgotPassword.jsx';
@@ -37,7 +37,7 @@ import CustomerDashboard from './pages/customer/CustomerDashboard.jsx';
 import AdminDashboard from './pages/owner/AdminDashboard.jsx';
 import ManageCars from './pages/owner/ManageCars.jsx';
 import ManageTours from './pages/owner/ManageTours.jsx';
-import ManageTransport from './pages/owner/ManageTransport.jsx'; // <-- IMPORT ManageTransport page
+import ManageTransport from './pages/owner/ManageTransport.jsx'; 
 import ManageBookings from './pages/owner/ManageBookings.jsx';
 import EmployeeManagement from './pages/owner/EmployeeManagement.jsx';
 import Reports from './pages/owner/Reports.jsx';
@@ -49,6 +49,8 @@ import CustomerManagement from './pages/owner/CustomerManagement.jsx';
 import ManageFaqs from './pages/owner/ManageFaqs.jsx';
 import ManagePromotions from './pages/owner/ManagePromotions.jsx';
 import ManageQRCode from './pages/owner/ManageQRCode.jsx';
+import RefundRequestPage from './pages/RefundRequestPage.jsx'; 
+import ManageRefunds from './pages/owner/ManageRefunds.jsx';
 
 // Employee Pages
 import EmployeeDashboard from './pages/employee/EmployeeDashboard.jsx';
@@ -118,8 +120,8 @@ return (
           <Route path="/cars/:id" element={<CarDetails />} />
           <Route path="/tours" element={<Tours />} />
           <Route path="/tours/:id" element={<TourDetails />} />
-          <Route path="/transport" element={<Transport />} /> {/* <-- ADDED Transport list route */}
-          <Route path="/transport/:id" element={<TransportDetails />} /> {/* <-- ADDED Transport details route */}
+          <Route path="/transport" element={<Transport />} /> {}
+          <Route path="/transport/:id" element={<TransportDetails />} /> {}
           <Route path="/contact" element={<Contact />} />
           <Route path="/feedback" element={<PublicFeedback />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -127,6 +129,7 @@ return (
           <Route path="/account-settings" element={<ProtectedRoute><AccountSettings /></ProtectedRoute>} />
           <Route path="/policies" element={<PolicyPage />} />
           <Route path="/login-privacy" element={<LoginPrivacyPage />} />
+          <Route path="/refund-request" element={<RefundRequestPage />} />
 
           <Route
             path="/my-bookings"
@@ -139,7 +142,7 @@ return (
             <Route path="dashboard" element={null} />
             <Route path="manage-cars" element={<ManageCars />} />
             <Route path="manage-tours" element={<ManageTours />} />
-            <Route path="manage-transport" element={<ManageTransport />} /> {/* <-- ADDED ManageTransport route */}
+            <Route path="manage-transport" element={<ManageTransport />} /> {}
             <Route path="manage-bookings" element={<ManageBookings />} />
             <Route path="employee-management" element={<EmployeeManagement />} />
             <Route path="reports" element={<Reports />} />
@@ -152,6 +155,7 @@ return (
             <Route path="manage-qr-code" element={<ManageQRCode />} />
             <Route path="customer-management" element={<CustomerManagement />} />
             <Route path="account-settings" element={<AccountSettings />} />
+            <Route path="manage-refunds" element={<ManageRefunds />} /> 
           </Route>
 
           {/* Employee Protected Routes */}
@@ -162,7 +166,7 @@ return (
              <Route path="messages" element={<Messages />} />
              <Route path="manage-cars" element={<ManageCars />} />
              <Route path="manage-tours" element={<ManageTours />} />
-             <Route path="manage-transport" element={<ManageTransport />} /> {/* <-- ADDED ManageTransport route */}
+             <Route path="manage-transport" element={<ManageTransport />} /> {}
              <Route path="reports" element={<Reports />} />
              <Route path="content-management" element={<ContentManagement />} />
              <Route path="manage-reviews" element={<ManageReviews />} />
@@ -172,6 +176,7 @@ return (
              <Route path="manage-qr-code" element={<ManageQRCode />} />
              <Route path="customer-management" element={<CustomerManagement />} />
              <Route path="account-settings" element={<AccountSettings />} />
+             <Route path="manage-refunds" element={<ManageRefunds />} />
           </Route>
 
           <Route path="/unauthorized" element={<div>Access Denied</div>} />

@@ -1,12 +1,9 @@
-// server/utils/emailServices.js
 import { Resend } from 'resend';
 import dotenv from 'dotenv';
 import fs from 'fs/promises';
 import axios from 'axios';
 
 dotenv.config();
-
-// --- UPDATE: Add your public image URL here ---
 const EMAIL_BACKGROUND_URL = 'https://res.cloudinary.com/dvzpybjjw/image/upload/v1760891076/dorayd/content/qdrqzwfxr9ukryxdtipp.jpg';
 
 /**
@@ -132,20 +129,18 @@ class EmailService {
     return { success: true, message: 'Booking confirmation email sent successfully' };
   }
 
-  // --- MODIFIED FUNCTION ---
   async sendStatusUpdate(booking) {
-    // Using switch for clarity
     switch (booking.status) {
       case 'confirmed':
         return this.sendBookingApproval(booking);
       case 'rejected':
         return this.sendBookingRejection(booking);
       case 'fully_paid':
-        return this.sendBookingFullyPaid(booking); // ADDED
+        return this.sendBookingFullyPaid(booking); 
       case 'completed':
-        return this.sendBookingCompleted(booking); // ADDED
+        return this.sendBookingCompleted(booking); 
       case 'cancelled':
-        return this.sendBookingCancellation(booking); // ADDED
+        return this.sendBookingCancellation(booking); 
       default:
         console.warn(`No email handler for status: ${booking.status}`);
         return;
@@ -238,7 +233,6 @@ class EmailService {
     return { success: true, message: 'Booking rejection email sent successfully' };
   }
 
-  // --- ADDED FUNCTION ---
   async sendBookingFullyPaid(booking) {
     const subject = `Payment Received: ${booking.bookingReference}`;
     const content = `
@@ -262,7 +256,6 @@ class EmailService {
     return { success: true, message: 'Booking fully paid email sent' };
   }
 
-  // --- ADDED FUNCTION ---
   async sendBookingCompleted(booking) {
     const subject = `Booking Completed: ${booking.bookingReference}`;
     const content = `
@@ -321,6 +314,66 @@ class EmailService {
     };
     await this.sendEmail(mailOptions);
     return { success: true, message: 'Booking cancellation email sent' };
+  }
+  async sendRefundStatusUpdate(refundRequest, note) {
+    let subject = '';
+    let content = '';
+
+    if (refundRequest.status === 'approved') {
+      subject = `Refund Request Approved: ${refundRequest.bookingReference}`;
+      content = `
+        <h1 style="color: #4CAF50;">Refund Request Approved</h1>
+        <p>Dear <strong>${refundRequest.submitterName}</strong>,</p>
+        <p>Your refund request for booking <strong>${refundRequest.bookingReference}</strong> has been approved.</p>
+        <p>The amount of <strong>${formatPrice(refundRequest.calculatedRefundAmount)}</strong> will be processed and sent to you shortly.</p>
+        <p><strong>Note from admin:</strong> ${note.note || 'Approved for processing.'}</p>
+      `;
+    } else if (refundRequest.status === 'declined') {
+      subject = `Refund Request Update: ${refundRequest.bookingReference}`;
+      content = `
+        <h1 style="color: #f44336;">Refund Request Declined</h1>
+        <p>Dear <strong>${refundRequest.submitterName}</strong>,</p>
+        <p>We regret to inform you that your refund request for booking <strong>${refundRequest.bookingReference}</strong> has been declined.</p>
+        <p><strong>Reason:</strong> ${note.note || 'Your request does not meet the refund policy criteria.'}</p>
+        <p>If you have any questions, please reply to this email.</p>
+      `;
+    } else if (refundRequest.status === 'confirmed') {
+      subject = `Refund Processed: ${refundRequest.bookingReference}`;
+      content = `
+        <h1 style="color: #007bff;">Refund Processed</h1>
+        <p>Dear <strong>${refundRequest.submitterName}</strong>,</p>
+        <p>Your refund of <strong>${formatPrice(refundRequest.calculatedRefundAmount)}</strong> for booking <strong>${refundRequest.bookingReference}</strong> has been processed and sent.</p>
+        <p>Please allow 3-5 business days for it to appear in your account.</p>
+        <p><strong>Note from admin:</strong> ${note.note || 'Refund has been sent.'}</p>
+      `;
+    } else {
+      
+      return;
+    }
+
+    let attachments = [];
+    if (note.attachment) {
+      try {
+        const response = await axios.get(note.attachment, { responseType: 'arraybuffer' });
+        attachments.push({
+          filename: note.attachmentOriginalName,
+          content: Buffer.from(response.data),
+        });
+      } catch (error) {
+        console.error("Failed to fetch refund attachment for email:", error);
+      }
+    }
+
+    const mailOptions = {
+      from: `DoRayd Travel & Tours <${this.fromAddress}>`,
+      to: refundRequest.submitterEmail,
+      subject: subject,
+      html: createEmailTemplate(subject, content),
+      attachments,
+    };
+    
+    await this.sendEmail(mailOptions);
+    return { success: true, message: 'Refund status email sent successfully' };
   }
 
   async sendContactReply(message, replyMessage, attachments = []) {

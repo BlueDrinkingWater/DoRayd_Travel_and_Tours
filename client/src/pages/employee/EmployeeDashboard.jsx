@@ -1,4 +1,3 @@
-// client/src/pages/employee/EmployeeDashboard.jsx
 import React, { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -10,10 +9,8 @@ import { useApi } from '../../hooks/useApi.jsx';
 import BookingCalendar from '../owner/BookingCalendar';
 import adBG from '../../assets/adBG.jpg';
 
-// Helper function to format currency
 const formatCurrency = (amount) => new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(amount);
 
-// StatCard component copied from AdminDashboard
 const StatCard = ({ title, value, icon: Icon, color }) => {
     const colorMap = {
         blue: 'from-blue-500 to-blue-600',
@@ -42,8 +39,6 @@ const EmployeeDashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const isDashboardPage = location.pathname === '/employee' || location.pathname === '/employee/dashboard';
-
-  // Fetch analytics data
   const { data: dashboardData, loading, error } = useApi(() => DataService.fetchDashboardAnalytics(), [], { immediate: isDashboardPage });
 
 
@@ -56,8 +51,9 @@ const EmployeeDashboard = () => {
     { name: 'Dashboard', href: '/employee/dashboard', icon: LayoutDashboard, permission: 'dashboard' },
     { name: 'Manage Cars', href: '/employee/manage-cars', icon: Car, permission: 'cars' },
     { name: 'Manage Tours', href: '/employee/manage-tours', icon: MapPin, permission: 'tours' },
-    { name: 'Manage Transport', href: '/employee/manage-transport', icon: Bus, permission: 'transport' }, // <-- ADDED
+    { name: 'Manage Transport', href: '/employee/manage-transport', icon: Bus, permission: 'transport' }, 
     { name: 'Manage Bookings', href: '/employee/manage-bookings', icon: Calendar, permission: 'bookings' },
+    { name: 'Manage Refunds', href: '/employee/manage-refunds', icon: DollarSign, permission: 'refunds' },
     { name: 'Manage Reviews', href: '/employee/manage-reviews', icon: Star, permission: 'reviews' },
     { name: 'Manage Feedback', href: '/employee/manage-feedback', icon: Heart, permission: 'feedback' },
     { name: 'Manage FAQs', href: '/employee/manage-faqs', icon: HelpCircle, permission: 'faqs' },
@@ -66,14 +62,12 @@ const EmployeeDashboard = () => {
     { name: 'Content Management', href: '/employee/content-management', icon: Settings, permission: 'content' },
     { name: 'Messages', href: '/employee/messages', icon: MessageSquare, permission: 'messages' },
     { name: 'Customer Management', href: '/employee/customer-management', icon: Users, permission: 'customers' },
-    { name: 'Account Settings', href: '/employee/account-settings', icon: Settings, permission: 'dashboard' }, // Added
+    { name: 'Account Settings', href: '/employee/account-settings', icon: Settings, permission: 'dashboard' }, 
   ];
 
   const hasPermission = (permission) => {
     if (!user || !user.permissions) return false;
-    // Allow dashboard access for all employees
     if (permission === 'dashboard') return true;
-    // Check if the user has at least 'read' access for the module
     return user.permissions.some(p => p.module === permission && ['read', 'write', 'full'].includes(p.access));
   };
 

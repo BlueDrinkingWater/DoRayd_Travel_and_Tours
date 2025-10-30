@@ -25,7 +25,7 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
     return `${prefix}-${timestamp}-${random}`;
   }, [isOpen]);
 
-  // Helper to get today's date in YYYY-MM-DD format
+  //get today's date in YYYY-MM-DD format
   const getTodayString = () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -215,11 +215,11 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
     
     if (item.downpaymentType === 'percentage') {
       const downpayment = (totalPrice * item.downpaymentValue) / 100;
-      return Math.max(0, downpayment); // Ensure non-negative
+      return Math.max(0, downpayment); // Ensure non-negative numbers
     }
     
     if (item.downpaymentType === 'fixed') {
-       return Math.max(0, item.downpaymentValue); // Ensure non-negative
+       return Math.max(0, item.downpaymentValue); // Ensure non-negative numbers
     }
     
     return 0;
@@ -309,7 +309,7 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
         Object.keys(formData).forEach(key => {
          if (key === 'dropoffCoordinates' && formData[key]) {
            bookingData.append(key, JSON.stringify(formData[key]));
-         } else if (key === 'pickupCoordinates' && formData[key]) { // ADDED
+         } else if (key === 'pickupCoordinates' && formData[key]) { 
            bookingData.append(key, JSON.stringify(formData[key]));
          } else if (key !== 'manualPaymentReference' && formData[key]) {
            bookingData.append(key, formData[key]);
@@ -479,7 +479,7 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
                           </div>
                       </div>
 
-                      {/* UPDATED SECTION: Delivery Method with Maps */}
+                      {/* Delivery Method with Maps */}
                       <div className="bg-gray-50 p-4 rounded-lg">
                         <h3 className="font-semibold mb-3">Delivery Method</h3>
                         <div className="flex gap-4 mb-4">
@@ -569,7 +569,7 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
                     </div>
                   )}
 
-                  {/* Special Requests (Common) */}
+                  {/* Special Requests  */}
                    <div className="bg-gray-50 p-4 rounded-lg">
                        <label htmlFor="specialRequests" className="block text-sm font-medium text-gray-700 mb-1">Special Requests (Optional)</label>
                        <textarea id="specialRequests" name="specialRequests" value={formData.specialRequests} onChange={(e) => setFormData({ ...formData, specialRequests: e.target.value })} rows="3" className="w-full p-2 border rounded-md" placeholder="Any special requirements or notes..."></textarea>

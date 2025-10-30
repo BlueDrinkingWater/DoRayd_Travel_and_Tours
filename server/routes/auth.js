@@ -12,19 +12,22 @@ import {
 } from '../controllers/authController.js';
 import { auth } from '../middleware/auth.js';
 import { body } from 'express-validator';
-import { strictLimiter } from '../middleware/rateLimiter.js'; // Import from the new file
+import { strictLimiter } from '../middleware/rateLimiter.js'; 
 
 const router = express.Router();
 
 router.post('/register',
     body('email').isEmail().normalizeEmail(),
     body('password').isLength({ min: 8 }),
-    body('firstName').trim().escape(),
-    body('lastName').trim().escape(),
+    body('firstName').trim().escape()
+      .notEmpty().withMessage('numbers is not allowed.')
+      .matches(/^[^0-9]*$/).withMessage('First Name: number is not allowed'),
+    body('lastName').trim().escape()
+      .notEmpty().withMessage('number is not allowed.')
+      .matches(/^[^0-9]*$/).withMessage('Last Name: number is not allowed'),
     register
 );
 
-// Apply strict limiter to login
 router.post('/login', strictLimiter,
     body('email').isEmail().normalizeEmail(),
     body('password').not().isEmpty(),
@@ -35,15 +38,11 @@ router.get('/logout', logout);
 
 router.get('/me', auth, getMe);
 
-// Social Login Routes
 router.post('/google-login', googleLogin);
 router.post('/facebook-login', facebookLogin);
 
-// Apply strict limiter to password reset routes
 router.post('/forgot-password', strictLimiter, forgotPassword);
 router.post('/reset-password/:token', strictLimiter, resetPassword);
-
-// Route for changing password
 router.put('/change-password', auth, changePassword);
 
 export default router;

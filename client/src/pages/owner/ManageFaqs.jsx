@@ -9,7 +9,9 @@ const ManageFaqs = () => {
 
     const [showModal, setShowModal] = useState(false);
     const [editingFaq, setEditingFaq] = useState(null);
-    const [formData, setFormData] = useState({ question: '', answer: '', keywords: '', category: 'General' });
+    
+    // --- MODIFICATION 1: Add isFeatured to initial state ---
+    const [formData, setFormData] = useState({ question: '', answer: '', keywords: '', category: 'General', isFeatured: false });
     const [submitting, setSubmitting] = useState(false);
 
     const handleOpenModal = (faq = null) => {
@@ -18,13 +20,15 @@ const ManageFaqs = () => {
             setFormData({ ...faq, keywords: faq.keywords.join(', ') });
         } else {
             setEditingFaq(null);
-            setFormData({ question: '', answer: '', keywords: '', category: 'General' });
+            // --- MODIFICATION 2: Reset isFeatured for new FAQs ---
+            setFormData({ question: '', answer: '', keywords: '', category: 'General', isFeatured: false });
         }
         setShowModal(true);
     };
 
     const handleSave = async () => {
         setSubmitting(true);
+        // Ensure isFeatured is included in the payload
         const payload = { ...formData, keywords: formData.keywords.split(',').map(k => k.trim()).filter(Boolean) };
         try {
             if (editingFaq) {
@@ -54,7 +58,7 @@ const ManageFaqs = () => {
 
     return (
         <div className="p-6">
-            {/* Header */}
+            {/* Header (No Changes) */}
             <div className="flex items-center justify-between mb-6 text-white">
                 <div>
                     <h1 className="text-3xl font-bold text-white">Manage FAQs</h1>
@@ -68,7 +72,7 @@ const ManageFaqs = () => {
                 </button>
             </div>
 
-            {/* Content */}
+            {/* Content (No Changes) */}
             {loading && <p className="text-center py-10 text-gray-300">Loading FAQs...</p>}
             {error && <p className="text-center py-10 text-red-500">{error.message}</p>}
 
@@ -116,7 +120,6 @@ const ManageFaqs = () => {
                         ))}
                     </div>
                 ) : (
-                    // 🔹 Empty State (same design as ManageFeedback)
                     <div className="col-span-full text-center py-16 bg-gray-50 rounded-lg shadow-inner">
                         <HelpCircle className="mx-auto h-12 w-12 text-gray-400" />
                         <h3 className="mt-2 text-lg font-medium text-gray-700">No FAQs Found</h3>
@@ -174,6 +177,22 @@ const ManageFaqs = () => {
                                 />
                                 <p className="text-xs text-gray-500 mt-1">Separate keywords with a comma.</p>
                             </div>
+
+                            {/* --- MODIFICATION 3: Add Checkbox --- */}
+                            <div className="flex items-center">
+                                <input
+                                    id="isFeatured"
+                                    type="checkbox"
+                                    checked={formData.isFeatured || false}
+                                    onChange={e => setFormData({ ...formData, isFeatured: e.target.checked })}
+                                    className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+                                />
+                                <label htmlFor="isFeatured" className="ml-2 block text-sm text-gray-900">
+                                    Feature as a predefined question in chatbot?
+                                </label>
+                            </div>
+                            {/* --- END ADDITION --- */}
+
                         </div>
 
                         <div className="mt-6 flex justify-end gap-3 border-t pt-4">

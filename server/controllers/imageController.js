@@ -9,7 +9,6 @@ export const getSecureImageUrl = async (req, res) => {
 
     const decodedPublicId = decodeURIComponent(public_id);
 
-    // Verify the resource exists
     let resource;
     try {
       resource = await cloudinary.api.resource(decodedPublicId, { 
@@ -27,15 +26,13 @@ export const getSecureImageUrl = async (req, res) => {
 
     console.log('Found resource:', decodedPublicId);
 
-    // Check if this is a sensitive image
     const sensitiveCategories = ['payment_proofs', 'profiles', 'attachments'];
     const isSensitive = sensitiveCategories.some(cat => decodedPublicId.includes(`dorayd/${cat}`));
     
     let url;
     
     if (isSensitive) {
-      // ✅ Generate signed URL with 1-hour expiration for sensitive images
-      const timestamp = Math.floor(Date.now() / 1000) + 3600; // Expires in 1 hour
+      const timestamp = Math.floor(Date.now() / 1000) + 3600; 
       
       url = cloudinary.url(decodedPublicId, {
         type: 'upload',
@@ -47,7 +44,6 @@ export const getSecureImageUrl = async (req, res) => {
       
       console.log('Generated signed URL with expiration:', new Date(timestamp * 1000).toISOString());
     } else {
-      // Regular public URL for non-sensitive images (feedback, etc.)
       url = resource.secure_url;
       console.log('Generated public URL');
     }

@@ -239,7 +239,7 @@ export const updateRefundStatus = async (req, res) => {
       if (notificationMessage) {
         await createNotification(
           io,
-          { userId: refundRequest.user._id.toString() }, 
+          { user: refundRequest.user._id.toString() },
           notificationMessage,
           { customer: '/my-bookings' } 
         );

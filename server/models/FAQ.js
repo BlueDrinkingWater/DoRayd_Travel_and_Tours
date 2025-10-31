@@ -24,6 +24,12 @@ const faqSchema = new mongoose.Schema({
     type: Boolean,
     default: true,
   },
+  // --- ADD THIS ---
+  isFeatured: {
+    type: Boolean,
+    default: false,
+  },
+  // --- END ADDITION ---
 }, {
   timestamps: true,
 });

@@ -24,14 +24,18 @@ export const getAllFAQsAdmin = async (req, res) => {
 // Create a new FAQ
 export const createFAQ = async (req, res) => {
   try {
-    const { question, answer, keywords, category } = req.body;
-    const newFAQ = new FAQ({ question, answer, keywords, category });
+    // --- THIS IS THE FIX ---
+    // Use req.body directly to include all fields (like isFeatured)
+    const newFAQ = new FAQ(req.body);
+    // --- END OF FIX ---
+    
     await newFAQ.save();
 
     // *** MODIFIED: Added check for req.user.role before logging ***
     if (req.user && req.user.role === 'employee') {
         const io = req.app.get('io');
-        const newLog = await createActivityLog(req.user.id, 'CREATE_FAQ', `FAQ: ${question}`, '/owner/manage-faqs');
+        // Use newFAQ.question to get the value from the saved object
+        const newLog = await createActivityLog(req.user.id, 'CREATE_FAQ', `FAQ: ${newFAQ.question}`, '/owner/manage-faqs');
         if (newLog) io.to('admin').emit('activity-log-update', newLog);
     }
     // *** END MODIFICATION ***

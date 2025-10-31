@@ -1,5 +1,4 @@
 import axios from 'axios';
-
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 export const SERVER_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -25,6 +24,7 @@ const handleError = (error, defaultMessage = 'An unknown error occurred.') => {
   const errors = error.response?.data?.errors;
   return { success: false, data: null, message, errors };
 };
+
 
 const DataService = {
   checkHealth: async () => {
@@ -907,7 +907,7 @@ uploadProfilePicture: async (file) => {
     }
   },
 
-  updateRefundStatus: async (id, formData) => { // Expects FormData
+  updateRefundStatus: async (id, formData) => { 
     try {
       const response = await api.put(`/api/refunds/${id}/status`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
@@ -917,7 +917,7 @@ uploadProfilePicture: async (file) => {
       return handleError(error, 'Failed to update refund status.');
     }
   },
-  
+
    // --- Messages (Public/Contact Form) ---
   createMessage: async (messageData) => {
     try {

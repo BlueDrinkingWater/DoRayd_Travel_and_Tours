@@ -1,8 +1,9 @@
 import Message from '../models/Message.js';
-// Corrected import: Import the default export (EmailService instance)
 import EmailService from '../utils/emailServices.js';
 import { createNotification } from './notificationController.js';
 import User from '../models/User.js';
+import axios from 'axios'; 
+import { v2 as cloudinary } from 'cloudinary';
 
 // Get all messages
 export const getAllMessages = async (req, res, next) => {
@@ -74,28 +75,21 @@ export const createMessage = async (req, res, next) => {
     const notificationData = {
       message: `New contact message from ${name} regarding "${subject}".`,
       type: 'message',
-      link: `/admin/messages` // Link to the messages page
+      link: `/admin/messages` 
     };
     for (const admin of admins) {
       await createNotification(admin._id, notificationData);
     }
 
-    // --- THIS IS THE FIX ---
-    // Get the io instance from the app
     const io = req.app.get('io');
     
-    // Create the payload for the real-time socket event
     const socketNotificationPayload = {
-        _id: newMessage._id, // Send the new message ID
+        _id: newMessage._id, 
         message: `New message from ${name}: "${subject}"`,
         link: '/admin/messages',
         timestamp: new Date()
     };
-    
-    // Emit the 'notification' event to all connected admins and employees
-    // This is what Messages.jsx is listening for
     io.to('admin').to('employee').emit('notification', socketNotificationPayload);
-    // --- END OF FIX ---
 
     res.status(201).json({ success: true, data: newMessage });
   } catch (error) {
@@ -118,12 +112,12 @@ export const replyToMessage = async (req, res, next) => {
       repliedBy: req.user.id
     };
 
-    // --- ADD THIS BLOCK to save attachment info ---
+    // --- FIX 1: SAVE ATTACHMENT ID TO DATABASE ---
+    // This must be done *before* message.save()
     if (req.file) {
-      replyData.attachment = req.file.path; // Save Cloudinary path
+      replyData.attachment = req.file.filename; // Save Cloudinary public_id (filename)
       replyData.attachmentOriginalName = req.file.originalname; // Save original name
     }
-    // --- END ADDED BLOCK ---
 
     message.replies.push(replyData);
     message.status = 'replied';
@@ -153,18 +147,38 @@ export const replyToMessage = async (req, res, next) => {
       `,
     };
 
-    // Add attachment to email if it exists
+    // --- FIX 2: ADD SECURE ATTACHMENT LOGIC HERE ---
+    // This must be done *after* emailData is defined
     if (req.file) {
-      emailData.attachments = [{
-        filename: req.file.originalname,
-        path: req.file.path // Use path for Cloudinary attachments (if nodemailer-storage-cloudinary is used) or local path
-      }];
-    }
+      try {
+        // Generate a fresh, signed URL from the public_id
+        const url = cloudinary.url(req.file.filename, {
+          resource_type: 'auto',
+          sign_url: true,
+          secure: true,
+        });
 
-    // Send the email using the imported EmailService instance
+        // Download the file content
+        const response = await axios.get(url, { 
+          responseType: 'arraybuffer' 
+        });
+        
+        // Attach the file content as a Buffer
+        emailData.attachments = [{
+          filename: req.file.originalname,
+          content: Buffer.from(response.data),
+        }];
+
+      } catch (error) {
+        console.error("Failed to download attachment for message reply:", error);
+        // Email will be sent without attachment
+      }
+    }
+    
+    // --- FIX 3: REMOVED THE OLD, BUGGY ATTACHMENT BLOCK ---
+
     await EmailService.sendEmail(emailData);
 
-    // Notify the user if they are registered
     if (message.user) {
       await createNotification(message.user, {
         message: `You have a new reply for your message: "${message.subject}".`,
@@ -229,7 +243,7 @@ export const updateMessageStatus = async (req, res, next) => {
       { new: true }
     );
     if (!message) {
-      return res.status(404).json({ success: false, message: 'Message not found' });
+      return res.status(4404).json({ success: false, message: 'Message not found' });
     }
     res.status(200).json({ success: true, data: message });
   } catch (error) {

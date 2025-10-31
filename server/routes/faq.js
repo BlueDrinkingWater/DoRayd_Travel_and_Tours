@@ -14,7 +14,7 @@ const router = express.Router();
 // Public route to get active FAQs
 router.get('/', getAllFAQs);
 
-// Admin & Employee (with permission) routes
+// Admin & Employee  routes
 router.get('/admin', auth, checkPermission('faqs', 'read'), getAllFAQsAdmin);
 router.post('/', auth, checkPermission('faqs', 'write'), createFAQ);
 router.put('/:id', auth, checkPermission('faqs', 'write'), updateFAQ);

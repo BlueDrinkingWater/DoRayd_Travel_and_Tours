@@ -2,9 +2,10 @@ import { Resend } from 'resend';
 import dotenv from 'dotenv';
 import fs from 'fs/promises';
 import axios from 'axios';
+import { v2 as cloudinary } from 'cloudinary';
 
 dotenv.config();
-const EMAIL_BACKGROUND_URL = 'https://res.cloudinary.com/dvzpybjjw/image/upload/v1760891076/dorayd/content/qdrqzwfxr9ukryxdtipp.jpg';
+const EMAIL_BACKGROUND_URL = 'https://res.cloudinary.com/dvzpybjjw/image/upload/s--MbQ4TCfM--/v1761882309/dorayd/payment_proofs/vd30hqzz0vnsvtq4fmhw.jpg';
 
 /**
  * Creates a full HTML email template with a background image.
@@ -168,7 +169,13 @@ class EmailService {
       const lastNote = booking.notes[booking.notes.length - 1];
       if (lastNote.attachment) {
         try {
-          const response = await axios.get(lastNote.attachment, { responseType: 'arraybuffer' });
+          const url = cloudinary.url(lastNote.attachment, {
+            resource_type: 'auto',
+            sign_url: true,
+            secure: true,
+          });
+
+          const response = await axios.get(url, { responseType: 'arraybuffer' });
           attachments.push({
             filename: lastNote.attachmentOriginalName,
             content: Buffer.from(response.data),
@@ -211,7 +218,13 @@ class EmailService {
       const lastNote = booking.notes[booking.notes.length - 1];
       if (lastNote.attachment) {
         try {
-          const response = await axios.get(lastNote.attachment, { responseType: 'arraybuffer' });
+          const url = cloudinary.url(lastNote.attachment, {
+            resource_type: 'auto',
+            sign_url: true,
+            secure: true,
+          });
+
+          const response = await axios.get(url, { responseType: 'arraybuffer' });
           attachments.push({
             filename: lastNote.attachmentOriginalName,
             content: Buffer.from(response.data),
@@ -294,7 +307,13 @@ class EmailService {
       const lastNote = booking.notes[booking.notes.length - 1];
       if (lastNote.attachment) {
         try {
-          const response = await axios.get(lastNote.attachment, { responseType: 'arraybuffer' });
+          const url = cloudinary.url(lastNote.attachment, {
+            resource_type: 'auto',
+            sign_url: true,
+            secure: true,
+          });
+
+          const response = await axios.get(url, { responseType: 'arraybuffer' });
           attachments.push({
             filename: lastNote.attachmentOriginalName,
             content: Buffer.from(response.data),
@@ -315,6 +334,7 @@ class EmailService {
     await this.sendEmail(mailOptions);
     return { success: true, message: 'Booking cancellation email sent' };
   }
+
   async sendRefundStatusUpdate(refundRequest, note) {
     let subject = '';
     let content = '';
@@ -325,7 +345,7 @@ class EmailService {
         <h1 style="color: #4CAF50;">Refund Request Approved</h1>
         <p>Dear <strong>${refundRequest.submitterName}</strong>,</p>
         <p>Your refund request for booking <strong>${refundRequest.bookingReference}</strong> has been approved.</p>
-        <p>The amount of <strong>${formatPrice(refundRequest.calculatedRefundAmount)}</strong> will be processed and sent to you shortly.</p>
+        <p>The amount of <strong>PHP ${refundRequest.calculatedRefundAmount.toLocaleString()}</strong> will be processed and sent to you shortly.</p>
         <p><strong>Note from admin:</strong> ${note.note || 'Approved for processing.'}</p>
       `;
     } else if (refundRequest.status === 'declined') {
@@ -342,7 +362,7 @@ class EmailService {
       content = `
         <h1 style="color: #007bff;">Refund Processed</h1>
         <p>Dear <strong>${refundRequest.submitterName}</strong>,</p>
-        <p>Your refund of <strong>${formatPrice(refundRequest.calculatedRefundAmount)}</strong> for booking <strong>${refundRequest.bookingReference}</strong> has been processed and sent.</p>
+        <p>Your refund of <strong>PHP ${refundRequest.calculatedRefundAmount.toLocaleString()}</strong> for booking <strong>${refundRequest.bookingReference}</strong> has been processed and sent.</p>
         <p>Please allow 3-5 business days for it to appear in your account.</p>
         <p><strong>Note from admin:</strong> ${note.note || 'Refund has been sent.'}</p>
       `;
@@ -354,7 +374,13 @@ class EmailService {
     let attachments = [];
     if (note.attachment) {
       try {
-        const response = await axios.get(note.attachment, { responseType: 'arraybuffer' });
+        const url = cloudinary.url(note.attachment, {
+          resource_type: 'auto',
+          sign_url: true,
+          secure: true,
+        });
+
+        const response = await axios.get(url, { responseType: 'arraybuffer' });
         attachments.push({
           filename: note.attachmentOriginalName,
           content: Buffer.from(response.data),

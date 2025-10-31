@@ -1,18 +1,14 @@
-// client/src/pages/TransportDetails.jsx
-
-import React, { useState, useEffect } from 'react'; // Keep useEffect
+import React, { useState, useEffect } from 'react'; 
 import { useParams, Link } from 'react-router-dom';
 import useApi from '../hooks/useApi';
 import DataService, { getImageUrl } from '../components/services/DataService';
 import BookingModal from '../components/BookingModal';
 import { toast } from 'react-toastify';
-import { ChevronLeft, ChevronRight, CheckCircle, Tag, Star } from 'lucide-react'; // Added Star
+import { ChevronLeft, ChevronRight, CheckCircle, Tag, Star } from 'lucide-react'; 
 import { formatPrice } from '../utils/helpers';
-import { useApi as useApiHook } from '../hooks/useApi'; // Renamed for clarity within ReviewsSection if needed
+import { useApi as useApiHook } from '../hooks/useApi'; 
 
-// --- Reviews Section Component (Copied from CarDetails.jsx) ---
 const ReviewsSection = ({ itemId }) => {
-  // Using 'useApiHook' to avoid naming conflict if this component was inside TransportDetails
   const { data: reviewsData, loading: reviewsLoading } = useApiHook(() => DataService.fetchReviewsForItem(itemId), [itemId]);
   const reviews = reviewsData?.data || [];
 
@@ -48,7 +44,7 @@ const ReviewsSection = ({ itemId }) => {
       ) : (
         <div className="bg-gray-50 p-8 rounded-lg text-center">
           <Star className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-          {/* Changed "this car" to "this service" */}
+          {}
           <p className="text-gray-600">No reviews yet. Be the first to review this service!</p>
         </div>
       )}
@@ -59,39 +55,23 @@ const ReviewsSection = ({ itemId }) => {
 const TransportDetails = () => {
   const { id } = useParams();
 
-  // --- Start of Fix ---
-  //
-  // This is the correct way to use your existing useApi hook:
-  // 1. Pass an apiFunction that checks if 'id' exists.
-  // 2. Pass [id] as the dependencies array (the 2nd argument).
-  // 3. Set immediate: true (in the 3rd argument).
-  //
-  // This tells useApi: "Run this function immediately, and re-run it *only* when 'id' changes."
-  // This avoids the infinite loop without modifying useApi.jsx.
-  //
   const {
     data: serviceData,
     loading,
     error: hookError,
   } = useApi(
     () => {
-      // Only execute the fetch if 'id' is available
       if (id) {
         return DataService.fetchTransportById(id);
       }
-      // Otherwise, return a resolved promise with null to avoid errors
       return Promise.resolve(null);
     },
-    [id], // Dependencies array
-    { immediate: true } // Options
+    [id], 
+    { immediate: true } 
   );
-
-  // We no longer need the separate useEffect to call fetchService.
-  // The hook handles fetching when 'id' changes.
 
   const service = serviceData?.data;
   const realError = hookError || (serviceData?.success === false ? serviceData.message : null);
-  // --- End of Fix ---
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -124,33 +104,28 @@ const TransportDetails = () => {
     );
   };
 
-  // --- Updated Loading/Error Checks ---
-  if (loading && !serviceData) { // Show loading only on the initial load (when serviceData is null)
+  if (loading && !serviceData) { 
     return <div className="container mx-auto p-4 pt-24 text-center">Loading...</div>;
   }
 
-  // Check for the realError
   if (realError) {
     return <div className="container mx-auto p-4 pt-24 text-red-500">Error: {String(realError)}</div>;
   }
   
-  // This check is still valid. If 'id' was bad, serviceData might be { success: false }
-  // or if 'id' was null, serviceData would be null, but loading would be false.
   if (!service) {
     return <div className="container mx-auto p-4 pt-24 text-center">Service not found.</div>;
   }
-  // ---
 
   const mainImage =
     service.images && service.images.length > 0
-      ? getImageUrl(service.images[currentImageIndex]) // Use getImageUrl
+      ? getImageUrl(service.images[currentImageIndex]) 
       : 'https://via.placeholder.com/800x600.png?text=No+Image+Available';
 
   return (
     <div className="container mx-auto p-4 pt-24">
       <div className="bg-white shadow-xl rounded-lg overflow-hidden">
         <div className="grid grid-cols-1 md:grid-cols-2">
-          {/* Image Gallery */}
+          {}
           <div className="relative">
             <img
               src={mainImage}
@@ -182,7 +157,7 @@ const TransportDetails = () => {
             </h1>
             <p className="text-xl text-gray-600 mb-4">{service.vehicleType}</p>
 
-            {/* --- ADDED PROMOTION INFO BOX --- */}
+            {}
             {service.promotion && (
                 <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
                     <div className="flex items-center gap-2">
@@ -202,7 +177,7 @@ const TransportDetails = () => {
                     </p>
                 </div>
             )}
-            {/* --- END OF ADDED BLOCK --- */}
+            {}
 
             <div className="mb-4">
               <h3 className="text-lg font-semibold mb-2">Capacity</h3>
@@ -244,7 +219,7 @@ const TransportDetails = () => {
           </div>
         </div>
 
-        {/* --- Pricing Table (MODIFIED) --- */}
+        {}
         {service.pricing && service.pricing.length > 0 && (
           <div className="p-6 border-t border-gray-200">
             <h2 className="text-2xl font-semibold text-gray-800 mb-4">
@@ -260,6 +235,11 @@ const TransportDetails = () => {
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Day Tour
                     </th>
+                    {}
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Duration
+                    </th>
+                    {}
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Overnight (OVN)
                     </th>
@@ -274,9 +254,8 @@ const TransportDetails = () => {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {service.pricing.map((priceRow, index) => {
                     
-                    {/* --- ADDED PRICE CALCULATION LOGIC --- */}
+                    {}
                     const getDiscounted = (originalPrice) => {
-                      // Only apply PERCENTAGE discounts to the price list
                       if (!service.promotion || service.promotion.discountType !== 'percentage' || !originalPrice) {
                         return { price: originalPrice, original: null };
                       }
@@ -289,7 +268,7 @@ const TransportDetails = () => {
                     const ovn = getDiscounted(priceRow.ovnPrice);
                     const threeDay = getDiscounted(priceRow.threeDayTwoNightPrice);
                     const dropPick = getDiscounted(priceRow.dropAndPickPrice);
-                    {/* --- END OF LOGIC --- */}
+                    {}
                     
                     return (
                       <tr key={index} className="hover:bg-gray-50">
@@ -303,34 +282,43 @@ const TransportDetails = () => {
                             </div>
                           )}
                         </td>
+                        
+                        {}
                         <td className="px-4 py-3 whitespace-nowrap">
-                          {/* --- MODIFIED TO SHOW DISCOUNT --- */}
+                          {}
                           {dayTour.original && (
                             <span className="text-xs text-red-500 line-through">{formatPrice(dayTour.original)}</span>
                           )}
                           <div>{formatPrice(dayTour.price)}</div>
+                          {}
+                        </td>
+
+                        {}
+                        <td className="px-4 py-3 whitespace-nowrap">
                           {priceRow.dayTourTime && (
-                            <div className="text-xs text-gray-500">
-                              ({priceRow.dayTourTime} hrs)
+                            <div className="text-sm text-gray-700">
+                              {priceRow.dayTourTime} hrs
                             </div>
                           )}
                         </td>
+                        {}
+
                         <td className="px-4 py-3 whitespace-nowrap">
-                          {/* --- MODIFIED TO SHOW DISCOUNT --- */}
+                          {}
                           {ovn.original && (
                             <span className="text-xs text-red-500 line-through">{formatPrice(ovn.original)}</span>
                           )}
                           <div>{formatPrice(ovn.price)}</div>
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
-                          {/* --- MODIFIED TO SHOW DISCOUNT --- */}
+                          {}
                           {threeDay.original && (
                             <span className="text-xs text-red-500 line-through">{formatPrice(threeDay.original)}</span>
                           )}
                           <div>{formatPrice(threeDay.price)}</div>
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap"> {/* <-- FIX 1: was whitespace-nowdwrap */}
-                          {/* --- MODIFIED TO SHOW DISCOUNT --- */}
+                        <td className="px-4 py-3 whitespace-nowrap"> {}
+                          {}
                           {dropPick.original && (
                             <span className="text-xs text-red-500 line-through">{formatPrice(dropPick.original)}</span>
                           )}
@@ -349,15 +337,15 @@ const TransportDetails = () => {
             <p className="text-xs text-gray-500 mt-1">
               *Prices are indicative and subject to final quote upon booking
               request.
-            </p> {/* <-- FIX 2: was </WELCOME> */}
+            </p> {}
           </div>
         )}
 
-        {/* --- ADDED REVIEWS SECTION --- */}
+        {}
         <div className="p-6 border-t border-gray-200">
           <ReviewsSection itemId={id} />
         </div>
-        {/* --- END OF ADDED BLOCK --- */}
+        {}
 
       </div>
 
@@ -365,7 +353,7 @@ const TransportDetails = () => {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSubmit={handleBookingSubmit}
-        item={service} // 'service' here includes the 'promotion' object
+        item={service} 
         itemType="transport"
       />
     </div>

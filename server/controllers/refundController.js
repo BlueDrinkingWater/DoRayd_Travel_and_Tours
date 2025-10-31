@@ -182,7 +182,7 @@ export const updateRefundStatus = async (req, res) => {
     };
 
     if (req.file) {
-      newNote.attachment = req.file.path; 
+      newNote.attachment = req.file.filename; 
       newNote.attachmentOriginalName = req.file.originalname;
     }
     refundRequest.notes.push(newNote);

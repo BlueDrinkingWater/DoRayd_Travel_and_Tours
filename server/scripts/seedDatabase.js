@@ -28,6 +28,7 @@ const seedDatabase = async () => {
     await Booking.deleteMany();
 
     console.log('Data Cleared...');
+    process.exit(); // <-- This line stops the script here
 
     // Create Users
     const users = await User.create([

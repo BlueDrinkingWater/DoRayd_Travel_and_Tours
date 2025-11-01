@@ -2,34 +2,42 @@ import { v2 as cloudinary } from 'cloudinary';
 import { CloudinaryStorage } from 'multer-storage-cloudinary';
 import multer from 'multer';
 
-// Configure Cloudinary
+// 🔹 1. Configure Cloudinary with environment variables
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Function to create a Cloudinary storage engine for a specific folder
+// 🔹 2. Dynamic storage configuration generator
 const createStorage = (folder) => {
-  // CRITICAL: These folders contain sensitive data and must be authenticated.
   const isSensitive = ['payment_proofs', 'profiles', 'attachments'].includes(folder);
 
-  return new CloudinaryStorage({
-    cloudinary: cloudinary,
-    params: {
-      folder: `dorayd/${folder}`, // All uploads will go into a 'dorayd' folder on Cloudinary
-      allowed_formats: ['jpg', 'png', 'jpeg', 'webp', 'pdf', 'txt'],
-      transformation: [{ width: 1024, height: 1024, crop: 'limit' }], // Resize large images
+  // 🧩 Detect if this folder deals with "raw" files (non-images)
+  const isRawFolder = folder === 'attachments';
 
-      // Apply authenticated access for sensitive folders, public for all others
-      // This sets the appropriate 'type' ('authenticated' or 'upload') during upload
+  return new CloudinaryStorage({
+    cloudinary,
+    params: {
+      folder: `dorayd/${folder}`,
+      // ✅ Automatically choose proper resource type
+      resource_type: isRawFolder ? 'raw' : 'image',
+
+      // ✅ Allowed file formats
+      allowed_formats: ['jpg', 'png', 'jpeg', 'webp', 'pdf', 'txt', 'doc', 'docx'],
+
+      // ✅ Resize large images (images only)
+      transformation: !isRawFolder
+        ? [{ width: 1024, height: 1024, crop: 'limit' }]
+        : undefined,
+
+      // ✅ Keep sensitive files private
       access_mode: isSensitive ? 'authenticated' : 'public',
-      // resource_type: 'auto' // Let Cloudinary detect file type (image, raw for pdf/txt)
     },
   });
 };
 
-// Generic file filter for images
+// 🔹 3. File filters (only apply to image uploads)
 const imageFileFilter = (req, file, cb) => {
   if (file.mimetype.startsWith('image/')) {
     cb(null, true);
@@ -38,37 +46,66 @@ const imageFileFilter = (req, file, cb) => {
   }
 };
 
-// Uploader for Payment Proofs (secured via createStorage)
+// 🔹 4. Uploaders by purpose
+
+// Payment proof uploader (images only, private)
 export const upload = multer({
   storage: createStorage('payment_proofs'),
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB limit
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
   fileFilter: imageFileFilter,
 });
 
-// Uploader for Feedback Images (remains public via createStorage)
+// Feedback images (public)
 export const uploadFeedback = multer({
   storage: createStorage('feedback'),
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB limit
+  limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: imageFileFilter,
 });
 
-// Uploader for Email Attachments (secured via createStorage)
+// Attachments (PDF, DOCX, etc. — private)
 export const uploadAttachment = multer({
   storage: createStorage('attachments'),
-  limits: { fileSize: 15 * 1024 * 1024 }, // 15 MB limit
-  // No file filter here to allow PDF, TXT etc.
+  limits: { fileSize: 15 * 1024 * 1024 },
+  // ❌ no fileFilter here (we allow PDFs, DOCXs, etc.)
 });
 
-// Uploader for Profile Pictures (secured via createStorage)
+// Profile pictures (private images)
 export const uploadProfile = multer({
   storage: createStorage('profiles'),
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: imageFileFilter,
 });
 
-// Uploader for general, car, tour, transport images (public via createStorage)
-export const uploadGeneralImage = multer({ storage: createStorage('general'), limits: { fileSize: 10 * 1024 * 1024 }, fileFilter: imageFileFilter });
-export const uploadCarImage = multer({ storage: createStorage('cars'), limits: { fileSize: 10 * 1024 * 1024 }, fileFilter: imageFileFilter });
-export const uploadTourImage = multer({ storage: createStorage('tours'), limits: { fileSize: 10 * 1024 * 1024 }, fileFilter: imageFileFilter });
-export const uploadTransportImage = multer({ storage: createStorage('transport'), limits: { fileSize: 10 * 1024 * 1024 }, fileFilter: imageFileFilter });
-export const uploadQRCodeImage = multer({ storage: createStorage('qrcodes'), limits: { fileSize: 5 * 1024 * 1024 }, fileFilter: imageFileFilter });
+// General purpose image uploads
+export const uploadGeneralImage = multer({
+  storage: createStorage('general'),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: imageFileFilter,
+});
+
+// Cars, Tours, Transport, QR Codes
+export const uploadCarImage = multer({
+  storage: createStorage('cars'),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: imageFileFilter,
+});
+
+export const uploadTourImage = multer({
+  storage: createStorage('tours'),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: imageFileFilter,
+});
+
+export const uploadTransportImage = multer({
+  storage: createStorage('transport'),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: imageFileFilter,
+});
+
+export const uploadQRCodeImage = multer({
+  storage: createStorage('qrcodes'),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: imageFileFilter,
+});
+
+export default cloudinary;

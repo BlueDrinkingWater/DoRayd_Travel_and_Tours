@@ -9,10 +9,14 @@ export const getSecureImageUrl = async (req, res) => {
 
     const decodedPublicId = decodeURIComponent(public_id);
 
+    // ✅ FIX: Detect if this is an attachment (raw file) or image
+    const isAttachment = decodedPublicId.includes('dorayd/attachments');
+    const resourceType = isAttachment ? 'raw' : 'image';
+
     let resource;
     try {
-      resource = await cloudinary.api.resource(decodedPublicId, { 
-        resource_type: 'image',
+      resource = await cloudinary.api.resource(decodedPublicId, {
+        resource_type: resourceType,  // ✅ FIXED: Use correct resource type
         type: 'upload'
       });
     } catch (error) {
@@ -20,28 +24,28 @@ export const getSecureImageUrl = async (req, res) => {
       return res.status(404).json({
         success: false,
         data: null,
-        message: 'Image not found on Cloudinary.',
+        message: 'Resource not found on Cloudinary.',
       });
     }
 
-    console.log('Found resource:', decodedPublicId);
+    console.log('Found resource:', decodedPublicId, 'Type:', resourceType);
 
     const sensitiveCategories = ['payment_proofs', 'profiles', 'attachments'];
     const isSensitive = sensitiveCategories.some(cat => decodedPublicId.includes(`dorayd/${cat}`));
-    
+   
     let url;
-    
+   
     if (isSensitive) {
-      const timestamp = Math.floor(Date.now() / 1000) + 3600; 
-      
+      const timestamp = Math.floor(Date.now() / 1000) + 3600;
+     
       url = cloudinary.url(decodedPublicId, {
         type: 'upload',
-        resource_type: 'image',
+        resource_type: resourceType,  // ✅ FIXED: Use correct resource type for URL generation
         secure: true,
         sign_url: true,
         expires_at: timestamp,
       });
-      
+     
       console.log('Generated signed URL with expiration:', new Date(timestamp * 1000).toISOString());
     } else {
       url = resource.secure_url;
@@ -51,6 +55,6 @@ export const getSecureImageUrl = async (req, res) => {
     return res.json({ success: true, data: { url } });
   } catch (error) {
     console.error('Secure Image Retrieval Error:', error);
-    return res.status(500).json({ success: false, message: 'Failed to securely retrieve image.' });
+    return res.status(500).json({ success: false, message: 'Failed to securely retrieve resource.' });
   }
 };

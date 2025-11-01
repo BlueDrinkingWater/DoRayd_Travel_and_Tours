@@ -7,12 +7,6 @@ import { v2 as cloudinary } from 'cloudinary';
 dotenv.config();
 const EMAIL_BACKGROUND_URL = 'https://res.cloudinary.com/dvzpybjjw/image/upload/s--MbQ4TCfM--/v1761882309/dorayd/payment_proofs/vd30hqzz0vnsvtq4fmhw.jpg';
 
-/**
- * Creates a full HTML email template with a background image.
- * @param {string} subject - The subject of the email.
- * @param {string} content - The HTML content for the body of the email.
- * @returns {string} - The full HTML for the email.
- */
 const createEmailTemplate = (subject, content) => {
   return `
     <!DOCTYPE html>
@@ -63,6 +57,56 @@ const createEmailTemplate = (subject, content) => {
   `;
 };
 
+/**
+ * ✅ FIXED: Helper function to fetch attachment from Cloudinary
+ * All attachments are stored as 'raw' resource type
+ */
+async function fetchCloudinaryAttachment(publicId, filename) {
+  try {
+    // Step 1: Verify the file exists on Cloudinary
+    console.log(`🔍 Checking if attachment exists: ${publicId}`);
+    await cloudinary.api.resource(publicId, { 
+      resource_type: 'raw',  // ✅ Always 'raw' for attachments
+      type: 'upload'
+    });
+    console.log(`✅ Attachment found: ${publicId}`);
+
+    // Step 2: Generate signed URL
+    const url = cloudinary.url(publicId, {
+      resource_type: 'raw',  // ✅ Always 'raw' for attachments
+      sign_url: true,
+      secure: true,
+      type: 'upload'
+    });
+
+    console.log(`📥 Downloading attachment from: ${url}`);
+
+    // Step 3: Download the file
+    const response = await axios.get(url, { 
+      responseType: 'arraybuffer',
+      timeout: 30000  // 30 second timeout
+    });
+    
+    console.log(`✅ Downloaded ${filename} (${response.data.length} bytes)`);
+
+    return {
+      filename: filename,
+      content: Buffer.from(response.data).toString('base64'),
+    };
+  } catch (error) {
+    if (error.response) {
+      console.error(`❌ Failed to fetch attachment: ${publicId}`, {
+        status: error.response.status,
+        statusText: error.response.statusText,
+        cloudinaryError: error.response.headers['x-cld-error']
+      });
+    } else {
+      console.error(`❌ Failed to fetch attachment: ${publicId}`, error.message);
+    }
+    return null;
+  }
+}
+
 
 class EmailService {
   constructor() {
@@ -84,6 +128,11 @@ class EmailService {
       throw new Error(errorMessage);
     }
     try {
+      if (mailOptions.attachments && mailOptions.attachments.length > 0) {
+        console.log(`📎 Sending ${mailOptions.attachments.length} attachment(s):`, 
+          mailOptions.attachments.map(a => a.filename));
+      }
+      
       await this.resend.emails.send(mailOptions);
       console.log('✅ Email sent successfully to:', mailOptions.to);
     } catch (error) {
@@ -168,21 +217,8 @@ class EmailService {
     if (booking.notes && booking.notes.length > 0) {
       const lastNote = booking.notes[booking.notes.length - 1];
       if (lastNote.attachment) {
-        try {
-          const url = cloudinary.url(lastNote.attachment, {
-            resource_type: 'auto',
-            sign_url: true,
-            secure: true,
-          });
-
-          const response = await axios.get(url, { responseType: 'arraybuffer' });
-          attachments.push({
-            filename: lastNote.attachmentOriginalName,
-            content: Buffer.from(response.data),
-          });
-        } catch (error) {
-          console.error("Failed to fetch attachment for email:", error);
-        }
+        const attachment = await fetchCloudinaryAttachment(lastNote.attachment, lastNote.attachmentOriginalName);
+        if (attachment) attachments.push(attachment);
       }
     }
 
@@ -217,21 +253,8 @@ class EmailService {
     if (booking.notes && booking.notes.length > 0) {
       const lastNote = booking.notes[booking.notes.length - 1];
       if (lastNote.attachment) {
-        try {
-          const url = cloudinary.url(lastNote.attachment, {
-            resource_type: 'auto',
-            sign_url: true,
-            secure: true,
-          });
-
-          const response = await axios.get(url, { responseType: 'arraybuffer' });
-          attachments.push({
-            filename: lastNote.attachmentOriginalName,
-            content: Buffer.from(response.data),
-          });
-        } catch (error) {
-          console.error("Failed to fetch attachment for email:", error);
-        }
+        const attachment = await fetchCloudinaryAttachment(lastNote.attachment, lastNote.attachmentOriginalName);
+        if (attachment) attachments.push(attachment);
       }
     }
 
@@ -306,21 +329,8 @@ class EmailService {
     if (booking.notes && booking.notes.length > 0) {
       const lastNote = booking.notes[booking.notes.length - 1];
       if (lastNote.attachment) {
-        try {
-          const url = cloudinary.url(lastNote.attachment, {
-            resource_type: 'auto',
-            sign_url: true,
-            secure: true,
-          });
-
-          const response = await axios.get(url, { responseType: 'arraybuffer' });
-          attachments.push({
-            filename: lastNote.attachmentOriginalName,
-            content: Buffer.from(response.data),
-          });
-        } catch (error) {
-          console.error("Failed to fetch attachment for email:", error);
-        }
+        const attachment = await fetchCloudinaryAttachment(lastNote.attachment, lastNote.attachmentOriginalName);
+        if (attachment) attachments.push(attachment);
       }
     }
     
@@ -332,7 +342,7 @@ class EmailService {
       attachments,
     };
     await this.sendEmail(mailOptions);
-    return { success: true, message: 'Booking cancellation email sent' };
+    return { success: true, message: 'Booking cancellation email sent successfully' };
   }
 
   async sendRefundStatusUpdate(refundRequest, note) {
@@ -367,27 +377,13 @@ class EmailService {
         <p><strong>Note from admin:</strong> ${note.note || 'Refund has been sent.'}</p>
       `;
     } else {
-      
       return;
     }
 
     let attachments = [];
     if (note.attachment) {
-      try {
-        const url = cloudinary.url(note.attachment, {
-          resource_type: 'auto',
-          sign_url: true,
-          secure: true,
-        });
-
-        const response = await axios.get(url, { responseType: 'arraybuffer' });
-        attachments.push({
-          filename: note.attachmentOriginalName,
-          content: Buffer.from(response.data),
-        });
-      } catch (error) {
-        console.error("Failed to fetch refund attachment for email:", error);
-      }
+      const attachment = await fetchCloudinaryAttachment(note.attachment, note.attachmentOriginalName);
+      if (attachment) attachments.push(attachment);
     }
 
     const mailOptions = {
@@ -420,7 +416,7 @@ class EmailService {
       attachments: await Promise.all(
         attachments.map(async (file) => ({
           filename: file.filename,
-          content: await fs.readFile(file.path),
+          content: (await fs.readFile(file.path)).toString('base64'),
         }))
       ),
     };

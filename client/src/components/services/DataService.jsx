@@ -722,14 +722,8 @@ uploadProfilePicture: async (file) => {
   },
 
   // reply to handle attachments
-  replyToMessage: async (messageId, replyText, attachmentFile) => {
+  replyToMessage: async (messageId, formData) => { 
     try {
-        const formData = new FormData();
-        formData.append('replyMessage', replyText);
-        if (attachmentFile) {
-            formData.append('attachment', attachmentFile);
-        }
-
         const response = await api.post(`/api/messages/${messageId}/reply`, formData, {
             headers: { 'Content-Type': 'multipart/form-data' }
         });

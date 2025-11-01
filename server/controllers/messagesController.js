@@ -70,26 +70,20 @@ export const createMessage = async (req, res, next) => {
 
     const newMessage = await Message.create(newMessageData);
 
-    // Notify all admins (database notification)
-    const admins = await User.find({ role: 'admin' });
-    const notificationData = {
-      message: `New contact message from ${name} regarding "${subject}".`,
-      type: 'message',
-      link: `/admin/messages` 
-    };
-    for (const admin of admins) {
-      await createNotification(admin._id, notificationData);
-    }
-
+    // --- FIX: Use createNotification helper for correct, role-based links ---
     const io = req.app.get('io');
-    
-    const socketNotificationPayload = {
-        _id: newMessage._id, 
-        message: `New message from ${name}: "${subject}"`,
-        link: '/admin/messages',
-        timestamp: new Date()
-    };
-    io.to('admin').to('employee').emit('notification', socketNotificationPayload);
+    if (io) {
+      const notificationMessage = `New contact message from ${name} regarding "${subject}".`;
+      await createNotification(
+        io,
+        // Target admins and employees with 'messages' permission
+        { roles: ['admin', 'employee'], module: 'messages' }, 
+        notificationMessage,
+        // Provide correct links for each role
+        { admin: '/owner/messages', employee: '/employee/messages' } 
+      );
+    }
+    // --- END OF FIX ---
 
     res.status(201).json({ success: true, data: newMessage });
   } catch (error) {
@@ -112,7 +106,6 @@ export const replyToMessage = async (req, res, next) => {
       repliedBy: req.user.id
     };
 
-    // --- FIX 1: SAVE ATTACHMENT ID TO DATABASE ---
     // This must be done *before* message.save()
     if (req.file) {
       replyData.attachment = req.file.filename; // Save Cloudinary public_id (filename)
@@ -147,15 +140,14 @@ export const replyToMessage = async (req, res, next) => {
       `,
     };
 
-    // --- FIX 2: ADD SECURE ATTACHMENT LOGIC HERE ---
-    // This must be done *after* emailData is defined
+    // --- FIX: Correctly download RAW files (PDF, TXT, etc.) for email attachment ---
     if (req.file) {
       try {
-        // Generate a fresh, signed URL from the public_id
         const url = cloudinary.url(req.file.filename, {
-          resource_type: 'auto',
+          resource_type: 'raw',   // <-- FIX 1: Use 'raw' for non-image/video files
           sign_url: true,
           secure: true,
+          type: 'upload' 
         });
 
         // Download the file content
@@ -163,27 +155,24 @@ export const replyToMessage = async (req, res, next) => {
           responseType: 'arraybuffer' 
         });
         
-        // Attach the file content as a Buffer
         emailData.attachments = [{
           filename: req.file.originalname,
-          content: Buffer.from(response.data),
+          content: Buffer.from(response.data).toString('base64'), // <-- FIX 2: Convert buffer to base64
         }];
 
       } catch (error) {
         console.error("Failed to download attachment for message reply:", error);
-        // Email will be sent without attachment
       }
     }
+    // --- END OF FIX ---
     
-    // --- FIX 3: REMOVED THE OLD, BUGGY ATTACHMENT BLOCK ---
-
     await EmailService.sendEmail(emailData);
 
     if (message.user) {
       await createNotification(message.user, {
         message: `You have a new reply for your message: "${message.subject}".`,
         type: 'message',
-        link: `/my-bookings?tab=feedback` // Link to their dashboard
+        link: `/my-bookings?tab=feedback` 
       });
     }
 

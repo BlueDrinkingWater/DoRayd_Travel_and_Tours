@@ -70,8 +70,8 @@ const seedDatabase = async () => {
         position: 'Booking Manager',
         isActive: true,
         permissions: [
-          { module: 'Bookings', canRead: true, canWrite: true },
-          { module: 'Messages', canRead: true, canWrite: false },
+          { module: 'bookings', canRead: true, canWrite: true },
+          { module: 'messages', canRead: true, canWrite: false },
         ],
       },
       {

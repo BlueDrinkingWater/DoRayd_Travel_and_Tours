@@ -116,8 +116,12 @@ export const replyToMessage = async (req, res, next) => {
     message.status = 'replied';
     await message.save();
 
+    // --- FIX: Get the 'from' address from environment variables ---
+    const fromEmail = process.env.EMAIL_FROM || 'onboarding@resend.dev';
+
     // Prepare email
     const emailData = {
+      from: `DoRayd Travel & Tours <${fromEmail}>`, // <-- FIX: ADDED THIS LINE
       to: message.email,
       subject: `RE: ${message.subject}`,
       html: `

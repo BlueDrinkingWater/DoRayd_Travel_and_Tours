@@ -204,6 +204,7 @@ export const updateRefundStatus = async (req, res) => {
     }
     // 5. Send notification email
     try {
+      // --- THIS IS THE CORRECT WAY ---
       await EmailService.sendRefundStatusUpdate(refundRequest, newNote);
     } catch (emailError) {
       console.error(`Failed to send refund status email for ${refundRequest.bookingReference}:`, emailError.message);

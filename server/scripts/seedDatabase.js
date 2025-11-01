@@ -31,7 +31,7 @@ const seedDatabase = async () => {
   try {
     await connectDB();
 
-    // Clear existing data
+    // Clear existing data from all models
     await User.deleteMany();
     await Car.deleteMany();
     await Tour.deleteMany();
@@ -49,7 +49,7 @@ const seedDatabase = async () => {
     
     console.log('All Data Cleared...');
 
-    // This line is now commented out so the script will continue.
+    // This is commented out to allow the script to continue.
     // process.exit(); 
 
     // Create Users
@@ -70,7 +70,7 @@ const seedDatabase = async () => {
         role: 'employee',
         position: 'Booking Manager',
         isActive: true,
-        // FIX: Changed to match the User.js schema
+        // FIX: Matches User.js schema (lowercase enum, 'access' field)
         permissions: [
           { module: 'bookings', access: 'full' },
           { module: 'messages', access: 'read' }
@@ -92,14 +92,14 @@ const seedDatabase = async () => {
     await Car.create([
       {
         brand: 'Toyota', model: 'Vios', year: 2023, 
-        category: 'compact', // FIX: Was 'sedan', which is not in the enum
+        category: 'compact', // FIX: 'sedan' is not in the Car.js enum
         pricePerDay: 1500, seats: 5, location: 'Manila',
         description: 'A reliable and fuel-efficient sedan for city driving.', 
         images: ['https://res.cloudinary.com/YOUR_CLOUD_NAME/image/upload/v123456789/dorayd/cars/vios.jpg'] 
       },
       {
         brand: 'Mitsubishi', model: 'Montero Sport', year: 2024, 
-        category: 'suv', 
+        category: 'suv', // 'suv' is valid
         pricePerDay: 3000, seats: 7, location: 'Cebu',
         description: 'A rugged and spacious SUV for family adventures.', 
         images: ['https://res.cloudinary.com/YOUR_CLOUD_NAME/image/upload/v123456789/dorayd/cars/montero.jpg'] 
@@ -113,12 +113,20 @@ const seedDatabase = async () => {
         {
             title: 'El Nido Island Hopping', destination: 'Palawan', price: 2500, duration: '1 Day', maxGroupSize: 12,
             description: 'Discover the pristine beaches and lagoons of El Nido.', 
-            images: ['https://res.cloudinary.com/YOUR_CLOUD_NAME/image/upload/v123456789/dorayd/tours/elnido.jpg']
+            images: ['https://res.cloudinary.com/YOUR_CLOUD_NAME/image/upload/v123456789/dorayd/tours/elnido.jpg'],
+            // FIX: Added required fields from Tour.js
+            category: 'Island Hopping',
+            startDate: new Date('2025-12-01T09:00:00'),
+            endDate: new Date('2025-12-01T18:00:00')
         },
         {
             title: 'Bohol Countryside Tour', destination: 'Bohol', price: 1800, duration: '1 Day', maxGroupSize: 10,
             description: 'See the Chocolate Hills and the cute Tarsiers.', 
-            images: ['https://res.cloudinary.com/YOUR_CLOUD_NAME/image/upload/v123456789/dorayd/tours/bohol.jpg']
+            images: ['https://res.cloudinary.com/YOUR_CLOUD_NAME/image/upload/v123456789/dorayd/tours/bohol.jpg'],
+            // FIX: Added required fields from Tour.js
+            category: 'Countryside',
+            startDate: new Date('2025-12-05T08:00:00'),
+            endDate: new Date('2025-12-05T17:00:00')
         },
     ]);
 

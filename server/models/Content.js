@@ -5,7 +5,7 @@ const contentSchema = new mongoose.Schema(
     type: {
       type: String,
       required: true,
-      unique: true, // only one document per type (e.g. mission, about, etc.)
+      unique: true, 
       enum: [
         'mission',
         'vision',
@@ -15,14 +15,18 @@ const contentSchema = new mongoose.Schema(
         'contact',
         'bookingTerms',
         'bookingDisclaimer',
-        'paymentQR',
+        'paymentQR1', 
+        'paymentQR2', 
+        'paymentQR3', 
+        'paymentQR4', 
+        'paymentQR5',
         'aboutImage',
         'contactPhone',
         'contactEmail',
         'contactAddress',
         'contactHours',
         'officeLocation',
-        'loginPrivacy', // ADDED: New content type for login privacy
+        'loginPrivacy', 
       ],
       trim: true,
     },
@@ -37,11 +41,10 @@ const contentSchema = new mongoose.Schema(
     },
   },
   {
-    timestamps: true, // adds createdAt and updatedAt
+    timestamps: true, 
   }
 );
 
-//  Ensure indexes are synced (prevents leftover 'page' index errors)
 contentSchema.index({ type: 1 }, { unique: true });
 
 export default mongoose.model('Content', contentSchema);

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { X, Calendar, Users, Upload, CheckCircle, Shield, FileText, AlertTriangle, Tag, User as UserIcon, Mail, Phone, Home, Info, Bus } from 'lucide-react';
+import { X, Calendar, Users, Upload, CheckCircle, Shield, FileText, AlertTriangle, Tag, User as UserIcon, Mail, Phone, Home, Info, Bus, CreditCard } from 'lucide-react'; // Added CreditCard
 import DataService, { SERVER_URL } from './services/DataService.jsx';
 import CalendarBooking from './CalendarBooking.jsx';
 import DropoffMap from './DropoffMap.jsx';
@@ -10,7 +10,11 @@ import { Link, useNavigate } from 'react-router-dom';
 const BookingModal = ({ isOpen, onClose, item, itemType }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [paymentQR, setPaymentQR] = useState('');
+  
+  // const [paymentQR, setPaymentQR] = useState(''); // REMOVED
+  const [paymentQRs, setPaymentQRs] = useState([]); // ADDED: To store all loaded QR codes
+  const [selectedQR, setSelectedQR] = useState(null); // ADDED: To store the currently selected QR code
+
   const [qrLoading, setQrLoading] = useState(true);
   const [bookingDisclaimer, setBookingDisclaimer] = useState('');
   const [bookedDates, setBookedDates] = useState([]);
@@ -35,18 +39,32 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
   useEffect(() => {
     if (isOpen) {
       const fetchContent = async () => {
+        // --- MODIFIED QR CODE FETCHING ---
         try {
           setQrLoading(true);
-          const qrResponse = await DataService.fetchContent('paymentQR');
-          if (qrResponse.success && qrResponse.data.content) {
-            const qrContent = qrResponse.data.content;
-            setPaymentQR(qrContent.startsWith('http') ? qrContent : `${SERVER_URL}${qrContent.startsWith('/') ? '' : '/'}${qrContent}`);
+          const qrTypes = ['paymentQR1', 'paymentQR2', 'paymentQR3', 'paymentQR4', 'paymentQR5'];
+          const qrPromises = qrTypes.map(type => DataService.fetchContent(type));
+          const qrResponses = await Promise.all(qrPromises);
+
+          const loadedQRs = qrResponses
+              .filter(res => res.success && res.data && res.data.content) // Only include QRs that have content (an image URL)
+              .map(res => ({
+                  type: res.data.type,
+                  name: res.data.title, // This is the name like "GCash"
+                  url: res.data.content.startsWith('http') ? res.data.content : `${SERVER_URL}${res.data.content.startsWith('/') ? '' : '/'}${res.data.content}`
+              }));
+          
+          setPaymentQRs(loadedQRs);
+          
+          if (loadedQRs.length > 0) {
+              setSelectedQR(loadedQRs[0]); // Select the first one by default
           }
         } catch (error) {
-          console.warn('QR code not found.');
+          console.warn('Error fetching QR codes.');
         } finally {
           setQrLoading(false);
         }
+        // --- END MODIFICATION ---
         
         try {
             const disclaimerResponse = await DataService.fetchContent('bookingDisclaimer');
@@ -401,6 +419,15 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
   }
 
   if (!isOpen) return null;
+
+  // ADDED: Handler for changing the selected QR code
+  const handleQRSelectChange = (e) => {
+    const selectedType = e.target.value;
+    const newSelectedQR = paymentQRs.find(qr => qr.type === selectedType);
+    if (newSelectedQR) {
+        setSelectedQR(newSelectedQR);
+    }
+  };
   
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-scale-in">
@@ -628,8 +655,39 @@ const BookingModal = ({ isOpen, onClose, item, itemType }) => {
                       </div>
                     )}
 
+                    {/* --- MODIFIED QR CODE DISPLAY --- */}
                     <div className="flex flex-col items-center">
-                        {qrLoading ? <p>Loading QR...</p> : paymentQR ? <img src={paymentQR} alt="Payment QR Code" className="w-48 h-48 object-contain mb-4 border rounded-md" /> : <p className="text-sm text-gray-600 mb-4">Payment QR code not available.</p>}
+                        {qrLoading ? (
+                            <p>Loading QR...</p>
+                        ) : paymentQRs.length > 0 && selectedQR ? (
+                            <div className="w-full">
+                                {paymentQRs.length > 1 && (
+                                    <div className="mb-4">
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Select Payment Method</label>
+                                        <select
+                                            value={selectedQR.type}
+                                            onChange={handleQRSelectChange}
+                                            className="w-full p-2 border rounded-md"
+                                        >
+                                            {paymentQRs.map(qr => (
+                                                <option key={qr.type} value={qr.type}>{qr.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
+                                <div className="flex justify-center">
+                                    <img 
+                                        src={selectedQR.url} 
+                                        alt={selectedQR.name} 
+                                        className="w-48 h-48 object-contain mb-4 border rounded-md" 
+                                    />
+                                </div>
+                            </div>
+                        ) : (
+                            <p className="text-sm text-gray-600 mb-4">Payment QR code not available.</p>
+                        )}
+                        {/* --- END MODIFICATION --- */}
+
                         <div className="w-full space-y-4">
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Your Payment Reference Code *</label>

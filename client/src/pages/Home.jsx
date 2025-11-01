@@ -24,6 +24,7 @@ import {
 import Hero from '../components/Hero.jsx';
 import DataService, { getImageUrl } from '../components/services/DataService.jsx';
 import MarqueeHero from '../components/MarqueeHero.jsx';
+import PublicFeedback from '@/pages/PublicFeedback.jsx'; // <-- FIXED: Changed to aliased path
 
 const Home = () => {
     const navigate = useNavigate();
@@ -521,6 +522,12 @@ const Home = () => {
                     </div>
                 </div>
             </section>
+
+            {/* --- ADDED: Public Feedback Section --- */}
+            {/* This will render the feedback component directly on the home page */}
+            <PublicFeedback />
+            {/* --- END: Public Feedback Section --- */}
+
 
             {/* CTA Section */}
             <section className="py-20 bg-gradient-to-r from-blue-600 to-indigo-700 text-white">

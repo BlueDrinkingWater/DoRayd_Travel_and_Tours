@@ -25,7 +25,6 @@ export const Navbar = ({ onCustomerLogin, onStaffLogin, onRegister }) => {
     { name: 'Transport', href: '/transport' }, 
     { name: 'About', href: '/about' },
     { name: 'Contact', href: '/contact' },
-    { name: 'Feedback', href: '/feedback' },
   ];
 
 

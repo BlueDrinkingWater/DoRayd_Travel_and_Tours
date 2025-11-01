@@ -20,9 +20,9 @@ dotenv.config({ path: './.env' });
 const connectDB = async () => {
   try {
     await mongoose.connect(process.env.MONGODB_URI);
-    console.log('MongoDB Connected for Seeding...');
+    console.log('✅ MongoDB Connected for Seeding...');
   } catch (err) {
-    console.error(err.message);
+    console.error('❌ MongoDB Connection Error:', err.message);
     process.exit(1);
   }
 };
@@ -31,27 +31,27 @@ const seedDatabase = async () => {
   try {
     await connectDB();
 
-    // Clear existing data
-    await User.deleteMany();
-    await Car.deleteMany();
-    await Tour.deleteMany();
-    await Booking.deleteMany();
-    await RefundRequest.deleteMany();
-    await ActivityLog.deleteMany();
-    await Content.deleteMany();
-    await FAQ.deleteMany();
-    await Feedback.deleteMany();
-    await Message.deleteMany();
-    await Notification.deleteMany();
-    await Promotion.deleteMany();
-    await Reviews.deleteMany();
-    await TransportService.deleteMany();
-    
-    console.log('All Data Cleared...');
+    // 🧹 Clear existing data
+    await Promise.all([
+      User.deleteMany(),
+      Car.deleteMany(),
+      Tour.deleteMany(),
+      Booking.deleteMany(),
+      RefundRequest.deleteMany(),
+      ActivityLog.deleteMany(),
+      Content.deleteMany(),
+      FAQ.deleteMany(),
+      Feedback.deleteMany(),
+      Message.deleteMany(),
+      Notification.deleteMany(),
+      Promotion.deleteMany(),
+      Reviews.deleteMany(),
+      TransportService.deleteMany(),
+    ]);
 
-    // process.exit(); // <-- This line is now REMOVED/COMMENTED OUT so the script can continue.
+    console.log('🗑️ All Collections Cleared...');
 
-    // Create Users
+    // 👤 Create Users
     const users = await User.create([
       {
         firstName: 'Admin',
@@ -69,7 +69,10 @@ const seedDatabase = async () => {
         role: 'employee',
         position: 'Booking Manager',
         isActive: true,
-        permissions: { canManageBookings: true, canViewMessages: true }
+        permissions: [
+          { module: 'Bookings', canRead: true, canWrite: true },
+          { module: 'Messages', canRead: true, canWrite: false },
+        ],
       },
       {
         firstName: 'Jane',
@@ -81,45 +84,73 @@ const seedDatabase = async () => {
       },
     ]);
     
-    console.log('Users Created...');
+    console.log('👥 Users Created...');
 
-    // Create Cars
+    // 🚗 Create Cars
     await Car.create([
       {
-        brand: 'Toyota', model: 'Vios', year: 2023, category: 'sedan', pricePerDay: 1500, seats: 5, location: 'Manila',
-        description: 'A reliable and fuel-efficient sedan for city driving.', 
-        images: ['https://res.cloudinary.com/YOUR_CLOUD_NAME/image/upload/v123456789/dorayd/cars/vios.jpg']
+        brand: 'Toyota',
+        model: 'Vios',
+        year: 2023,
+        category: 'sedan',
+        pricePerDay: 1500,
+        seats: 5,
+        location: 'Manila',
+        description: 'A reliable and fuel-efficient sedan for city driving.',
+        images: [
+          'https://res.cloudinary.com/YOUR_CLOUD_NAME/image/upload/v123456789/dorayd/cars/vios.jpg',
+        ],
       },
       {
-        brand: 'Mitsubishi', model: 'Montero Sport', year: 2024, category: 'suv', pricePerDay: 3000, seats: 7, location: 'Cebu',
-        description: 'A rugged and spacious SUV for family adventures.', 
-        images: ['https://res.cloudinary.com/YOUR_CLOUD_NAME/image/upload/v123456789/dorayd/cars/montero.jpg']
+        brand: 'Mitsubishi',
+        model: 'Montero Sport',
+        year: 2024,
+        category: 'suv',
+        pricePerDay: 3000,
+        seats: 7,
+        location: 'Cebu',
+        description: 'A rugged and spacious SUV for family adventures.',
+        images: [
+          'https://res.cloudinary.com/YOUR_CLOUD_NAME/image/upload/v123456789/dorayd/cars/montero.jpg',
+        ],
       },
     ]);
     
-    console.log('Cars Created...');
+    console.log('🚙 Cars Created...');
 
-    // Create Tours
+    // 🏝️ Create Tours
     await Tour.create([
-        {
-            title: 'El Nido Island Hopping', destination: 'Palawan', price: 2500, duration: '1 Day', maxGroupSize: 12,
-            description: 'Discover the pristine beaches and lagoons of El Nido.', 
-            images: ['https://res.cloudinary.com/YOUR_CLOUD_NAME/image/upload/v123456789/dorayd/tours/elnido.jpg']
-        },
-        {
-            title: 'Bohol Countryside Tour', destination: 'Bohol', price: 1800, duration: '1 Day', maxGroupSize: 10,
-            description: 'See the Chocolate Hills and the cute Tarsiers.', 
-            images: ['https://res.cloudinary.com/YOUR_CLOUD_NAME/image/upload/v123456789/dorayd/tours/bohol.jpg']
-        },
+      {
+        title: 'El Nido Island Hopping',
+        destination: 'Palawan',
+        price: 2500,
+        duration: '1 Day',
+        maxGroupSize: 12,
+        description: 'Discover the pristine beaches and lagoons of El Nido.',
+        images: [
+          'https://res.cloudinary.com/YOUR_CLOUD_NAME/image/upload/v123456789/dorayd/tours/elnido.jpg',
+        ],
+      },
+      {
+        title: 'Bohol Countryside Tour',
+        destination: 'Bohol',
+        price: 1800,
+        duration: '1 Day',
+        maxGroupSize: 10,
+        description: 'See the Chocolate Hills and the cute Tarsiers.',
+        images: [
+          'https://res.cloudinary.com/YOUR_CLOUD_NAME/image/upload/v123456789/dorayd/tours/bohol.jpg',
+        ],
+      },
     ]);
 
-    console.log('Tours Created...');
+    console.log('🗺️ Tours Created...');
 
-    console.log('Database Seeded Successfully!');
+    console.log('🎉 Database Seeded Successfully!');
     process.exit();
   } catch (error) {
-    console.error('Seeding Error:', error);
-    process.exit(1); // Exit with error code if seeding fails
+    console.error('❌ Seeding Error:', error);
+    process.exit(1);
   }
 };
 
